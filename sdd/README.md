@@ -57,7 +57,7 @@ En orden. Cada una depende de la anterior.
 | # | Feature | Estado | Por qué ahora |
 |---|---|---|---|
 | — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
-| 001 | Auth y aislamiento por tenant | siguiente | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. **Bloqueada por tres definiciones pendientes en su spec.** |
+| 001 | Auth y aislamiento por tenant | spec lista, falta `/plan` | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. Las tres definiciones que la bloqueaban están resueltas: ver la tabla al final de su spec. |
 | 002 | Editor de rutinas | | El riesgo real del producto. Ver artículo VII. |
 | 003 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
 | 004 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |
