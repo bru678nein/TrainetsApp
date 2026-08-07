@@ -39,12 +39,22 @@ la spec.
 
 ## Artículo III — Aislamiento por tenant, sin excepciones
 
-Toda tabla con datos de un entrenador lleva `coach_id` y está cubierta por Row
-Level Security. Ninguna query de la capa de aplicación puede devolver datos de
-otro tenant, ni siquiera por error de programación.
+Ninguna query de la capa de aplicación puede devolver datos de otro tenant, ni
+siquiera por error de programación. Toda tabla con datos de un entrenador está
+cubierta por Row Level Security.
 
-El aislamiento se testea: por cada endpoint que devuelve datos, existe un test
-que verifica que el coach B no ve lo del coach A.
+**Cada tabla declara cómo se llega a su tenant.** Puede ser una columna propia
+—`athlete`, `program`— o un camino por claves foráneas: `logged_set` llega a su
+entrenador por `prescribed_set → prescription → session → mesocycle → program`.
+Denormalizar `coach_id` en todas las tablas es una opción, no un requisito, y
+tiene su propio costo: una copia más que mantener consistente. Lo que no es
+opcional es que el camino esté escrito y que la policy lo use.
+
+Ninguna feature que exponga datos entra a `main` sin un test que verifique que
+el entrenador B no ve lo del entrenador A, por cada endpoint que devuelva datos.
+Al día de la versión 1.1 de esta constitución **esos tests no existen todavía**:
+la feature 001 los trae y hasta entonces el artículo está declarado, no
+cumplido. Ver la sección "Cumplimiento".
 
 ## Artículo IV — Los tests del dominio van primero
 
@@ -102,12 +112,41 @@ cambio que no se pueda rastrear hasta una spec aprobada no entra a `main`.
 
 ---
 
+## Cumplimiento
+
+Una constitución escrita en presente sobre cosas que todavía no pasan es peor
+que no tenerla: quien la lee cree que el repo ya cumple. Esta tabla dice qué se
+verifica hoy y con qué.
+
+| Artículo | Cómo se verifica hoy |
+|---|---|
+| I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`. Automático. |
+| II — la base rechaza lo imposible | `tests/test_schema.py`: CHECKs, `citext`, índice funcional, vista. Automático. |
+| III — aislamiento por tenant | **Nada.** No hay RLS ni tests de aislamiento. Llega con la feature 001. |
+| IV — tests del dominio primero | Revisión humana. No es automatizable. |
+| V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
+| VI — simplicidad por default | Revisión humana. |
+| VII — velocidad del entrenador | Nada todavía: no existe el editor. Llega con la feature 002. |
+| VIII — nada de auth propia | Proveedor elegido en el ADR 0003. Sin auth implementada. |
+| IX — datos de desarrollo reales | `make seed` importa la planilla; los tests de API dependen de ella. |
+| X — cada artefacto es rastreable | **Nada, y hoy no se cumple**: los commits no referencian tareas, y hay código en `main` sin spec previa. |
+
+Las dos filas en negrita son deuda declarada, no aspiraciones. Si alguna sigue
+así cuando la feature que la resuelve esté mergeada, el problema es el proceso,
+no el artículo.
+
 ## Enmiendas
 
 Se modifica con un commit que toque sólo este archivo, con el motivo en el
 mensaje. Las specs anteriores no se reescriben retroactivamente: quedan como
 registro de qué reglas regían cuando se decidieron.
 
+Nota: hoy este archivo está duplicado en `sdd/constitution.md` y
+`.specify/memory/constitution.md`, así que la regla de "un commit que toque sólo
+este archivo" es literalmente incumplible. Unificar las dos copias es deuda
+conocida.
+
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0 | (inicial) | Artículos I a X |
+| 1.1 | 2026-08-07 | Artículo III: se corrigen dos afirmaciones falsas —no todas las tablas llevan `coach_id`, y los tests de aislamiento no existían— y se reformula como condición de merge. Se agrega la sección "Cumplimiento". |
