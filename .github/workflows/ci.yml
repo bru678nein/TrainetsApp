@@ -20,6 +20,13 @@ jobs:
     env:
       # Los tests borran el esquema y lo recrean con Alembic. conftest.py exige
       # que el nombre de la base termine en '_test' antes de tocar nada.
+      #
+      # TEST_DSN lo consume el Makefile (override del `?=`) y termina como
+      # TEST_DATABASE_URL, que es la variable que conftest.py mira primero.
+      # DATABASE_URL queda sólo para el CLI de Alembic, que es lo que lee
+      # migrations/env.py. Acá apuntan a la misma base porque en CI no hay otra;
+      # localmente son distintas y esa diferencia importa.
+      TEST_DSN: postgresql+psycopg://coach:coach@localhost:5432/coachapp_test
       DATABASE_URL: postgresql+psycopg://coach:coach@localhost:5432/coachapp_test
     steps:
       - uses: actions/checkout@v4
@@ -34,19 +41,15 @@ jobs:
             echo "::error::app/domain/ importa infraestructura (constitución, artículo I)"
             exit 1
           fi
-      # Estos tres corren desde backend/ a propósito: es el único cwd donde las
-      # herramientas encuentran backend/pyproject.toml. mypy busca su config
-      # sólo en el cwd, así que `mypy backend/app` desde la raíz corría con
-      # defaults — sin strict — y el `strict = true` del pyproject no se
-      # aplicaba. Mismo cwd que `make check`: si diverge, deja de ser una red.
-      - run: ruff check .
-        working-directory: backend
-      - run: mypy app importer
-        working-directory: backend
+      # Lint y tests se invocan por los targets del Makefile, no reescribiendo
+      # los comandos acá. `BIN=` vacía el prefijo del venv: en CI las
+      # herramientas están instaladas en el sistema. El cwd, las variables de
+      # entorno y los flags salen de un solo lugar; si CI los repitiera, tarde o
+      # temprano divergen de lo que corre `make check` y deja de ser una red.
+      - run: make lint BIN=
       - name: Las migraciones aplican y revierten sobre una base vacía
         run: |
           alembic upgrade head
           alembic downgrade base
         working-directory: backend
-      - run: pytest --cov=app --cov-report=term-missing
-        working-directory: backend
+      - run: make test BIN= PYTEST_ARGS="--cov=app --cov-report=term-missing"
