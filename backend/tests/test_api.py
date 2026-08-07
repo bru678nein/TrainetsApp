@@ -1,46 +1,12 @@
 """Test end-to-end contra los datos reales importados de la planilla.
 
+Las fixtures `client` y `athlete_id` viven en conftest.py: montan Postgres,
+corren las migraciones e importan la planilla. Cada test corre dentro de una
+transacción que se revierte, así que los que escriben no se pisan.
+
 La planilla vive en data/ y no se versiona: tiene datos personales de un atleta
 real. Si no está, estos tests se saltan con un mensaje claro en vez de explotar.
 """
-
-import os
-from pathlib import Path
-
-import pytest
-from fastapi.testclient import TestClient
-
-SPREADSHEET = Path(__file__).resolve().parents[2] / "data" / "planilla.xlsx"
-
-
-@pytest.fixture(scope="module")
-def client(tmp_path_factory):
-    if not SPREADSHEET.exists():
-        pytest.skip(f"falta {SPREADSHEET} — ver README, sección de datos de desarrollo")
-    db = tmp_path_factory.mktemp("db") / "test.db"
-    dsn = f"sqlite:///{db}"
-    os.environ["DATABASE_URL"] = dsn
-    from importer.from_spreadsheet import run
-
-    run(str(SPREADSHEET), dsn)
-    import importlib
-
-    import app.db
-
-    importlib.reload(app.db)
-    import app.api.routes
-    import app.main
-
-    importlib.reload(app.api.routes)
-    importlib.reload(app.main)
-    return TestClient(app.main.app)
-
-
-@pytest.fixture(scope="module")
-def athlete_id(client):
-    r = client.get("/api/athletes")
-    assert r.status_code == 200
-    return r.json()[0]["id"]
 
 
 def test_health(client):

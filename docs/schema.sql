@@ -2,6 +2,15 @@
 --  Coaching platform — esquema base (PostgreSQL 16+)
 --  Derivado del modelo de dominio real de una planilla en producción:
 --  1.326 series, 59 ejercicios, 11 patrones de movimiento, 17 semanas.
+--
+--  DOCUMENTO DE REFERENCIA — NO SE APLICA.
+--  El esquema real lo definen backend/app/models.py y las migraciones de
+--  Alembic en backend/migrations/. Este archivo se conserva porque explica
+--  por qué el modelo es como es; los comentarios son el registro de las
+--  decisiones. Para el DDL vigente: `alembic upgrade head --sql`.
+--
+--  El RLS del final todavía NO está aplicado: entra con la feature 001, junto
+--  con la resolución de tenant en la capa HTTP. Ver sdd/specs/001-auth-y-tenancy/.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

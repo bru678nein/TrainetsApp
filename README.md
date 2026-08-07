@@ -8,9 +8,11 @@ el entrenador ve volumen por patrón, progresión de carga y adherencia.
 
 ```bash
 make setup     # venv + dependencias + hooks
-make db-up     # Postgres en Docker
-make test      # tests
+make db-up     # Postgres en Docker (crea coachapp y coachapp_test)
+make migrate   # aplica las migraciones a coachapp
+make seed      # importa data/planilla.xlsx
 make api       # servidor en :8000, docs en /docs
+make test      # tests (contra coachapp_test)
 ```
 
 ## Estructura
@@ -19,10 +21,28 @@ make api       # servidor en :8000, docs en /docs
 |---|---|
 | `backend/app/domain/` | Lógica pura: RPE, e1RM, volumen, adherencia. Sin I/O. |
 | `backend/app/` | Modelos, esquemas, endpoints |
+| `backend/migrations/` | Migraciones de Alembic. Fuente del esquema real. |
 | `backend/importer/` | Carga planillas reales al esquema |
 | `frontend/` | React + TypeScript (PWA) |
 | `sdd/` | Constitución, specs y flujo de trabajo |
 | `docs/` | Decisiones de arquitectura |
+
+## Base de datos
+
+PostgreSQL 16+ y sólo PostgreSQL. El esquema lo definen los modelos de
+SQLAlchemy en `backend/app/models.py`, y las migraciones de Alembic lo aplican.
+Lo que el ORM no expresa —las extensiones `pgcrypto` y `citext`, el índice
+funcional de `exercise`, la vista `weekly_volume`— está escrito a mano en la
+migración correspondiente.
+
+`docs/schema.sql` es documentación de referencia, no se aplica: quedó como el
+registro de por qué el esquema es como es. Si tocás `models.py`, generá la
+migración con `make migration m="..."`; hay un test que falla si divergen.
+
+Los tests corren contra Postgres real, nunca contra SQLite. Los CHECK
+constraints, `citext` y la vista no existen en SQLite, así que testear ahí daba
+confianza falsa. Sin Postgres a mano, los tests de base se saltan con un mensaje
+claro y los del dominio corren igual.
 
 ## Datos de desarrollo
 

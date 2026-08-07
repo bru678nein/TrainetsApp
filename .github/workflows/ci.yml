@@ -18,6 +18,8 @@ jobs:
           --health-cmd pg_isready --health-interval 5s --health-retries 10
         ports: ["5432:5432"]
     env:
+      # Los tests borran el esquema y lo recrean con Alembic. conftest.py exige
+      # que el nombre de la base termine en '_test' antes de tocar nada.
       DATABASE_URL: postgresql+psycopg://coach:coach@localhost:5432/coachapp_test
     steps:
       - uses: actions/checkout@v4
@@ -32,6 +34,19 @@ jobs:
             echo "::error::app/domain/ importa infraestructura (constitución, artículo I)"
             exit 1
           fi
-      - run: ruff check backend/
-      - run: mypy backend/app
-      - run: pytest backend/ --cov=backend/app --cov-report=term-missing
+      # Estos tres corren desde backend/ a propósito: es el único cwd donde las
+      # herramientas encuentran backend/pyproject.toml. mypy busca su config
+      # sólo en el cwd, así que `mypy backend/app` desde la raíz corría con
+      # defaults — sin strict — y el `strict = true` del pyproject no se
+      # aplicaba. Mismo cwd que `make check`: si diverge, deja de ser una red.
+      - run: ruff check .
+        working-directory: backend
+      - run: mypy app importer
+        working-directory: backend
+      - name: Las migraciones aplican y revierten sobre una base vacía
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+        working-directory: backend
+      - run: pytest --cov=app --cov-report=term-missing
+        working-directory: backend

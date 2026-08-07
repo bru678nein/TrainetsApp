@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -31,6 +33,15 @@ from app.schemas import (
 )
 
 router = APIRouter(prefix="/api")
+
+
+def _dec(value: float | None) -> Decimal | None:
+    """Las columnas `numeric` se mapean a `Decimal`.
+
+    Pasar el `float` que llega por JSON haría que Postgres redondee un float8;
+    convertir por `str` conserva exactamente lo que mandó el cliente.
+    """
+    return None if value is None else Decimal(str(value))
 
 
 def _athlete_or_404(db: OrmSession, athlete_id: uuid.UUID) -> Athlete:
@@ -73,12 +84,14 @@ def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
 
 
 @router.get("/athletes", response_model=list[AthleteOut])
-def list_athletes(db: OrmSession = Depends(get_db)):
+def list_athletes(db: OrmSession = Depends(get_db)) -> Sequence[Athlete]:
     return db.scalars(select(Athlete).where(Athlete.is_active)).all()
 
 
 @router.get("/athletes/{athlete_id}/sessions/{week}/{day}", response_model=SessionOut)
-def get_session(athlete_id: uuid.UUID, week: int, day: int, db: OrmSession = Depends(get_db)):
+def get_session(
+    athlete_id: uuid.UUID, week: int, day: int, db: OrmSession = Depends(get_db)
+) -> SessionOut:
     """La vista que abre el atleta en el gimnasio."""
     _athlete_or_404(db, athlete_id)
     stmt = (
@@ -88,6 +101,11 @@ def get_session(athlete_id: uuid.UUID, week: int, day: int, db: OrmSession = Dep
         .where(
             Program.athlete_id == athlete_id, Session.week_number == week, Session.day_number == day
         )
+        # week_number es relativo al mesociclo, así que (week, day) matchea una
+        # sesión por mesociclo. Sin ORDER BY, `first()` devolvía una arbitraria.
+        # Esto lo vuelve determinista, pero la ruta sigue siendo ambigua: la
+        # dirección correcta es identificar la sesión por id.
+        .order_by(Mesocycle.ordinal, Session.week_number, Session.day_number)
         .options(
             selectinload(Session.prescriptions)
             .selectinload(Prescription.sets)
@@ -134,7 +152,7 @@ def get_session(athlete_id: uuid.UUID, week: int, day: int, db: OrmSession = Dep
 
 
 @router.put("/sets/{set_id}/log", response_model=LogSetOut)
-def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_db)):
+def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_db)) -> LoggedSet:
     """Idempotente: el atleta corrige una serie tantas veces como quiera."""
     ps = db.get(PrescribedSet, set_id)
     if ps is None:
@@ -147,25 +165,27 @@ def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_d
         .where(Prescription.id == ps.prescription_id)
     ).first()
 
-    e1rm = None
-    if payload.reps and payload.load_kg and payload.rir is not None:
+    e1rm: float | None = None
+    # `is not None` y no truthiness: reps=0 (falló la serie) y load_kg=0 (peso
+    # corporal) son registros válidos y con `and` se salteaban en silencio.
+    if payload.reps is not None and payload.load_kg is not None and payload.rir is not None:
         try:
             e1rm = estimate_1rm(payload.load_kg, payload.reps, payload.rir)
         except (OutOfChartError, ValueError):
-            e1rm = None  # más de 12 reps: fuera de la tabla RPE, no es un error
+            e1rm = None  # más de 12 reps o carga 0: fuera de tabla, no es un error
 
     log = db.scalars(select(LoggedSet).where(LoggedSet.prescribed_set_id == set_id)).first()
     if log is None:
         log = LoggedSet(prescribed_set_id=set_id, athlete_id=athlete_id)
         db.add(log)
-    log.reps, log.load_kg, log.rir = payload.reps, payload.load_kg, payload.rir
-    log.was_skipped, log.athlete_note, log.e1rm_kg = payload.was_skipped, payload.note, e1rm
+    log.reps, log.load_kg, log.rir = payload.reps, _dec(payload.load_kg), _dec(payload.rir)
+    log.was_skipped, log.athlete_note, log.e1rm_kg = payload.was_skipped, payload.note, _dec(e1rm)
     db.commit()
     return log
 
 
 @router.get("/athletes/{athlete_id}/volume", response_model=list[VolumeOut])
-def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)):
+def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[VolumeOut]:
     _athlete_or_404(db, athlete_id)
     return [
         VolumeOut(
@@ -180,7 +200,7 @@ def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)):
 
 
 @router.get("/athletes/{athlete_id}/adherence", response_model=list[AdherenceOut])
-def adherence(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)):
+def adherence(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[AdherenceOut]:
     _athlete_or_404(db, athlete_id)
     return [
         AdherenceOut(

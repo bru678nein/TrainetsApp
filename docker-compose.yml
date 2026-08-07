@@ -5,8 +5,16 @@ services:
       POSTGRES_USER: coach
       POSTGRES_PASSWORD: coach
       POSTGRES_DB: coachapp
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    # 5433 en el host a propósito: 5432 suele estar tomado por un Postgres
+    # nativo (Homebrew, Postgres.app) y el conflicto se manifiesta como un
+    # "password authentication failed", no como un puerto ocupado, porque el
+    # que contesta es el otro servidor.
+    ports: ["5433:5432"]
+    volumes:
+      - "pgdata:/var/lib/postgresql/data"
+      # La base de tests (coachapp_test) la crea `make db-up`, no un script de
+      # docker-entrypoint-initdb.d: esos corren una sola vez, al inicializar el
+      # volumen, así que en un volumen ya existente no pasaría nada.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U coach"]
       interval: 5s

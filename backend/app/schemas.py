@@ -52,7 +52,7 @@ class LogSetIn(BaseModel):
     note: str | None = None
 
     @model_validator(mode="after")
-    def _coherente(self):
+    def _coherente(self) -> LogSetIn:
         if not self.was_skipped and self.reps is None:
             raise ValueError("una serie no saltada necesita reps")
         return self
