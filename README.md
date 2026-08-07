@@ -23,9 +23,26 @@ make test      # tests (contra coachapp_test)
 | `backend/app/` | Modelos, esquemas, endpoints |
 | `backend/migrations/` | Migraciones de Alembic. Fuente del esquema real. |
 | `backend/importer/` | Carga planillas reales al esquema |
-| `frontend/` | React + TypeScript (PWA) |
+| `backend/scripts/` | Herramientas sueltas. Ver abajo. |
+| `backend/tests/` | 48 tests: dominio puro, esquema, API |
+| `frontend/` | React + TypeScript (PWA). Vacío hasta la feature 003. |
+| `data/` | Planillas reales. Ignorada por git salvo su README. |
 | `sdd/` | Constitución, specs y flujo de trabajo |
-| `docs/` | Decisiones de arquitectura |
+| `.specify/` | Memoria de Spec Kit |
+| `docs/` | `PLAN.md`, `schema.sql` de referencia y ADRs |
+| `prompts/` | Prompts de arranque y de contexto para el proyecto |
+
+### Herramientas
+
+`backend/scripts/gen_app.py` genera una app web autocontenida —un solo `.html`—
+desde una planilla. El atleta la abre en el celular sin instalar nada, registra
+sus series y exporta lo cargado a CSV. Es el puente hasta que exista el frontend.
+
+```bash
+cd backend && .venv/bin/python scripts/gen_app.py ../data/planilla.xlsx rutina.html
+```
+
+Necesita `scripts/template.html`, que vive al lado.
 
 ## Base de datos
 

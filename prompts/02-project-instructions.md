@@ -104,12 +104,22 @@ intermedio-avanzado en Python, FastAPI, React, TypeScript, PostgreSQL y pandas.
 Busco trabajo remoto pago en dólares y apunto a un rol híbrido de data
 engineering o ML engineering. Este proyecto es una de las piezas para eso.
 
-## Lo que hoy falta
+## Estado
 
-En orden de prioridad: auth y filtrado por tenant (los endpoints todavía no
-filtran por coach y el RLS está escrito en `schema.sql` pero sin cablear),
-migraciones con Alembic, editor de rutinas en el frontend, PWA con soporte
-offline.
+Ya está: el dominio con sus tests, el esquema con migraciones de Alembic, la API
+de lectura y registro de series, el importador de planillas y CI. Son 48 tests.
+
+Los tests de base corren contra PostgreSQL real, nunca SQLite, y el esquema de
+la base de test lo crean las migraciones y no `create_all()`. El razonamiento
+está en `docs/adr/0002-postgres-en-los-tests.md`; no lo revisemos sin un motivo
+nuevo.
+
+Falta, en orden: auth y filtrado por tenant (los endpoints todavía no filtran
+por coach y el RLS está diseñado pero sin cablear), editor de rutinas, vista del
+atleta, panel de análisis, PWA offline.
+
+Mientras no exista el frontend, `backend/scripts/gen_app.py` genera un `.html`
+autocontenido que el atleta abre en el celular para registrar sus series.
 
 **El riesgo real del producto es el editor de rutinas.** Si armar un mesociclo
 lleva más clics que copiar y pegar en Excel, el entrenador vuelve a la planilla y

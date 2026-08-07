@@ -54,14 +54,14 @@ Una feature por rama, nombrada igual que su carpeta.
 
 En orden. Cada una depende de la anterior.
 
-| # | Feature | Por qué ahora |
-|---|---|---|
-| 001 | Auth y aislamiento por tenant | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
-| 002 | Migraciones con Alembic | Antes de que haya datos que migrar. Después es dolor. |
-| 003 | Editor de rutinas | El riesgo real del producto. Ver artículo VII. |
-| 004 | Vista de sesión y registro en el celular | Es lo que el atleta usa todos los días. |
-| 005 | Panel de análisis | El dominio ya está hecho y testeado; es casi todo presentación. |
-| 006 | PWA con soporte offline | En el gimnasio no hay señal. Sin esto, 004 no se usa. |
+| # | Feature | Estado | Por qué ahora |
+|---|---|---|---|
+| — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
+| 001 | Auth y aislamiento por tenant | siguiente | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. **Bloqueada por tres definiciones pendientes en su spec.** |
+| 002 | Editor de rutinas | | El riesgo real del producto. Ver artículo VII. |
+| 003 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
+| 004 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |
+| 005 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, 003 no se usa. |
 
 ## Cómo se escribe una buena spec
 
