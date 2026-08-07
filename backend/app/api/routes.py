@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
-from app.db import get_db
+from app.api.deps import tenant_session
 from app.domain.analytics import SetRecord, adherence_by_week, weekly_volume
 from app.domain.rpe import OutOfChartError, estimate_1rm
 from app.models import (
@@ -85,12 +85,14 @@ def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
 
 
 @router.get("/athletes", response_model=list[AthleteOut])
-def list_athletes(db: OrmSession = Depends(get_db)) -> Sequence[Athlete]:
+def list_athletes(db: OrmSession = Depends(tenant_session)) -> Sequence[Athlete]:
     return db.scalars(select(Athlete).where(Athlete.is_active)).all()
 
 
 @router.get("/athletes/{athlete_id}/sessions", response_model=list[SessionSummary])
-def list_sessions(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[SessionSummary]:
+def list_sessions(
+    athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)
+) -> list[SessionSummary]:
     """Agenda del atleta: una fila por sesión, sin las series.
 
     Existe para que el `id` de la sesión sea descubrible. Antes el detalle se
@@ -133,7 +135,7 @@ def list_sessions(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> li
 
 
 @router.get("/sessions/{session_id}", response_model=SessionOut)
-def get_session(session_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> SessionOut:
+def get_session(session_id: uuid.UUID, db: OrmSession = Depends(tenant_session)) -> SessionOut:
     """La vista que abre el atleta en el gimnasio.
 
     No verifica de quién es la sesión: hoy no hay identidad con la cual
@@ -190,7 +192,9 @@ def get_session(session_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> Sess
 
 
 @router.put("/sets/{set_id}/log", response_model=LogSetOut)
-def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_db)) -> LoggedSet:
+def log_set(
+    set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(tenant_session)
+) -> LoggedSet:
     """Idempotente: el atleta corrige una serie tantas veces como quiera.
 
     Tampoco verifica que la serie sea del atleta que la registra — no hay
@@ -239,7 +243,7 @@ def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_d
 
 
 @router.get("/athletes/{athlete_id}/volume", response_model=list[VolumeOut])
-def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[VolumeOut]:
+def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)) -> list[VolumeOut]:
     _athlete_or_404(db, athlete_id)
     return [
         VolumeOut(
@@ -254,7 +258,9 @@ def volume(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[Volu
 
 
 @router.get("/athletes/{athlete_id}/adherence", response_model=list[AdherenceOut])
-def adherence(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[AdherenceOut]:
+def adherence(
+    athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)
+) -> list[AdherenceOut]:
     _athlete_or_404(db, athlete_id)
     return [
         AdherenceOut(

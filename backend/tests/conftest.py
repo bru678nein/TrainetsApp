@@ -102,10 +102,10 @@ def db(engine: Engine) -> Iterator[OrmSession]:
 
 @pytest.fixture
 def client(db: OrmSession) -> Iterator[TestClient]:
-    from app.db import get_db
+    from app.api.deps import tenant_session
     from app.main import app
 
-    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[tenant_session] = lambda: db
     try:
         yield TestClient(app)
     finally:
