@@ -65,7 +65,8 @@ exista, con su programa entero cargado, antes de que el atleta tenga cuenta.
 Usar las invitaciones de Clerk obligaría a que la identidad venga primero, que
 es al revés de como trabajan los entrenadores. El token de invitación se genera
 y se valida acá; Clerk aparece recién cuando el atleta se registra y se asocia
-su identidad a la ficha existente.
+su identidad a la ficha existente. El flujo completo es la feature 003; esta
+decisión se toma acá porque condiciona qué se le delega al proveedor.
 
 **Los roles son nuestros.** Clerk tiene organizations y roles, pero el modelo
 entrenador/atleta —incluida la persona que es las dos cosas, y el atleta con
