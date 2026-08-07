@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Datos reales de desarrollo — contienen información personal de atletas.
+# Se ignora la carpeta entera salvo su README: cualquier archivo que caiga acá
+# se asume sensible hasta que se demuestre lo contrario.
+data/*
+!data/README.md
+
+# Editores / SO
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

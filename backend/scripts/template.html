@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<title>Rutina</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+ --bg:#0d1117;--card:#161b22;--card2:#1c2331;--line:#2a3140;--txt:#e6edf3;--dim:#8b949e;
+ --acc:#4a9eff;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--rad:14px}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--txt);
+ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+ font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{padding-bottom:90px}
+.wrap{max-width:680px;margin:0 auto;padding:0 14px}
+header{position:sticky;top:0;z-index:20;background:rgba(13,17,23,.92);
+ backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.hd{display:flex;align-items:center;gap:10px;padding:12px 0}
+.hd h1{margin:0;font-size:17px;font-weight:650;flex:1;letter-spacing:-.2px}
+.hd .sub{font-size:12px;color:var(--dim);font-weight:400}
+.btn{background:var(--card2);border:1px solid var(--line);color:var(--txt);
+ border-radius:10px;padding:9px 13px;font-size:14px;font-weight:550;cursor:pointer;
+ font-family:inherit;transition:.12s}
+.btn:active{transform:scale(.96)}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#04121f}
+.btn.gh{background:transparent}
+.scroll{display:flex;gap:7px;overflow-x:auto;padding:0 0 12px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;background:var(--card);border:1px solid var(--line);border-radius:999px;
+ padding:7px 15px;font-size:14px;font-weight:550;cursor:pointer;white-space:nowrap;color:var(--dim)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#04121f}
+.chip.done{border-color:var(--ok);color:var(--ok)}
+.chip.on.done{background:var(--ok);border-color:var(--ok);color:#04121f}
+h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim);
+ margin:20px 0 9px;font-weight:650}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--rad);
+ margin-bottom:11px;overflow:hidden}
+.card.done{border-color:rgba(63,185,80,.45)}
+.ch{display:flex;align-items:flex-start;gap:11px;padding:14px}
+.idx{flex:0 0 27px;height:27px;border-radius:8px;background:var(--card2);color:var(--dim);
+ display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-top:1px}
+.card.done .idx{background:rgba(63,185,80,.16);color:var(--ok)}
+.ci{flex:1;min-width:0}
+.cn{font-size:16px;font-weight:650;letter-spacing:-.2px;margin-bottom:3px}
+.cm{font-size:12.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:5px 11px}
+.tag{background:var(--card2);border-radius:6px;padding:1px 7px;font-size:11.5px}
+.obs{margin:0 14px 12px;padding:9px 11px;background:rgba(74,158,255,.09);
+ border-left:2px solid var(--acc);border-radius:0 8px 8px 0;font-size:13px;color:#c9d6e3}
+table{width:100%;border-collapse:collapse}
+thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--dim);
+ font-weight:650;padding:7px 4px;border-top:1px solid var(--line);background:rgba(0,0,0,.16)}
+tbody td{padding:6px 4px;text-align:center;border-top:1px solid var(--line)}
+tbody td:first-child{width:34px;color:var(--dim);font-size:13px;font-weight:650}
+.obj{font-size:13.5px;color:#b7c4d1;white-space:nowrap}
+input[type=number],input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);
+ color:var(--txt);border-radius:8px;padding:9px 4px;font-size:16px;text-align:center;
+ font-family:inherit;font-weight:600;-moz-appearance:textfield}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input:focus{outline:none;border-color:var(--acc);background:#0a1522}
+input.ok{border-color:rgba(63,185,80,.5)}
+input.lo{border-color:rgba(210,153,34,.6)}
+.chk{width:26px;height:26px;border-radius:8px;border:1.5px solid var(--line);background:var(--card2);
+ cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:transparent;margin:0 auto}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#04121f}
+.note{margin:0 14px 13px}
+.note input{text-align:left;font-weight:400;font-size:14px;padding:9px 11px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(13,17,23,.96);
+ backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom))}
+.bar .in{max-width:680px;margin:0 auto;display:flex;align-items:center;gap:11px}
+.pw{flex:1}
+.pt{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:5px}
+.pb{height:6px;background:var(--card2);border-radius:999px;overflow:hidden}
+.pf{height:100%;background:var(--ok);border-radius:999px;transition:width .3s}
+.empty{text-align:center;padding:50px 20px;color:var(--dim)}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:9px;margin-bottom:16px}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center}
+.sv{font-size:21px;font-weight:700;letter-spacing:-.5px}
+.sl{font-size:10.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.hide{display:none!important}
+.sp{height:4px}
+@media(min-width:520px){.cn{font-size:17px}}
+</style>
+</head>
+<body>
+<header>
+ <div class="wrap">
+  <div class="hd">
+   <div style="flex:1;min-width:0">
+    <h1 id="tt">Rutina</h1>
+    <div class="sub" id="st"></div>
+   </div>
+   <button class="btn gh" id="bex" title="Exportar">Exportar</button>
+  </div>
+  <div class="scroll" id="wk"></div>
+  <div class="scroll" id="sn" style="padding-bottom:11px"></div>
+ </div>
+</header>
+<div class="wrap" id="app"></div>
+<div class="bar"><div class="in">
+ <div class="pw"><div class="pt"><span id="pl">0 de 0 series</span><span id="pp">0%</span></div>
+  <div class="pb"><div class="pf" id="pf" style="width:0"></div></div></div>
+ <button class="btn pri" id="bnx">Siguiente →</button>
+</div></div>
+<script>
+const DATA=/*__DATA__*/null;
+const KEY='rutina_'+(DATA.atleta||'x').replace(/\W/g,'');
+let log={};try{log=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){log={}}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(log))}catch(e){}};
+const semanas=[...new Set(DATA.sesiones.map(s=>s.semana))].sort((a,b)=>a-b);
+let W=semanas[0],S=null;
+const sid=(s,e,i)=>`${s.semana}|${s.sesion}|${e}|${i}`;
+const num=v=>v===''||v==null?null:+v;
+const ses=w=>DATA.sesiones.filter(s=>s.semana===w);
+function objetivo(x){
+ const r=x.rmin==null?'':(x.rmin===x.rmax?x.rmin:x.rmin+'-'+x.rmax);
+ const q=x.rirmin==null?'':' @'+(x.rirmin===x.rirmax?x.rirmin:x.rirmin+'-'+x.rirmax);
+ return (r?r+' reps':'—')+q;
+}
+function hechas(s){let d=0,t=0;s.ejercicios.forEach(e=>e.series.forEach((x,i)=>{t++;
+ const l=log[sid(s,e.nombre,i)];if(l&&l.ok)d++}));return[d,t]}
+function pintarChips(){
+ const w=document.getElementById('wk');
+ w.innerHTML=semanas.map(x=>`<button class="chip ${x===W?'on':''}" data-w="${x}">Semana ${x}</button>`).join('');
+ w.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{W=+b.dataset.w;S=null;render()});
+ const n=document.getElementById('sn'),ls=ses(W);
+ n.innerHTML=ls.map(s=>{const[d,t]=hechas(s);
+  return `<button class="chip ${s===cur()?'on':''} ${t&&d===t?'done':''}" data-s="${s.sesion}">Sesión ${s.sesion}${t&&d===t?' ✓':''}</button>`}).join('');
+ n.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{S=+b.dataset.s;render()});
+}
+const cur=()=>{const l=ses(W);return l.find(s=>s.sesion===S)||l[0]};
+function render(){
+ pintarChips();
+ const s=cur(),app=document.getElementById('app');
+ document.getElementById('tt').textContent=DATA.atleta;
+ document.getElementById('st').textContent=s?`${DATA.mesos[s.meso]||'Mesociclo '+s.meso} · Semana ${s.semana} · Sesión ${s.sesion}`:'';
+ if(!s){app.innerHTML='<div class="empty">No hay sesiones en esta semana.</div>';return}
+ S=s.sesion;
+ const tot=s.ejercicios.reduce((a,e)=>a+e.series.length,0);
+ const ton=s.ejercicios.reduce((a,e)=>a+e.series.reduce((b,x,i)=>{
+   const l=log[sid(s,e.nombre,i)]||{};const r=num(l.reps)??x.reps,k=num(l.kg)??x.kgr;
+   return b+((r&&k)?r*k:0)},0),0);
+ app.innerHTML=`<div class="sp"></div><div class="stat">
+   <div class="sc"><div class="sv">${s.ejercicios.length}</div><div class="sl">Ejercicios</div></div>
+   <div class="sc"><div class="sv">${tot}</div><div class="sl">Series</div></div>
+   <div class="sc"><div class="sv">${ton?Math.round(ton).toLocaleString('es-AR'):'—'}</div><div class="sl">Kg totales</div></div></div>`
+  + s.ejercicios.map((e,ei)=>{
+   const[d,t]=[e.series.filter((x,i)=>(log[sid(s,e.nombre,i)]||{}).ok).length,e.series.length];
+   const nt=log['n|'+sid(s,e.nombre,0)]||'';
+   return `<div class="card ${d===t?'done':''}" data-e="${ei}">
+    <div class="ch"><div class="idx">${ei+1}</div><div class="ci">
+      <div class="cn">${e.nombre}</div>
+      <div class="cm">${e.patron?`<span class="tag">${e.patron}</span>`:''}
+       <span>${t} ${t===1?'serie':'series'}</span>
+       ${e.descanso?`<span>descanso ${e.descanso}</span>`:''}</div>
+    </div></div>
+    ${e.obs?`<div class="obs">${e.obs}</div>`:''}
+    <table><thead><tr><th></th><th>Objetivo</th><th>Reps</th><th>Kg</th><th>RIR</th><th>✓</th></tr></thead>
+    <tbody>${e.series.map((x,i)=>{
+      const id=sid(s,e.nombre,i),l=log[id]||{};
+      const rv=l.reps!==undefined?l.reps:(x.reps??'');
+      const kv=l.kg!==undefined?l.kg:(x.kgr??x.kg??'');
+      const iv=l.rir!==undefined?l.rir:(x.rir??'');
+      const r=num(rv);let cls='';
+      if(r!=null&&x.rmin!=null)cls=(r>=x.rmin&&r<=x.rmax)?'ok':'lo';
+      return `<tr data-id="${id}">
+       <td>${i+1}</td>
+       <td class="obj">${objetivo(x)}${x.kg?`<br><span style="color:var(--dim);font-size:12px">${x.kg} kg</span>`:''}</td>
+       <td><input type="number" inputmode="numeric" class="f ${cls}" data-k="reps" value="${rv}"></td>
+       <td><input type="number" inputmode="decimal" step="0.5" class="f" data-k="kg" value="${kv}"></td>
+       <td><input type="number" inputmode="numeric" class="f" data-k="rir" value="${iv}"></td>
+       <td><div class="chk ${l.ok?'on':''}" data-k="ok">✓</div></td></tr>`}).join('')}
+    </tbody></table>
+    <div class="note"><input type="text" class="nt" data-n="${sid(s,e.nombre,0)}"
+      placeholder="Nota (molestias, sensaciones…)" value="${String(nt).replace(/"/g,'&quot;')}"></div>
+   </div>`}).join('');
+ app.querySelectorAll('.f').forEach(inp=>{
+   inp.oninput=()=>{const id=inp.closest('tr').dataset.id,k=inp.dataset.k;
+     log[id]=log[id]||{};log[id][k]=inp.value;save();barra()}});
+ app.querySelectorAll('.chk').forEach(c=>{
+   c.onclick=()=>{const id=c.closest('tr').dataset.id;log[id]=log[id]||{};
+     log[id].ok=!log[id].ok;c.classList.toggle('on',log[id].ok);save();
+     const cd=c.closest('.card'),rows=[...cd.querySelectorAll('.chk')];
+     cd.classList.toggle('done',rows.every(r=>r.classList.contains('on')));
+     barra();pintarChips()}});
+ app.querySelectorAll('.nt').forEach(n=>{
+   n.oninput=()=>{log['n|'+n.dataset.n]=n.value;save()}});
+ barra();window.scrollTo({top:0,behavior:'smooth'});
+}
+function barra(){
+ const s=cur();if(!s)return;const[d,t]=hechas(s);
+ document.getElementById('pl').textContent=`${d} de ${t} series`;
+ document.getElementById('pp').textContent=t?Math.round(d/t*100)+'%':'0%';
+ document.getElementById('pf').style.width=(t?d/t*100:0)+'%';
+}
+document.getElementById('bnx').onclick=()=>{
+ const l=ses(W),i=l.findIndex(x=>x.sesion===S);
+ if(i<l.length-1){S=l[i+1].sesion}else{const j=semanas.indexOf(W);
+  if(j<semanas.length-1){W=semanas[j+1];S=null}else return}
+ render()};
+document.getElementById('bex').onclick=()=>{
+ const out=[['semana','sesion','ejercicio','serie','reps_real','kg_real','rir_real','completada','nota']];
+ DATA.sesiones.forEach(s=>s.ejercicios.forEach(e=>e.series.forEach((x,i)=>{
+   const l=log[sid(s,e.nombre,i)];if(!l)return;
+   out.push([s.semana,s.sesion,e.nombre,i+1,l.reps??'',l.kg??'',l.rir??'',l.ok?'sí':'',
+             i===0?(log['n|'+sid(s,e.nombre,0)]||''):''])})));
+ if(out.length===1){alert('Todavía no cargaste nada.');return}
+ const csv='﻿'+out.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ a.download='cargado_'+new Date().toISOString().slice(0,10)+'.csv';a.click()};
+render();
+</script>
+</body>
+</html>
