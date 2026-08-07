@@ -118,3 +118,36 @@ def athlete_id(client: TestClient) -> str:
     if not body:
         pytest.skip(f"No hay atletas: falta {SPREADSHEET}. Ver data/README.md")
     return str(body[0]["id"])
+
+
+@pytest.fixture
+def session_detail(client: TestClient, athlete_id: str):
+    """Trae el detalle de una sesión ubicándola por (meso, semana, día).
+
+    La API identifica la sesión por `id`, no por esa terna. Los tests necesitan
+    apuntar a una sesión concreta de la planilla, así que resuelven el id contra
+    el listado — que es exactamente el camino que va a hacer el frontend, y de
+    paso lo deja ejercitado en cada test que lo use.
+    """
+
+    def _get(week: int = 1, day: int = 1, ordinal: int = 1) -> dict:
+        agenda = client.get(f"/api/athletes/{athlete_id}/sessions").json()
+        matches = [
+            s
+            for s in agenda
+            if (s["mesocycle_ordinal"], s["week_number"], s["day_number"]) == (ordinal, week, day)
+        ]
+        if not matches:
+            pytest.skip(f"La planilla no tiene meso {ordinal}, semana {week}, día {day}")
+        # Falla ruidosamente en vez de agarrar la primera. El ordinal es único
+        # por programa, no por atleta: si la planilla algún día trae dos
+        # programas, esta terna deja de identificar una sesión y el test tiene
+        # que enterarse en vez de elegir una al azar. Es el mismo error que
+        # tenía la ruta vieja.
+        assert len(matches) == 1, (
+            f"meso {ordinal}, semana {week}, día {day} matchea {len(matches)} sesiones "
+            f"de programas distintos: {[m['program'] for m in matches]}"
+        )
+        return client.get(f"/api/sessions/{matches[0]['id']}").json()
+
+    return _get

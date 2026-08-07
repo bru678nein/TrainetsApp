@@ -28,6 +28,7 @@ from app.schemas import (
     LogSetIn,
     LogSetOut,
     SessionOut,
+    SessionSummary,
     SetOut,
     VolumeOut,
 )
@@ -88,24 +89,60 @@ def list_athletes(db: OrmSession = Depends(get_db)) -> Sequence[Athlete]:
     return db.scalars(select(Athlete).where(Athlete.is_active)).all()
 
 
-@router.get("/athletes/{athlete_id}/sessions/{week}/{day}", response_model=SessionOut)
-def get_session(
-    athlete_id: uuid.UUID, week: int, day: int, db: OrmSession = Depends(get_db)
-) -> SessionOut:
-    """La vista que abre el atleta en el gimnasio."""
+@router.get("/athletes/{athlete_id}/sessions", response_model=list[SessionSummary])
+def list_sessions(athlete_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> list[SessionSummary]:
+    """Agenda del atleta: una fila por sesión, sin las series.
+
+    Existe para que el `id` de la sesión sea descubrible. Antes el detalle se
+    pedía por `(semana, día)`, pero `week_number` es relativo al mesociclo:
+    esa combinación matchea una sesión por meso y la ruta devolvía la primera
+    según un ORDER BY, en silencio.
+
+    El orden es por programa, después mesociclo, después semana y día. Ordenar
+    sólo por `Mesocycle.ordinal` intercalaría los mesociclos de dos programas
+    distintos, porque el ordinal es único por programa y no por atleta.
+    """
     _athlete_or_404(db, athlete_id)
     stmt = (
-        select(Session)
-        .join(Mesocycle)
-        .join(Program)
-        .where(
-            Program.athlete_id == athlete_id, Session.week_number == week, Session.day_number == day
+        select(Session, Mesocycle, Program)
+        .join(Mesocycle, Mesocycle.id == Session.mesocycle_id)
+        .join(Program, Program.id == Mesocycle.program_id)
+        .where(Program.athlete_id == athlete_id)
+        .order_by(
+            Program.starts_on,
+            Program.id,
+            Mesocycle.ordinal,
+            Session.week_number,
+            Session.day_number,
         )
-        # week_number es relativo al mesociclo, así que (week, day) matchea una
-        # sesión por mesociclo. Sin ORDER BY, `first()` devolvía una arbitraria.
-        # Esto lo vuelve determinista, pero la ruta sigue siendo ambigua: la
-        # dirección correcta es identificar la sesión por id.
-        .order_by(Mesocycle.ordinal, Session.week_number, Session.day_number)
+    )
+    return [
+        SessionSummary(
+            id=se.id,
+            program_id=pr.id,
+            program=pr.name,
+            mesocycle=me.label,
+            mesocycle_ordinal=me.ordinal,
+            week_number=se.week_number,
+            day_number=se.day_number,
+            label=se.label,
+            scheduled_on=se.scheduled_on,
+        )
+        for se, me, pr in db.execute(stmt).all()
+    ]
+
+
+@router.get("/sessions/{session_id}", response_model=SessionOut)
+def get_session(session_id: uuid.UUID, db: OrmSession = Depends(get_db)) -> SessionOut:
+    """La vista que abre el atleta en el gimnasio.
+
+    No verifica de quién es la sesión: hoy no hay identidad con la cual
+    compararla. Esa verificación es el criterio de aceptación 3 de la spec 001
+    y va con RLS abajo, no como un `if` acá.
+    """
+    stmt = (
+        select(Session)
+        .where(Session.id == session_id)
         .options(
             selectinload(Session.prescriptions)
             .selectinload(Prescription.sets)
@@ -145,6 +182,7 @@ def get_session(
     return SessionOut(
         id=se.id,
         mesocycle=se.mesocycle.label,
+        mesocycle_ordinal=se.mesocycle.ordinal,
         week_number=se.week_number,
         day_number=se.day_number,
         blocks=blocks,
@@ -153,17 +191,33 @@ def get_session(
 
 @router.put("/sets/{set_id}/log", response_model=LogSetOut)
 def log_set(set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(get_db)) -> LoggedSet:
-    """Idempotente: el atleta corrige una serie tantas veces como quiera."""
+    """Idempotente: el atleta corrige una serie tantas veces como quiera.
+
+    Tampoco verifica que la serie sea del atleta que la registra — no hay
+    identidad todavía. Es el criterio de aceptación 4 de la spec 001.
+    """
     ps = db.get(PrescribedSet, set_id)
     if ps is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "serie inexistente")
+
+    # Hoy esto no puede devolver None: toda la cadena prescribed_set →
+    # prescription → session → mesocycle → program → athlete_id es NOT NULL, así
+    # que si la serie existe su programa existe. Se contempla igual porque bajo
+    # RLS (feature 001) deja de ser cierto: la serie puede ser visible y el
+    # programa no, y el join queda vacío.
+    #
+    # En ese caso la respuesta correcta es 404 con el mismo mensaje que una
+    # serie inexistente. Es el criterio de aceptación 2 de la spec 001: un
+    # identificador ajeno no se distingue de uno que no existe.
     athlete_id = db.scalars(
         select(Program.athlete_id)
         .join(Mesocycle)
         .join(Session)
         .join(Prescription)
         .where(Prescription.id == ps.prescription_id)
-    ).first()
+    ).one_or_none()
+    if athlete_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "serie inexistente")
 
     e1rm: float | None = None
     # `is not None` y no truthiness: reps=0 (falló la serie) y load_kg=0 (peso

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -36,9 +36,36 @@ class ExerciseBlock(BaseModel):
     sets: list[SetOut]
 
 
+class SessionSummary(BaseModel):
+    """Fila del listado: lo justo para elegir una sesión, sin traer las series.
+
+    `week_number` es relativo al mesociclo y `mesocycle_ordinal` es relativo al
+    programa (`UniqueConstraint("program_id", "ordinal")`). O sea que ni la
+    semana sola ni el par (ordinal, semana) identifican una sesión: hace falta
+    la cuaterna completa con `program_id`, que es justamente el argumento para
+    pedir el detalle por `id` y no reconstruir la clave en el cliente.
+
+    Un atleta con un programa terminado y uno activo tiene dos mesociclos con
+    `ordinal=1`. No es un caso raro, es el caso normal a partir del segundo
+    mesociclo.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    program_id: uuid.UUID
+    program: str
+    mesocycle: str
+    mesocycle_ordinal: int
+    week_number: int
+    day_number: int
+    label: str | None = None
+    scheduled_on: date | None = None
+
+
 class SessionOut(BaseModel):
     id: uuid.UUID
     mesocycle: str
+    mesocycle_ordinal: int
     week_number: int
     day_number: int
     blocks: list[ExerciseBlock]
