@@ -39,13 +39,13 @@ el nombre de una tabla, un endpoint o una librería, eso pertenece al plan.
 ```
 .specify/memory/constitution.md      principios del proyecto
 specs/
-├── 001-auth-y-tenancy/
+├── 001-identidad-y-aislamiento/
 │   ├── spec.md                      qué y por qué
 │   ├── plan.md                      cómo
 │   ├── tasks.md                     pasos verificables
 │   └── contracts/                   OpenAPI, esquemas, ejemplos
 ├── 002-editor-de-rutinas/
-└── 003-registro-offline/
+└── 003-invitaciones-y-vinculos/
 ```
 
 Una feature por rama, nombrada igual que su carpeta.
@@ -57,11 +57,17 @@ En orden. Cada una depende de la anterior.
 | # | Feature | Estado | Por qué ahora |
 |---|---|---|---|
 | — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
-| 001 | Auth y aislamiento por tenant | spec lista, falta `/plan` | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. Las tres definiciones que la bloqueaban están resueltas: ver la tabla al final de su spec. |
+| 001 | Identidad y aislamiento por tenant | spec lista, falta `/plan` | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
 | 002 | Editor de rutinas | | El riesgo real del producto. Ver artículo VII. |
-| 003 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
-| 004 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |
-| 005 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, 003 no se usa. |
+| 003 | Invitaciones y ciclo de vida del vínculo | borrador | Salió de partir la 001. Recién hace falta cuando el atleta entre por su cuenta, o sea junto con la 004. |
+| 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
+| 005 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |
+| 006 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, la 004 no se usa. |
+
+La 001 nació cubriendo también las invitaciones y el archivado. El plan daba
+bastante más de veinte tareas —la señal de que era más de una feature— y se
+partió por urgencia: la 001 cierra el agujero de seguridad, la 003 es
+funcionalidad de producto. El proveedor de auth está decidido en el ADR 0003.
 
 ## Cómo se escribe una buena spec
 
