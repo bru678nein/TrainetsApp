@@ -56,6 +56,14 @@ class Rejection(Enum):
     `EXPIRED` is the only one the client is told apart, because it is the only
     one where retrying — renewing the token — makes sense. The rest answer the
     same so that no rejection tells anyone how close they got.
+
+    The values travel to the client as error codes, so they are Spanish, like
+    every other API error detail here.
+
+    The last three are produced by the adapter and never by `identify`, which
+    only ever sees claims that were already decoded. They live here anyway
+    because "why was this token refused" is one vocabulary, and splitting it
+    across two enums would push every caller into handling a union.
     """
 
     UNEXPECTED_ALGORITHM = "algoritmo_inesperado"
@@ -64,6 +72,10 @@ class Rejection(Enum):
     MISSING_CLAIM = "claim_faltante"
     NOT_YET_VALID = "todavia_no_vale"
     EXPIRED = "vencido"
+
+    MALFORMED = "malformado"
+    UNKNOWN_KEY = "clave_desconocida"
+    BAD_SIGNATURE = "firma_invalida"
 
 
 def _timestamp(value: object) -> float | None:
