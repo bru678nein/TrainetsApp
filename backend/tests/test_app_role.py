@@ -124,9 +124,11 @@ class TestElRolPuedeTrabajar:
     def test_puede_conectarse_y_leer(self, engine: Engine) -> None:
         """End to end: the DSN the app will actually use.
 
-        Skips rather than fails when the password is unset, because that is
-        infrastructure and a fresh clone has not run `make db-up` yet — the same
-        reasoning as the spreadsheet fixture.
+        Skips on a developer machine that has not run `make db-up` since the
+        migration, for the same reason the spreadsheet fixture skips. **It does
+        not skip in CI**, where the workflow sets the password on purpose: there,
+        a skip would mean somebody removed that step and the only end-to-end
+        check of the application role vanished without turning anything red.
         """
         eng = sa.create_engine(_app_dsn(engine), poolclass=sa.pool.NullPool)
         try:
@@ -134,6 +136,11 @@ class TestElRolPuedeTrabajar:
                 assert conn.execute(sa.text("SELECT current_user")).scalar() == APP_ROLE
                 conn.execute(sa.text("SELECT count(*) FROM app_user")).scalar()
         except sa.exc.OperationalError as exc:
+            if os.getenv("CI"):
+                pytest.fail(
+                    f"No se pudo conectar como {APP_ROLE}. En CI el workflow le pone "
+                    f"contraseña, así que esto significa que ese paso falta o falló: {exc}"
+                )
             pytest.skip(f"El rol {APP_ROLE} no tiene contraseña puesta: corré `make db-up`. {exc}")
         finally:
             eng.dispose()

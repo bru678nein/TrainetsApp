@@ -127,9 +127,9 @@ verifica hoy y con qué.
 | V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
 | VI — simplicidad por default | Revisión humana. |
 | VII — velocidad del entrenador | Nada todavía: no existe el editor. Llega con la feature 002. |
-| VIII — nada de auth propia | Proveedor elegido en el ADR 0003. Sin auth implementada. |
+| VIII — nada de auth propia | Proveedor en el ADR 0003, librería en el 0004. La firma la verifica PyJWT; lo nuestro es decidir con los claims ya decodificados (T-004 a T-006). Automático: `tests/test_tokens.py` firma con claves reales y prueba las falsificaciones. |
 | IX — datos de desarrollo reales | `make seed` importa la planilla; los tests de API dependen de ella. |
-| X — cada artefacto es rastreable | **Nada, y hoy no se cumple**: los commits no referencian tareas, y hay código en `main` sin spec previa. |
+| X — cada artefacto es rastreable | Revisión humana. Desde la feature 001 los commits referencian su `T-NNN`; los anteriores no, y hay código en `main` sin spec previa. **La deuda vieja queda**, lo que cambió es que dejó de crecer. |
 
 Las dos filas en negrita son deuda declarada, no aspiraciones. Si alguna sigue
 así cuando la feature que la resuelve esté mergeada, el problema es el proceso,

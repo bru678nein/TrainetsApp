@@ -58,13 +58,14 @@ jobs:
         working-directory: backend
       # La migración 0003 crea el rol de aplicación sin contraseña: una
       # contraseña versionada está en cada clon y en el historial para siempre.
-      # Se la pone la infraestructura, y acá la infraestructura es esto. El
-      # `upgrade head` de arriba dejó el rol creado; el paso previo lo revirtió
-      # todo salvo el rol, que es cluster-wide y el downgrade no borra.
+      # Se la pone la infraestructura, y acá la infraestructura es esto.
+      #
+      # Por el mismo target del Makefile que se usa localmente, no por un `psql`
+      # escrito acá: dos formas de hacer lo mismo divergen en cuanto una cambia,
+      # y eso ya pasó una vez en este repo. `ADMIN_DSN` es lo único distinto.
+      #
+      # El `upgrade head` del paso anterior dejó el rol creado; su `downgrade
+      # base` revirtió todo salvo el rol, que es cluster-wide y no se borra.
       - name: Contraseña del rol de aplicación
-        run: |
-          PGPASSWORD=coach psql -h localhost -U coach -d coachapp_test \
-            -c "ALTER ROLE coachapp_app PASSWORD '${APP_PASSWORD}'"
-        env:
-          APP_PASSWORD: coachapp_app
+        run: make db-app-password PY_RUN=python ADMIN_DSN="$DATABASE_URL"
       - run: make test PY_RUN=python PYTEST_ARGS="--cov=app --cov-report=term-missing"

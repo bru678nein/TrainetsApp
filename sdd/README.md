@@ -57,7 +57,7 @@ En orden. Cada una depende de la anterior.
 | # | Feature | Estado | Por qué ahora |
 |---|---|---|---|
 | — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
-| 001 | Identidad y aislamiento por tenant | spec lista, falta `/plan` | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
+| 001 | Identidad y aislamiento por tenant | en curso, 12 de 22 tareas | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
 | 002 | Editor de rutinas | | El riesgo real del producto. Ver artículo VII. |
 | 003 | Invitaciones y ciclo de vida del vínculo | borrador | Salió de partir la 001. Recién hace falta cuando el atleta entre por su cuenta, o sea junto con la 004. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |

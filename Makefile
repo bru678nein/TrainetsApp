@@ -50,16 +50,21 @@ db-up:  ## Levanta Postgres y se asegura de que exista coachapp_test
 	@docker compose exec -T db psql -U coach -d coachapp -tAc \
 	  "SELECT 1 FROM pg_database WHERE datname='coachapp_test'" | grep -q 1 || \
 	  docker compose exec -T db createdb -U coach -O coach coachapp_test
-	@$(MAKE) --no-print-directory db-app-password
+	@$(MAKE) --no-print-directory db-app-password || \
+	  echo "(el rol de aplicación no existe todavía: corré 'make migrate' y después 'make db-app-password')"
 	@$(MAKE) --no-print-directory db-check
 
-db-app-password:  ## Le pone contraseña al rol de aplicación, si ya existe
-	@docker compose exec -T db psql -U coach -d coachapp -tAc \
-	  "SELECT 1 FROM pg_roles WHERE rolname='coachapp_app'" | grep -q 1 && \
-	  docker compose exec -T db psql -U coach -d coachapp -qc \
-	  "ALTER ROLE coachapp_app PASSWORD '$(APP_PASSWORD)'" >/dev/null && \
-	  echo "Rol coachapp_app con contraseña puesta" || \
-	  echo "Rol coachapp_app todavía no existe: corré 'make migrate' y después este target"
+# ADMIN_DSN es el DSN de un rol que puede alterar al de la aplicación: el dueño.
+# Local apunta a la base de desarrollo; CI lo sobreescribe con el suyo. Un solo
+# comando, dos invocaciones — la misma regla que el resto del Makefile.
+ADMIN_DSN ?= $(DEV_DSN)
+
+# Estricto a propósito: si no puede poner la contraseña, falla. CI lo llama
+# directo y tiene que ponerse en rojo. Quien degrada es `db-up`, que puede correr
+# antes de la primera migración y ahí el rol legítimamente no existe todavía.
+db-app-password:  ## Le pone contraseña al rol de aplicación (T-007)
+	@cd backend && DATABASE_URL="$(ADMIN_DSN)" $(PY_RUN) scripts/set_app_password.py \
+	  "$(APP_PASSWORD)"
 
 db-check:  ## Verifica que se llega a Postgres desde el host (no desde el contenedor)
 	@cd backend && $(PY_RUN) -c \
