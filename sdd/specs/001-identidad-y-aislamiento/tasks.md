@@ -24,6 +24,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-006 | `require_tenant_context` y `tenant_session`: token → identidad → rol → `set_config` → sesión | 34 tests con claves RSA reales; sacando el chequeo de rol caen 2, poniendo un default caen 2, interpolando el `sub` en vez de bindearlo cae la de inyección |
+| T-007 | Rol de aplicación que no es dueño de las tablas (migración 0003) | 6 tests; sacando `ALTER DEFAULT PRIVILEGES` cae el de la tabla futura, y dándole `BYPASSRLS` al rol cae el de privilegios |
 
 Las de letra se hicieron antes que el resto a propósito, para que el commit que
 agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un
@@ -65,8 +66,22 @@ caminos al tenant coinciden con la sección 4 del plan.
 **T-007 — Rol de base sin privilegios.** La app se conecta con un rol que no es
 dueño de las tablas. `.env.example` y el DSN de CI actualizados.
 
-*Hecha cuando:* conectando con ese rol, un `SELECT` sin contexto de tenant
-devuelve error, no filas. Es lo que hace que `FORCE ROW LEVEL SECURITY` importe.
+*Hecha cuando:* el rol existe, no es superusuario, no tiene `BYPASSRLS`, no es
+dueño de ninguna tabla, y tiene CRUD sobre todas — incluidas las que cree una
+migración futura, por `ALTER DEFAULT PRIVILEGES`. `make api` corre con ese DSN.
+
+El criterio original decía "un `SELECT` sin contexto de tenant devuelve error, no
+filas", y eso **no se puede verificar acá**: sin policies no hay `current_setting`
+que falle, así que depende de T-008. Queda como criterio de T-008, donde sí se
+puede probar. Dejarlo escrito acá habría sido una tarea que se marca hecha sin
+que nadie compruebe la mitad que importa.
+
+Dos decisiones que la tarea no anticipaba. El rol se crea **sin contraseña**: una
+contraseña versionada está en cada clon y en el historial para siempre, así que
+la pone la infraestructura (`make db-up`, el workflow de CI, la consola del
+proveedor). Y el `downgrade` **no borra el rol**: los roles son del cluster y las
+migraciones de una base, así que borrarlo desde acá podría sacárselo de abajo a
+otra base del mismo servidor.
 
 **T-008 — Migración de RLS.** La función `app_current_user_id()`, `ENABLE` +
 `FORCE`, y **dos** policies por tabla —`<tabla>_as_coach` y `<tabla>_as_athlete`—
@@ -78,6 +93,11 @@ directo contra `auth_user_id` para no recursionar.
 misma consulta devuelve sólo lo propio. Las dos mitades: una policy de coach
 correcta con la de atleta ausente pasa el primer test y deja el rol atleta viendo
 todo.
+
+Hereda además el criterio que T-007 no podía verificar: **conectado con el rol de
+aplicación y sin contexto de tenant, un `SELECT` tiene que dar error, no cero
+filas.** Es lo que hace que `FORCE ROW LEVEL SECURITY` importe, y hasta que
+existan las policies no hay nada que falle.
 
 **T-008b — `WITH CHECK` en `logged_set`.** El `INSERT` exige que la serie
 registrada le haya sido prescrita al mismo atleta que la firma.

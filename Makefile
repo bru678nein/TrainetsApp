@@ -1,8 +1,21 @@
-.PHONY: help setup db-up db-down db-check api test lint fmt check seed migrate migration db-reset
+.PHONY: help setup db-up db-down db-check api test lint fmt check seed migrate migration db-reset db-app-password
 
 # Postgres local (docker compose). La suite corre contra la base _test.
 DEV_DSN  ?= postgresql+psycopg://coach:coach@localhost:5433/coachapp
 TEST_DSN ?= postgresql+psycopg://coach:coach@localhost:5433/coachapp_test
+
+# Contraseña local del rol de aplicación (T-007). La migración 0003 crea el rol
+# sin contraseña a propósito —una contraseña versionada está en cada clon y en
+# el historial para siempre— así que se la pone la infraestructura: acá para
+# desarrollo, el workflow de CI para CI, la consola del proveedor en producción.
+APP_PASSWORD ?= coachapp_app
+
+# El DSN con el que corre la aplicación: rol sin privilegios, que no es dueño de
+# las tablas. `migrate` y `seed` siguen usando DEV_DSN porque son operaciones de
+# administración —crear el esquema, sembrarlo— y necesitan al dueño. Esa
+# diferencia es la tarea T-007 entera: si la app se conecta como dueño, el
+# FORCE ROW LEVEL SECURITY de T-008 no la alcanza.
+APP_DSN  ?= postgresql+psycopg://coachapp_app:$(APP_PASSWORD)@localhost:5433/coachapp
 
 # Intérprete para crear el venv. CI corre 3.11; usá una versión con wheels
 # publicadas para psycopg: make setup PY=python3.12
@@ -37,7 +50,16 @@ db-up:  ## Levanta Postgres y se asegura de que exista coachapp_test
 	@docker compose exec -T db psql -U coach -d coachapp -tAc \
 	  "SELECT 1 FROM pg_database WHERE datname='coachapp_test'" | grep -q 1 || \
 	  docker compose exec -T db createdb -U coach -O coach coachapp_test
+	@$(MAKE) --no-print-directory db-app-password
 	@$(MAKE) --no-print-directory db-check
+
+db-app-password:  ## Le pone contraseña al rol de aplicación, si ya existe
+	@docker compose exec -T db psql -U coach -d coachapp -tAc \
+	  "SELECT 1 FROM pg_roles WHERE rolname='coachapp_app'" | grep -q 1 && \
+	  docker compose exec -T db psql -U coach -d coachapp -qc \
+	  "ALTER ROLE coachapp_app PASSWORD '$(APP_PASSWORD)'" >/dev/null && \
+	  echo "Rol coachapp_app con contraseña puesta" || \
+	  echo "Rol coachapp_app todavía no existe: corré 'make migrate' y después este target"
 
 db-check:  ## Verifica que se llega a Postgres desde el host (no desde el contenedor)
 	@cd backend && $(PY_RUN) -c \
@@ -62,8 +84,8 @@ migrate:  ## Aplica las migraciones pendientes a la base de desarrollo
 migration:  ## Genera una migración nueva: make migration m="agrega tabla x"
 	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m alembic revision --autogenerate -m "$(m)"
 
-api:  ## Servidor de desarrollo en :8000
-	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m uvicorn app.main:app --reload
+api:  ## Servidor de desarrollo en :8000 (como rol de aplicación, no como dueño)
+	cd backend && DATABASE_URL="$(APP_DSN)" $(PY_RUN) -m uvicorn app.main:app --reload
 
 # `cd backend` a propósito: es el único cwd donde pytest y mypy encuentran
 # backend/pyproject.toml. mypy busca su config sólo en el cwd, así que

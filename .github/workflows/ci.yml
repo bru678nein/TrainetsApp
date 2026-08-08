@@ -56,4 +56,15 @@ jobs:
           python -m alembic upgrade head
           python -m alembic downgrade base
         working-directory: backend
+      # La migración 0003 crea el rol de aplicación sin contraseña: una
+      # contraseña versionada está en cada clon y en el historial para siempre.
+      # Se la pone la infraestructura, y acá la infraestructura es esto. El
+      # `upgrade head` de arriba dejó el rol creado; el paso previo lo revirtió
+      # todo salvo el rol, que es cluster-wide y el downgrade no borra.
+      - name: Contraseña del rol de aplicación
+        run: |
+          PGPASSWORD=coach psql -h localhost -U coach -d coachapp_test \
+            -c "ALTER ROLE coachapp_app PASSWORD '${APP_PASSWORD}'"
+        env:
+          APP_PASSWORD: coachapp_app
       - run: make test PY_RUN=python PYTEST_ARGS="--cov=app --cov-report=term-missing"
