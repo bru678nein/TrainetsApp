@@ -318,14 +318,23 @@ $$;
 -- el resultado entre transacciones, que es la optimización que lo convierte en
 -- una filtración.
 
+-- Se habilita en toda tabla que abajo lleve policy. Una CREATE POLICY sobre una
+-- tabla sin ENABLE se aplica sin error y no filtra nada: la policy queda escrita,
+-- se lee en el diff como protección, y no protege. Por eso las dos listas —lo
+-- que se habilita y lo que lleva policy— tienen que coincidir a ojo.
 ALTER TABLE app_user   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_user   FORCE  ROW LEVEL SECURITY;
 ALTER TABLE athlete    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE athlete    FORCE  ROW LEVEL SECURITY;
+ALTER TABLE exercise   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE exercise   FORCE  ROW LEVEL SECURITY;
 ALTER TABLE logged_set ENABLE ROW LEVEL SECURITY;
 ALTER TABLE logged_set FORCE  ROW LEVEL SECURITY;
--- ...y lo mismo para coach, exercise, program, mesocycle, session, prescription
--- y prescribed_set. `movement_pattern` es referencia pura y queda sin RLS.
+-- ...y lo mismo para coach, program, mesocycle, session, prescription y
+-- prescribed_set, cuyas policies no se transcriben acá porque repiten la misma
+-- forma que `logged_set`. El DDL completo, con las 18 policies, está en
+-- sdd/specs/001-identidad-y-aislamiento/spike/01_rls.sql, que es el que se
+-- corrió de verdad. `movement_pattern` es referencia pura y queda sin RLS.
 
 -- `app_user` no puede usar app_current_user_id(): se llamaría a sí misma. El
 -- detector de recursión de Postgres no lo agarra —mira referencias directas a la

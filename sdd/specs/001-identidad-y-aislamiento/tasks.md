@@ -136,7 +136,9 @@ válido resuelve.
 **T-010 — Montar el router con la dependencia.** `dependencies=[Depends(
 require_tenant_context)]` y los endpoints actuales usando la sesión que provee.
 
-*Hecha cuando:* los 68 tests existentes pasan y T-016a sigue verde.
+*Hecha cuando:* la suite existente sigue pasando entera y T-016a sigue verde.
+Sin número: cuando esta tarea se escribió eran 68 y hoy son más, y un criterio
+que envejece deja de poder cumplirse tal como está escrito.
 
 **T-011 — Alta de entrenador en el primer login.**
 

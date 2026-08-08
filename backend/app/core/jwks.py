@@ -79,6 +79,13 @@ class CacheDeClaves:
     The clock is `time.monotonic` and not `time.time`, because both windows here
     are durations. A wall-clock adjustment — NTP, DST on a badly configured host
     — would otherwise either freeze the cooldown or expire the whole cache.
+
+    Not locked, deliberately. FastAPI runs sync endpoints in a threadpool, so
+    several requests can be in here at once, and the worst that happens is two
+    concurrent refreshes: rebinding `self._claves` is atomic, so nobody reads a
+    half-built dict, and the cooldown bounds how often the race can even occur.
+    A lock would buy one saved request and put a contention point in front of
+    every authenticated call.
     """
 
     def __init__(
@@ -137,6 +144,14 @@ class CacheDeClaves:
         """
         try:
             jwks = self._traer()
+            claves = jwks.get("keys")
+            # Adentro del `try` a propósito, y con un chequeo real en vez de un
+            # `assert`: `traer_jwks` ya lo garantiza, pero `traer` es inyectable
+            # y `python -O` borra los assert. Un cuerpo malformado es el mismo
+            # problema que uno inalcanzable —no conseguimos claves usables— y
+            # merece la misma respuesta: conservar lo que había.
+            if not isinstance(claves, list):
+                raise JwksInalcanzable("el JWKS no trae una lista 'keys'")
         except JwksInalcanzable:
             if not self._claves:
                 raise
@@ -145,8 +160,6 @@ class CacheDeClaves:
             self._traido_en = self._reloj()
             return
 
-        claves = jwks.get("keys")
-        assert isinstance(claves, list)  # traer_jwks ya lo garantizó
         self._claves = {
             str(k["kid"]): k for k in claves if isinstance(k, dict) and k.get("kid") is not None
         }

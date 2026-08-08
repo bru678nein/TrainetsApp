@@ -24,7 +24,7 @@ make test      # tests (contra coachapp_test)
 | `backend/migrations/` | Migraciones de Alembic. Fuente del esquema real. |
 | `backend/importer/` | Carga planillas reales al esquema |
 | `backend/scripts/` | Herramientas sueltas. Ver abajo. |
-| `backend/tests/` | 68 tests: dominio puro, esquema, API, composición de dependencias |
+| `backend/tests/` | Dominio puro, esquema contra Postgres real, API, autenticación y composición de dependencias |
 | `frontend/` | React + TypeScript (PWA). Vacío hasta la feature 004. |
 | `data/` | Planillas reales. Ignorada por git salvo su README. |
 | `sdd/` | Constitución, specs y flujo de trabajo |

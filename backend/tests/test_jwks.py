@@ -160,6 +160,37 @@ class TestProveedorCaido:
         with pytest.raises(JwksInalcanzable):
             c.clave("k1")
 
+    def test_no_se_reintenta_en_cada_peticion(self, reloj):
+        """A comment used to claim this and nothing checked it.
+
+        A provider that is down and retried once per request turns its outage
+        into our outage, and adds our traffic to whatever is already wrong at
+        their end.
+        """
+        p = ProveedorFalso("k1")
+        c = cache(p, reloj)
+        c.clave("k1")
+
+        p.falla = True
+        reloj.avanzar(TTL + 1)
+        for _ in range(50):
+            c.clave("k1")
+        assert p.llamadas == 2, f"{p.llamadas} intentos contra un proveedor caído"
+
+    def test_un_jwks_sin_lista_de_claves_no_vacia_el_cache(self, reloj):
+        """`traer` is injectable, so the guard cannot be an `assert`.
+
+        Under `python -O` an assert disappears, and the cache would end up empty
+        without a word — indistinguishable from a provider publishing no keys.
+        """
+        p = ProveedorFalso("k1")
+        c = cache(p, reloj)
+        c.clave("k1")
+
+        c._traer = lambda: {"algo": "otra cosa"}  # type: ignore[method-assign]
+        reloj.avanzar(TTL + 1)
+        assert c.clave("k1") is not None, "un JWKS malformado dejó el caché vacío"
+
 
 class TestTraerJwks:
     def test_pide_la_url_y_devuelve_las_claves(self):
