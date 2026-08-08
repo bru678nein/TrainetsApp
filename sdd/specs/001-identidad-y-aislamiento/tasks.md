@@ -22,6 +22,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-003 | `docs/schema.sql` al día | tablas y columnas comparadas contra `models.py` |
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
+| T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 
 Las de letra se hicieron antes que el resto a propósito, para que el commit que
 agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un
@@ -102,9 +103,17 @@ rechazo. **Test antes que implementación** (artículo IV).
 incorrecto y algoritmo inesperado; y no importa `httpx` ni `fastapi`.
 
 **T-005 — Adaptador JWKS.** Trae el JWKS, cachea por `kid`, refresca ante `kid`
-desconocido.
+desconocido — **con cooldown**.
 
-*Hecha cuando:* una rotación de claves simulada se resuelve sin reiniciar.
+El enunciado original terminaba en "refresca ante `kid` desconocido", y así tal
+cual es una vulnerabilidad: el `kid` viaja en el header *sin verificar*, así que
+refrescar ante cada uno desconocido le da a cualquiera, sin autenticarse, una
+forma de generar tráfico saliente ilimitado contra el proveedor. Es el advisory
+GHSA-fhv5-28vv-h8m8 contra el cliente de la propia PyJWT. Ver el ADR 0004.
+
+*Hecha cuando:* una rotación de claves simulada se resuelve sin reiniciar; mil
+`kid` inventados producen dos peticiones al proveedor y no mil; y un proveedor
+caído sigue sirviendo lo cacheado en vez de dejar sin auth a toda la app.
 
 **T-006 — `require_tenant_context` y `tenant_session`.** Token → identidad →
 header `Active-Role` → `SET LOCAL` → cede la sesión. Sin default.
