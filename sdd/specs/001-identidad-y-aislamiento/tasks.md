@@ -23,6 +23,8 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
+| T-015 | Recorrido de rutas: sin credenciales, `401` en todas | parametrizado sobre las rutas de la app, no sobre una lista |
+| T-016 | Recorrido de rutas: recurso ajeno = inexistente, y `400` sin `Active-Role` | agregando un endpoint con un identificador no declarado, falla nombrándolo |
 | T-010 | Router de datos montado con `dependencies=[Depends(require_tenant_context)]` | 2 tests; sacándole la dependencia al router fallan los dos |
 | T-006 | `require_tenant_context` y `tenant_session`: token → identidad → rol → `set_config` → sesión | 34 tests con claves RSA reales; sacando el chequeo de rol caen 2, poniendo un default caen 2, interpolando el `sub` en vez de bindearlo cae la de inyección |
 | T-007 | Rol de aplicación que no es dueño de las tablas (migración 0003) | 6 tests; sacando `ALTER DEFAULT PRIVILEGES` cae el de la tabla futura, y dándole `BYPASSRLS` al rol cae el de privilegios |
@@ -213,6 +215,16 @@ blanca responde `401`.
 *Hecha cuando:* pasa para todas las rutas, y sacarle la dependencia a un
 endpoint lo rompe. **Esta es la tarea que cumple el artículo III**, hoy marcado
 como incumplido en la tabla de cumplimiento de la constitución.
+
+Las tres caminatas se parametrizan sobre `rutas_de_datos()`, que descubre las
+rutas de la app en vez de leer una lista escrita a mano. Un endpoint nuevo con un
+identificador que nadie declaró rompe la suite con un mensaje que dice qué
+agregar; uno sin identificador exige entrar en `SIN_IDENTIFICADOR` con su propio
+test. Es la única forma de "todos los endpoints" que sigue siendo cierta cuando
+la API crece.
+
+Verificado agregando endpoints de mentira: uno con `{program_id}` y otro sin
+parámetros. Los dos rompen.
 
 **T-017 — Criterios 9 a 11.** Coach que se entrena a sí mismo; persona vinculada
 a dos entrenadores; coach que es atleta de otro sin ver su espacio.

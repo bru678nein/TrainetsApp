@@ -11,42 +11,12 @@ of section 3 of the feature 001 plan.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
-
 import pytest
 from fastapi.routing import APIRoute
 
 from app.api.deps import tenant_session
 from app.main import app
-
-# Routes that legitimately touch neither the database nor a tenant. The
-# allowlist is explicit on purpose: adding a new route breaks these tests until
-# somebody consciously decides which side it falls on.
-SIN_TENANT = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
-
-
-def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:
-    """Walk nested routers, not just the top level.
-
-    Depending on the FastAPI version, `app.routes` carries the included
-    router's routes flattened, or a wrapper holding them in `original_router`.
-    Walking only the top level returned zero data routes in the second shape,
-    and this test would have gone green without verifying anything at all.
-    """
-    for n in nodos:
-        if isinstance(n, APIRoute):
-            yield n
-            continue
-        hijos = getattr(n, "routes", None)
-        if hijos is None:
-            original = getattr(n, "original_router", None)
-            hijos = getattr(original, "routes", None)
-        if hijos:
-            yield from _todas_las_rutas(hijos)
-
-
-def _rutas_de_datos() -> list[APIRoute]:
-    return [r for r in _todas_las_rutas(app.routes) if r.path not in SIN_TENANT]
+from tests.conftest import SIN_TENANT, rutas_de_datos
 
 
 def _usa(route: APIRoute, dep: object) -> bool:
@@ -68,11 +38,11 @@ def test_el_recorrido_encuentra_todas_las_rutas():
     those same N.
     """
     del_openapi = {p for p in app.openapi()["paths"] if p.startswith("/api")}
-    del_recorrido = {r.path for r in _rutas_de_datos()}
+    del_recorrido = {r.path for r in rutas_de_datos()}
     assert del_recorrido == del_openapi
 
 
-@pytest.mark.parametrize("route", _rutas_de_datos(), ids=lambda r: r.path)
+@pytest.mark.parametrize("route", rutas_de_datos(), ids=lambda r: r.path)
 def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
     """The only door into the database is `tenant_session`.
 

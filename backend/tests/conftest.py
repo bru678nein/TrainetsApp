@@ -13,7 +13,7 @@ migration is wrong, the tests have to find out.
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -21,12 +21,51 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as OrmSession
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
+
+# Routes that legitimately touch neither the database nor a tenant. Explicit on
+# purpose: adding a route breaks every walk below until somebody consciously
+# decides which side it falls on.
+SIN_TENANT = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+
+
+def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:
+    """Walk nested routers, not just the top level.
+
+    Depending on the FastAPI version, `app.routes` carries the included
+    router's routes flattened, or a wrapper holding them in `original_router`.
+    Walking only the top level returned zero data routes in the second shape,
+    and the tests would have gone green without verifying anything at all.
+    """
+    for n in nodos:
+        if isinstance(n, APIRoute):
+            yield n
+            continue
+        hijos = getattr(n, "routes", None)
+        if hijos is None:
+            original = getattr(n, "original_router", None)
+            hijos = getattr(original, "routes", None)
+        if hijos:
+            yield from _todas_las_rutas(hijos)
+
+
+def rutas_de_datos() -> list[APIRoute]:
+    """Every route that is expected to resolve a tenant.
+
+    Lives here and not in one test module because two walks that could disagree
+    are worse than one: the composition tests and the isolation walk have to be
+    looking at the same set of routes, or one of them is quietly covering less
+    than it claims.
+    """
+    from app.main import app
+
+    return [r for r in _todas_las_rutas(app.routes) if r.path not in SIN_TENANT]
 
 
 def _test_dsn() -> str:
