@@ -7,13 +7,27 @@ el entrenador ve volumen por patrón, progresión de carga y adherencia.
 ## Arranque
 
 ```bash
-make setup     # venv + dependencias + hooks
-make db-up     # Postgres en Docker (crea coachapp y coachapp_test)
-make migrate   # aplica las migraciones a coachapp
-make seed      # importa data/planilla.xlsx
-make api       # servidor en :8000, docs en /docs
-make test      # tests (contra coachapp_test)
+make setup            # venv + dependencias + hooks
+make db-up            # Postgres en Docker (crea coachapp y coachapp_test)
+make migrate          # aplica las migraciones a coachapp
+make db-app-password  # le pone contraseña al rol de aplicación (lo crea la 0003)
+make seed             # importa data/planilla.xlsx
+make api              # servidor en :8000, docs en /docs
+make test             # tests (contra coachapp_test)
 ```
+
+`make api` **no arranca sin configuración de auth**, y eso es a propósito: una
+app que levanta contenta verificando tokens contra nada es peor que una que se
+niega. Necesita un `backend/.env` con tres variables:
+
+```
+AUTH_ISSUER=...              # el `iss` que emite el proveedor
+AUTH_AUTHORIZED_PARTY=...    # se compara contra `azp`, NO contra `aud`
+AUTH_JWKS_URL=...            # <Frontend API URL>/.well-known/jwks.json
+```
+
+Son las únicas que la app lee de ese archivo: `DATABASE_URL` y las demás las pasa
+el Makefile por línea de comando. Ver `docs/adr/0003` y `docs/adr/0004`.
 
 ## Estructura
 
@@ -79,6 +93,22 @@ make seed      # importa data/planilla.xlsx a la base
 
 Sin ese archivo, los tests de API se saltan con un mensaje explicativo y los del
 dominio corren igual — no hacen falta datos.
+
+## Autenticación y aislamiento
+
+El proveedor de identidad es externo y el backend sólo verifica el token
+(constitución, artículo VIII). Quién sos sale del JWT; **desde qué rol estás
+mirando** sale de un header `Active-Role`, obligatorio y sin default: una persona
+puede ser entrenadora y, a la vez, atleta de otro, y adivinar el rol cuando falta
+es lo que convierte eso en una vía de escape.
+
+El aislamiento no depende de que cada endpoint se acuerde de filtrar. Está en la
+base, con Row Level Security: dos policies por tabla, una por rol, y un rol de
+aplicación que no es dueño de las tablas ni superusuario —las dos formas de
+quedar exento de RLS—. Olvidarse del contexto no devuelve datos de más: da error.
+
+Ver `sdd/specs/001-identidad-y-aislamiento/` para el diseño y el spike que lo
+prueba rompiéndolo.
 
 ## Cómo se desarrolla
 

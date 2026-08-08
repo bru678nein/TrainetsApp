@@ -9,8 +9,9 @@
 --  por qué el modelo es como es; los comentarios son el registro de las
 --  decisiones. Para el DDL vigente: `alembic upgrade head --sql`.
 --
---  El RLS del final todavía NO está aplicado: entra con la tarea T-008 de la
---  feature 001, junto con la resolución de tenant en la capa HTTP.
+--  El RLS del final YA está aplicado: migraciones 0004 y 0005. Lo de abajo es
+--  el bosquejo que explica la forma; el DDL vigente son las migraciones, que
+--  traen 18 policies. Ante una diferencia, manda la migración.
 --  Ver sdd/specs/001-identidad-y-aislamiento/.
 -- =============================================================================
 
@@ -250,182 +251,117 @@ JOIN exercise     e  ON e.id  = pr.exercise_id
 LEFT JOIN logged_set l ON l.prescribed_set_id = ps.id
 GROUP BY p.athlete_id, p.id, m.ordinal, s.week_number, e.pattern_code;
 
--- -----------------------------------------------------------------------------
--- Aislamiento por tenant con RLS. TODAVÍA NO APLICADO: entra con la tarea T-008
--- de la feature 001, junto con la resolución de tenant en la capa HTTP.
--- Activarlo antes dejaría la app viendo cero filas.
---
--- Lo de abajo es el bosquejo, no el DDL final. Cinco cosas que la versión
--- anterior de este archivo daba por sentadas y son falsas:
---
--- 1. Sólo `athlete`, `program` y `exercise` tienen `coach_id`. Las otras cinco
---    llegan a su entrenador por cadena de claves foráneas, así que su policy
---    sube con EXISTS. El camino de cada tabla está en la sección 4 del plan de
---    la 001. Denormalizar `coach_id` en todas es una opción con su costo: bajo
---    RLS una copia desincronizada no es un dato feo, es una filtración.
---
--- 2. `ENABLE` no alcanza: hace falta `FORCE`, porque el dueño de la tabla
---    saltea RLS por default y las migraciones corren como dueño. Sin `FORCE`,
---    los tests pasarían sobre policies que en producción no aplican igual.
---
--- 3. La app no se conecta como dueña de las tablas. Hace falta un rol sin
---    privilegios especiales (T-007).
---
--- 4. El rol activo cambia el predicado, así que cada tabla lleva DOS policies,
---    una por rol, y no una sola con un `OR` adentro. Postgres combina las
---    policies permisivas con OR igual; la diferencia es que el chequeo de rol
---    garantiza que nunca sean verdaderas las dos a la vez. Un `USING (coach OR
---    atleta)` deja a la persona con los dos roles viendo todo desde cualquiera
---    de los dos, y eso no se ve leyendo el diff.
---
--- 5. `USING` no se aplica a un INSERT: una fila que todavía no existe no se
---    puede filtrar. Lo que gobierna la escritura es `WITH CHECK`, y ahí vive el
---    criterio de aceptación 4 (un atleta no registra una serie prescrita a
---    otro). Con `USING` solo, ese criterio no se cumple aunque los tests de
---    lectura estén todos verdes.
---
--- El `current_setting` va SIN el segundo argumento a propósito: una sesión sin
--- contexto tiene que dar error, no cero filas. Con `missing_ok = true` un
--- `SET LOCAL` olvidado se ve igual que "este usuario no tiene datos" y puede
--- vivir meses.
--- -----------------------------------------------------------------------------
 
--- El contrato de la sesión: dos variables, siempre las dos, ninguna con default.
+-- -----------------------------------------------------------------------------
+-- Aislamiento por tenant con RLS. APLICADO: migraciones 0004 y 0005.
+--
+-- Este archivo no se aplica nunca, así que lo de abajo es el bosquejo que
+-- explica la forma; el DDL vigente son las migraciones, que traen 18 policies.
+-- Si las dos difieren, manda la migración y esto es un bug de documentación.
+--
+-- El contrato de la sesión son dos variables, siempre las dos, ninguna con
+-- default:
 --
 --   app.current_auth_user_id  text  -- el `sub` del JWT, verificado
 --   app.active_role           text  -- 'coach' | 'athlete', del header Active-Role
 --
 -- `active_role` y no `current_role`: CURRENT_ROLE es palabra reservada, y
--- `SET LOCAL app.current_role = 'coach'` es error de sintaxis aun con el
--- prefijo. La trampa es que current_setting('app.current_role') SI compila
--- adentro de la policy, porque ahi es un literal de texto: el DDL entra sin
--- quejarse y la app revienta recien en runtime, al setear el contexto.
+-- `SET LOCAL app.current_role = 'coach'` es error de sintaxis aun con prefijo.
+-- La trampa es que current_setting('app.current_role') SÍ compila adentro de la
+-- policy, porque ahí es un literal: el DDL entra sin quejarse y la app revienta
+-- recién en runtime.
 --
--- La variable lleva el `sub` y no `app_user.id`, que parece un rodeo y evita un
+-- La variable lleva el `sub` y no app_user.id, que parece un rodeo y evita un
 -- punto muerto: traducir uno en otro exige leer `app_user`, y esa lectura pasa
--- ANTES de que exista contexto. Con RLS forzado sobre `app_user` tira error; sin
--- RLS sobre `app_user`, cualquier entrenador lee el email de todas las personas
--- del sistema. Con el `sub`, el SET LOCAL es función pura del token y no toca la
--- base: no hay ningún instante con sesión abierta y sin contexto.
---
--- Corolario de tipo: es `text`, no `uuid`. Castearla con ::uuid es un error.
+-- ANTES de que exista contexto.
+-- -----------------------------------------------------------------------------
+
+-- Las variables NO se leen crudas. `current_setting` sin segundo argumento
+-- explota si nunca se seteó, pero una variable custom no vuelve a estar
+-- indefinida: `SET LOCAL` revierte al terminar la transacción y lo que queda es
+-- la cadena vacía. O sea que a partir del segundo request de una conexión del
+-- pool, un contexto olvidado se leería como '' y la respuesta serían cero filas
+-- en silencio. Estas dos funciones lo convierten en un error (migración 0005).
+CREATE FUNCTION app_auth_user_id() RETURNS text LANGUAGE plpgsql STABLE AS $$
+DECLARE valor text;
+BEGIN
+    valor := current_setting('app.current_auth_user_id');
+    IF valor = '' THEN
+        RAISE EXCEPTION 'app.current_auth_user_id vacío' USING ERRCODE = 'insufficient_privilege';
+    END IF;
+    RETURN valor;
+END $$;
+-- app_active_role() es igual, y además exige que el valor sea 'coach' o 'athlete'.
+
 CREATE FUNCTION app_current_user_id() RETURNS uuid LANGUAGE sql STABLE AS $$
-    SELECT u.id FROM app_user u
-    WHERE u.auth_user_id = current_setting('app.current_auth_user_id')
+    SELECT u.id FROM app_user u WHERE u.auth_user_id = app_auth_user_id()
 $$;
--- STABLE y no IMMUTABLE: el valor no cambia dentro de una transacción, pero
--- depende del estado de la sesión. IMMUTABLE dejaría al planner constant-foldear
--- el resultado entre transacciones, que es la optimización que lo convierte en
--- una filtración.
 
--- Se habilita en toda tabla que abajo lleve policy. Una CREATE POLICY sobre una
--- tabla sin ENABLE se aplica sin error y no filtra nada: la policy queda escrita,
--- se lee en el diff como protección, y no protege. Por eso las dos listas —lo
--- que se habilita y lo que lleva policy— tienen que coincidir a ojo.
-ALTER TABLE app_user   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE app_user   FORCE  ROW LEVEL SECURITY;
-ALTER TABLE athlete    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE athlete    FORCE  ROW LEVEL SECURITY;
-ALTER TABLE exercise   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE exercise   FORCE  ROW LEVEL SECURITY;
-ALTER TABLE logged_set ENABLE ROW LEVEL SECURITY;
-ALTER TABLE logged_set FORCE  ROW LEVEL SECURITY;
--- ...y lo mismo para coach, program, mesocycle, session, prescription y
--- prescribed_set, cuyas policies no se transcriben acá porque repiten la misma
--- forma que `logged_set`. El DDL completo, con las 18 policies, está en
--- sdd/specs/001-identidad-y-aislamiento/spike/01_rls.sql, que es el que se
--- corrió de verdad. `movement_pattern` es referencia pura y queda sin RLS.
-
--- `app_user` no puede usar app_current_user_id(): se llamaría a sí misma. El
--- detector de recursión de Postgres no lo agarra —mira referencias directas a la
--- propia tabla, y acá pasa por una función—, así que la consulta se va de pila y
--- muere con "stack depth limit exceeded" (54001), un error que ni menciona RLS.
--- Va directo contra auth_user_id.
+-- Las cinco tablas profundas —mesocycle, session, prescription, prescribed_set,
+-- logged_set— NO recorren la cadena adentro de la policy. Se probó y no escala:
+-- RLS también se aplica dentro de las subconsultas de una policy, así que leer
+-- `prescription` desde la policy de `prescribed_set` dispara la policy de
+-- `prescription`, que dispara la de `session`, y el costo se multiplica por
+-- nivel. Medido contra la planilla real, 1.326 series:
 --
--- Una persona sólo se ve a sí misma, en los dos roles. El entrenador no lee la
--- identidad de sus atletas porque no la necesita: full_name y email viven en
--- `athlete`, cargados a mano por él. La feature 003 va a tener que abrir algo
--- acá, y conviene que sea una decisión de esa feature.
+--     athlete (0 niveles)          0,14 ms
+--     prescription (4 niveles)     1.143 ms
+--     prescribed_set (5 niveles)   más de 20 s, cancelado
 --
--- El WITH CHECK es lo que hace segura la T-011: en el primer login la fila no
--- existe, y la policy deja crear exactamente una —la propia— sin ningún `if` en
--- la aplicación.
-CREATE POLICY app_user_self ON app_user
-    USING      (auth_user_id = current_setting('app.current_auth_user_id'))
-    WITH CHECK (auth_user_id = current_setting('app.current_auth_user_id'));
+-- El recorrido va adentro de una función SECURITY DEFINER, que corre como el
+-- dueño y por eso no dispara policies: la recursión se corta. Misma consulta,
+-- 60 ms. Devuelven booleanos y nunca ids, tienen search_path fijado, y EXECUTE
+-- revocado de PUBLIC — bypassean RLS por diseño y eso hay que acotarlo.
+CREATE FUNCTION app_coach_ve_prescribed_set(uuid) RETURNS boolean
+  LANGUAGE sql STABLE SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM prescribed_set x
+        JOIN prescription pr ON pr.id = x.prescription_id
+        JOIN session s ON s.id = pr.session_id
+        JOIN mesocycle m ON m.id = s.mesocycle_id
+        JOIN program p ON p.id = m.program_id
+        JOIN coach c ON c.id = p.coach_id AND c.user_id = app_current_user_id()
+        WHERE x.id = $1)
+$$;
+-- ...y una por cada (tabla profunda, rol): diez en total.
 
--- Tabla llana, los dos roles. El entrenador llega por coach_id; el atleta, por
--- su propia identidad.
+-- Diez tablas con ENABLE + FORCE. `movement_pattern` es referencia pura y queda
+-- sin RLS. FORCE además de ENABLE porque el dueño está exento por default y las
+-- migraciones corren como dueño; sin él los tests pasarían sobre policies que en
+-- producción no aplican igual. Un superusuario saltea RLS pase lo que pase, así
+-- que la app se conecta con un rol que no es ninguna de las dos cosas (T-007).
+ALTER TABLE athlete ENABLE ROW LEVEL SECURITY;
+ALTER TABLE athlete FORCE  ROW LEVEL SECURITY;
+
+-- Dos policies por tabla, una por rol, nunca una sola con OR adentro. Postgres
+-- combina las permisivas con OR igual; la diferencia es que cada una arranca
+-- chequeando el rol activo, así que nunca son verdaderas las dos. Un
+-- `USING (coach OR atleta)` deja a la persona con los dos roles viendo todo
+-- desde cualquiera, y no se nota leyendo el diff.
+--
+-- WITH CHECK en todas, no sólo en logged_set: USING no se aplica a un INSERT, y
+-- una tabla cuya policy no tiene WITH CHECK rechaza toda escritura.
 CREATE POLICY athlete_as_coach ON athlete
-    USING (current_setting('app.active_role') = 'coach'
+    USING (app_active_role() = 'coach'
            AND EXISTS (SELECT 1 FROM coach c
-                       WHERE c.id = athlete.coach_id
-                         AND c.user_id = app_current_user_id()));
+                       WHERE c.id = athlete.coach_id AND c.user_id = app_current_user_id()))
+    WITH CHECK (app_active_role() = 'coach'
+           AND EXISTS (SELECT 1 FROM coach c
+                       WHERE c.id = athlete.coach_id AND c.user_id = app_current_user_id()));
 
 CREATE POLICY athlete_as_athlete ON athlete
-    USING (current_setting('app.active_role') = 'athlete'
-           AND athlete.user_id = app_current_user_id());
+    USING      (app_active_role() = 'athlete' AND athlete.user_id = app_current_user_id())
+    WITH CHECK (app_active_role() = 'athlete' AND athlete.user_id = app_current_user_id());
 
--- Tabla profunda: `logged_set` no tiene coach_id y sube cinco niveles. El EXISTS
--- recorre claves foráneas ya indexadas.
---
--- La cadena se escribe entera aunque Postgres la acorte: un EXISTS contra
--- `program` ya viene filtrado por la policy de `program`, porque RLS se aplica
--- también a las subconsultas de una policy. No se aprovecha — la policy pasaría
--- a leerse como "cualquier programa" y su corrección dependería de otra policy
--- que `\dp` no muestra.
-CREATE POLICY logged_set_as_coach ON logged_set
-    USING (current_setting('app.active_role') = 'coach'
-           AND EXISTS (
-               SELECT 1
-               FROM prescribed_set ps
-               JOIN prescription pr ON pr.id = ps.prescription_id
-               JOIN session      s  ON s.id  = pr.session_id
-               JOIN mesocycle    m  ON m.id  = s.mesocycle_id
-               JOIN program      p  ON p.id  = m.program_id
-               JOIN coach        c  ON c.id  = p.coach_id
-               WHERE ps.id = logged_set.prescribed_set_id
-                 AND c.user_id = app_current_user_id()));
-
--- La única tabla que el atleta escribe, y por eso la única donde el WITH CHECK
--- hace trabajo real.
+-- El caso donde WITH CHECK hace trabajo propio y no copia al USING: el criterio
+-- de aceptación 4. Sin el segundo EXISTS, el atleta manda su propio athlete_id
+-- con un prescribed_set_id ajeno y la fila entra — los dos predicados de "es
+-- mío" pasan por separado, falta que se correspondan entre sí.
 CREATE POLICY logged_set_as_athlete ON logged_set
-    USING (current_setting('app.active_role') = 'athlete'
+    USING (app_active_role() = 'athlete'
            AND EXISTS (SELECT 1 FROM athlete a
-                       WHERE a.id = logged_set.athlete_id
-                         AND a.user_id = app_current_user_id()))
-    WITH CHECK (
-        current_setting('app.active_role') = 'athlete'
-        -- la fila es mía...
-        AND EXISTS (SELECT 1 FROM athlete a
-                    WHERE a.id = logged_set.athlete_id
-                      AND a.user_id = app_current_user_id())
-        -- ...y la serie que estoy registrando me fue prescrita a mí.
-        -- Este segundo EXISTS es el criterio de aceptación 4 entero: sin él, el
-        -- atleta manda su propio athlete_id con un prescribed_set_id ajeno y la
-        -- fila entra, porque los dos predicados de "es mío" pasan por separado.
-        AND EXISTS (SELECT 1
-                    FROM prescribed_set ps
-                    JOIN prescription pr ON pr.id = ps.prescription_id
-                    JOIN session      s  ON s.id  = pr.session_id
-                    JOIN mesocycle    m  ON m.id  = s.mesocycle_id
-                    JOIN program      p  ON p.id  = m.program_id
-                    WHERE ps.id = logged_set.prescribed_set_id
-                      AND p.athlete_id = logged_set.athlete_id));
-
--- `exercise` es la excepción del catálogo global: coach_id IS NULL tiene que
--- seguir visible para todos, y el atleta ve además los del entrenador que lo
--- entrena, porque son los que aparecen en su sesión.
-CREATE POLICY exercise_as_coach ON exercise
-    USING (current_setting('app.active_role') = 'coach'
-           AND (exercise.coach_id IS NULL
-                OR EXISTS (SELECT 1 FROM coach c
-                           WHERE c.id = exercise.coach_id
-                             AND c.user_id = app_current_user_id())));
-
-CREATE POLICY exercise_as_athlete ON exercise
-    USING (current_setting('app.active_role') = 'athlete'
-           AND (exercise.coach_id IS NULL
-                OR EXISTS (SELECT 1 FROM athlete a
-                           WHERE a.coach_id = exercise.coach_id
-                             AND a.user_id = app_current_user_id())));
+                       WHERE a.id = logged_set.athlete_id AND a.user_id = app_current_user_id()))
+    WITH CHECK (app_active_role() = 'athlete'
+           AND EXISTS (SELECT 1 FROM athlete a
+                       WHERE a.id = logged_set.athlete_id AND a.user_id = app_current_user_id())
+           AND app_athlete_ve_prescribed_set(logged_set.prescribed_set_id));

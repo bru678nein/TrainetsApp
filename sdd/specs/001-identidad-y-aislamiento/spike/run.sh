@@ -19,6 +19,15 @@
 # hoy el bloque B dice "SIN FUGA" a proposito, y esa es justamente la parte
 # interesante (ver plan.md, seccion 4).
 
+#
+# NOTA (post T-008). Este spike prototipo el RLS antes de que existiera, y su DDL
+# YA NO ES el que se shippea: las cinco tablas profundas pasaron a resolver su
+# cadena dentro de funciones SECURITY DEFINER, porque recorrerla dentro de la
+# policy daba timeout con datos reales. Ver plan.md seccion 4 y la migracion 0004.
+#
+# Se conserva porque los controles negativos son el registro de por que cada
+# decision existe. Migra hasta 0003 y no hasta head: desde 0004 las funciones y
+# las policies ya estan, y este DDL chocaria con ellas.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -30,7 +39,7 @@ build() {
     "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS rls_spike" >/dev/null
     "${PSQL[@]}" -d postgres -c "DROP ROLE IF EXISTS app_rls" >/dev/null
     docker compose -f "$ROOT/docker-compose.yml" exec -T db createdb -U coach -O coach rls_spike
-    (cd "$ROOT/backend" && DATABASE_URL="$DSN" .venv/bin/python -m alembic upgrade head >/dev/null)
+    (cd "$ROOT/backend" && DATABASE_URL="$DSN" .venv/bin/python -m alembic upgrade 0003 >/dev/null)
     # Se siembra ANTES de activar RLS: el bootstrap de docker es superusuario y
     # saltea RLS siempre, con FORCE o sin el. Por eso mismo la app necesita un rol
     # que no sea ni superusuario ni dueno de las tablas — es la tarea T-007.

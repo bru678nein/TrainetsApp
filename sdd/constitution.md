@@ -52,9 +52,9 @@ opcional es que el camino esté escrito y que la policy lo use.
 
 Ninguna feature que exponga datos entra a `main` sin un test que verifique que
 el entrenador B no ve lo del entrenador A, por cada endpoint que devuelva datos.
-Al día de la versión 1.1 de esta constitución **esos tests no existen todavía**:
-la feature 001 los trae y hasta entonces el artículo está declarado, no
-cumplido. Ver la sección "Cumplimiento".
+Desde la versión 1.2 eso **se verifica solo**: los recorridos se parametrizan
+sobre las rutas que la app expone, no sobre una lista, así que un endpoint nuevo
+rompe la suite hasta que alguien decida cómo se prueba. Ver "Cumplimiento".
 
 ## Artículo IV — Los tests del dominio van primero
 
@@ -122,7 +122,7 @@ verifica hoy y con qué.
 |---|---|
 | I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`. Automático. |
 | II — la base rechaza lo imposible | `tests/test_schema.py`: CHECKs, `citext`, índice funcional, vista. Automático. |
-| III — aislamiento por tenant | RLS aplicado en la migración 0004: 18 policies, dos por tabla, con `FORCE`. `tests/test_rls.py` verifica el aislamiento entre entrenadores como rol de aplicación. **Falta la mitad HTTP**: que valga para *todas* las rutas y no sólo para las que alguien testeó es T-015 y T-016. |
+| III — aislamiento por tenant | **Cumplido.** RLS en las migraciones 0004 y 0005: 18 policies, dos por tabla, con `FORCE`, y un rol de aplicación que no es dueño ni superusuario. La capa HTTP resuelve el tenant en el router. Tres recorridos sobre *todas* las rutas de la app —sin credenciales, sin `Active-Role`, recurso ajeno— parametrizados sobre las rutas descubiertas y no sobre una lista, así que un endpoint nuevo rompe la suite hasta que alguien decida cómo se prueba. Automático. |
 | IV — tests del dominio primero | Revisión humana. No es automatizable. |
 | V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
 | VI — simplicidad por default | Revisión humana. |
@@ -131,9 +131,10 @@ verifica hoy y con qué.
 | IX — datos de desarrollo reales | `make seed` importa la planilla; los tests de API dependen de ella. |
 | X — cada artefacto es rastreable | Revisión humana. Desde la feature 001 los commits referencian su `T-NNN`; los anteriores no, y hay código en `main` sin spec previa. **La deuda vieja queda**, lo que cambió es que dejó de crecer. |
 
-Las dos filas en negrita son deuda declarada, no aspiraciones. Si alguna sigue
-así cuando la feature que la resuelve esté mergeada, el problema es el proceso,
-no el artículo.
+Lo que queda en deuda son los artículos VII —no existe el editor todavía— y X,
+donde la trazabilidad vieja no se recupera y sólo dejó de crecer. Las filas que
+dicen "revisión humana" no son deuda: son cosas que no se automatizan, y decirlo
+vale más que fingir un chequeo.
 
 ## Enmiendas
 
@@ -149,4 +150,5 @@ conocida.
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0 | (inicial) | Artículos I a X |
+| 1.2 | 2026-08-08 | Artículo III pasa de declarado a cumplido: RLS aplicado, y los recorridos de rutas se descubren en vez de listarse. Artículo VIII deja de decir "sin auth implementada". |
 | 1.1 | 2026-08-07 | Artículo III: se corrigen dos afirmaciones falsas —no todas las tablas llevan `coach_id`, y los tests de aislamiento no existían— y se reformula como condición de merge. Se agrega la sección "Cumplimiento". |
