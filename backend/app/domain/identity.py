@@ -50,6 +50,55 @@ class Identity:
     auth_user_id: str
 
 
+@dataclass(frozen=True)
+class Profile:
+    """What the provider says about the person. Read once, at signup.
+
+    Kept apart from `Identity` on purpose. `Identity` carries the `sub` and
+    nothing else, so that changing provider does not change who somebody is;
+    this is the exception that proves it, and it applies exactly once — at the
+    first login, when the `app_user` row does not exist yet and the verified
+    token is the only trustworthy source there is.
+
+    After that row exists, nothing here is consulted again: the email and the
+    name are read from our own table.
+
+    It also has to come from the token rather than from a request body. Feature
+    003 matches an athlete record to a person, and if a caller could declare
+    their own email at signup they could position themselves to claim a record
+    meant for somebody else.
+    """
+
+    email: str
+    display_name: str
+
+
+def _texto(valor: object) -> str | None:
+    """A usable string, or None. Blank is not a value."""
+    return valor.strip() if isinstance(valor, str) and valor.strip() else None
+
+
+def profile_from(claims: dict[str, object]) -> Profile | None:
+    """The profile in these claims, or None when the token does not carry one.
+
+    None means the signup cannot proceed: `app_user.email` is NOT NULL and
+    inventing one is worse than stopping — the same call migration 0002 made
+    when it refused to migrate athletes who had an account and no email.
+
+    Two spellings of the email claim, because providers differ and the token is
+    what it is rather than what we would like. The display name falls back to
+    the email: it is cosmetic, and refusing an otherwise valid signup over it
+    would not be.
+    """
+    email = _texto(claims.get("email")) or _texto(claims.get("email_address"))
+    if email is None:
+        return None
+
+    partes = [_texto(claims.get("given_name")), _texto(claims.get("family_name"))]
+    nombre = _texto(claims.get("name")) or " ".join(p for p in partes if p) or email
+    return Profile(email=email, display_name=nombre)
+
+
 class Rejection(Enum):
     """Why a token was rejected.
 

@@ -112,3 +112,12 @@ class AdherenceOut(BaseModel):
     in_range_rate: float
     tonnage_kg: float
     avg_rir_deviation: float | None
+
+
+class CoachOut(BaseModel):
+    """The coaching space, as it looks the moment it exists."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    display_name: str
+    athlete_count: int

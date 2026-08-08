@@ -13,13 +13,12 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Cuatro, y las tres primeras son las únicas escrituras que faltan: hasta que
+Tres. Las dos primeras son las escrituras que faltan: hasta que
 existan, la API sólo lee —salvo registrar una serie ya prescrita— y no hay forma
 de crear un entrenador ni un atleta salvo por el importador.
 
 | ID | Tarea |
 |---|---|
-| T-011 | Alta de entrenador en el primer login |
 | T-012 | Crear atleta sin cuenta |
 | T-013 | Cierre de sesión |
 | T-018 | Documentación y tabla de cumplimiento |
@@ -37,6 +36,7 @@ de crear un entrenador ni un atleta salvo por el importador.
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-014 | Fixtures compartidas: dos entrenadores y la persona con los dos roles | las usan T-016 y T-017 sin duplicar armado; no dependen de la planilla |
+| T-011 | Alta de entrenador en el primer login (`POST /api/me/coach`) | 9 tests; poniendo el rol equivocado en el contexto caen 4, pisando la identidad guardada cae 1, salteando la verificación del token cae 1 |
 | T-017 | Criterios 9 a 11: coach que se entrena, dos vínculos, rol que no se mezcla | 7 tests; quitando el gate por rol a las policies de coach, caen 2 |
 | T-015 | Recorrido de rutas: sin credenciales, `401` en todas | parametrizado sobre las rutas de la app, no sobre una lista |
 | T-016 | Recorrido de rutas: recurso ajeno = inexistente, y `400` sin `Active-Role` | agregando un endpoint con un identificador no declarado, falla nombrándolo |
@@ -192,6 +192,18 @@ que envejece deja de poder cumplirse tal como está escrito.
 
 *Hecha cuando:* una identidad sin perfil de entrenador lo obtiene al entrar, y
 ve su espacio vacío.
+
+Dos cosas que la tarea no anticipaba. **Es gallina y huevo**:
+`require_tenant_context` responde `403` a quien no tiene el rol, así que una
+identidad nueva nunca llegaría al endpoint que se lo da. Va en un router aparte
+con su propia dependencia, declarado en `SIN_ROL` de `conftest.py` para que los
+recorridos lo traten como la excepción que es en vez de saltearlo en silencio.
+
+Y **el email sale del token, no del cuerpo**: `app_user.email` es `NOT NULL` y en
+el primer login no hay fila de dónde leerlo. Que lo declare quien llama abriría
+que alguien se posicione para reclamar en la 003 una ficha ajena. Si el token no
+lo trae, el alta se rechaza en vez de inventarlo — la misma decisión que tomó la
+migración 0002.
 
 **T-012 — Crear atleta sin cuenta.** Dentro del espacio del entrenador.
 

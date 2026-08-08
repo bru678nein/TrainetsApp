@@ -9,11 +9,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import require_tenant_context, tenant_session
+from app.api.deps import (
+    TenantContext,
+    require_identity_for_signup,
+    require_tenant_context,
+    tenant_session,
+)
 from app.domain.analytics import SetRecord, adherence_by_week, weekly_volume
 from app.domain.rpe import OutOfChartError, estimate_1rm
 from app.models import (
+    AppUser,
     Athlete,
+    Coach,
     LoggedSet,
     Mesocycle,
     PrescribedSet,
@@ -24,6 +31,7 @@ from app.models import (
 from app.schemas import (
     AdherenceOut,
     AthleteOut,
+    CoachOut,
     ExerciseBlock,
     LogSetIn,
     LogSetOut,
@@ -289,3 +297,60 @@ def adherence(
         )
         for a in adherence_by_week(_records(db, athlete_id))
     ]
+
+
+# Second router, and the only one that does not demand a role. Task T-011.
+#
+# It exists because of a chicken and egg: `require_tenant_context` answers 403 to
+# anybody without the role, so a brand-new identity could never reach the
+# endpoint that would give them one. Kept apart rather than punching a hole in
+# the data router — an exception that lives in its own mount is one a reviewer
+# can see, and `tests/conftest.py` lists it explicitly so the route walks treat
+# it as the exception it is instead of silently skipping it.
+alta = APIRouter(prefix="/api/me", dependencies=[Depends(require_identity_for_signup)])
+
+
+@alta.post("/coach", response_model=CoachOut, status_code=status.HTTP_201_CREATED)
+def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)) -> CoachOut:
+    """First login: the person gets their identity and an empty coaching space.
+
+    Idempotent. A client that retries, or a first login racing a second tab,
+    gets the same space back rather than a second one — and `coach.user_id` is
+    UNIQUE, so the database would refuse the duplicate anyway. Answering 201
+    either way keeps the client from having to tell the two apart.
+
+    Nothing here checks who the caller is. The `app_user` policy does it:
+    its WITH CHECK admits exactly one row, the caller's own, so an `if` in
+    Python would be decoration over the thing actually enforcing it.
+    """
+    db = ctx.db
+    persona = db.scalars(
+        select(AppUser).where(AppUser.auth_user_id == ctx.identity.auth_user_id)
+    ).first()
+
+    if persona is None:
+        if ctx.profile is None:
+            # `app_user.email` is NOT NULL and the token did not carry one.
+            # Inventing it is worse than stopping — the same call migration 0002
+            # made rather than making up an address for an athlete.
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "el token no trae email: no se puede crear la identidad",
+            )
+        persona = AppUser(
+            auth_user_id=ctx.identity.auth_user_id,
+            email=ctx.profile.email,
+            display_name=ctx.profile.display_name,
+        )
+        db.add(persona)
+        db.flush()
+
+    coach = db.scalars(select(Coach).where(Coach.user_id == persona.id)).first()
+    if coach is None:
+        coach = Coach(user_id=persona.id)
+        db.add(coach)
+        db.flush()
+
+    atletas = db.scalars(select(Athlete).where(Athlete.coach_id == coach.id)).all()
+    db.commit()
+    return CoachOut(id=coach.id, display_name=persona.display_name, athlete_count=len(atletas))

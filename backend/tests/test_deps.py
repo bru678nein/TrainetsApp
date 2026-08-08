@@ -16,7 +16,7 @@ from fastapi.routing import APIRoute
 
 from app.api.deps import tenant_session
 from app.main import app
-from tests.conftest import SIN_TENANT, rutas_de_datos
+from tests.conftest import SIN_ROL, SIN_TENANT, rutas_de_datos
 
 
 def _usa(route: APIRoute, dep: object) -> bool:
@@ -42,7 +42,9 @@ def test_el_recorrido_encuentra_todas_las_rutas():
     assert del_recorrido == del_openapi
 
 
-@pytest.mark.parametrize("route", rutas_de_datos(), ids=lambda r: r.path)
+@pytest.mark.parametrize(
+    "route", [r for r in rutas_de_datos() if r.path not in SIN_ROL], ids=lambda r: r.path
+)
 def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
     """The only door into the database is `tenant_session`.
 
@@ -133,4 +135,21 @@ def test_ninguna_dependencia_esta_pisada(client):
     assert app.dependency_overrides == {}, (
         f"hay dependencias pisadas: {list(app.dependency_overrides)}. "
         "Falsificá de dónde sale la conexión, no la puerta al tenant."
+    )
+
+
+@pytest.mark.parametrize(
+    "route", [r for r in rutas_de_datos() if r.path in SIN_ROL], ids=lambda r: r.path
+)
+def test_las_rutas_sin_rol_pasan_por_la_otra_puerta(route):
+    """Opting out of the role check is not opting out of everything.
+
+    A route in SIN_ROL still has to resolve a verified identity and open its
+    session through a dependency that sets the tenant variables — otherwise
+    "does not need a role" would quietly become "needs nothing".
+    """
+    from app.api.deps import require_identity_for_signup
+
+    assert _usa(route, require_identity_for_signup), (
+        f"{route.path} está en SIN_ROL pero tampoco pasa por el alta: quedó sin ninguna puerta."
     )

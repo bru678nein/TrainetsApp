@@ -20,7 +20,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.domain.identity import ExpectedToken, Identity, Rejection, identify
+from app.domain.identity import (
+    ExpectedToken,
+    Identity,
+    Profile,
+    Rejection,
+    identify,
+    profile_from,
+)
 
 NOW = datetime(2026, 8, 8, 12, 0, tzinfo=UTC)
 
@@ -162,3 +169,47 @@ def test_el_dominio_no_importa_infraestructura():
 
     forbidden = {"sqlalchemy", "fastapi", "pydantic", "psycopg", "httpx", "jwt", "requests"}
     assert not (imported & forbidden), f"el dominio importa {imported & forbidden}"
+
+
+class TestElPerfilDelPrimerLogin:
+    """What the provider says about the person, read once, at signup only.
+
+    `Identity` deliberately carries nothing but the `sub`: email and display
+    name are read from our own table, so changing provider does not change who
+    someone is. The exception is the very first login, when that row does not
+    exist yet and the only trustworthy source is the verified token.
+
+    Kept as a separate type for that reason. It is not identity — it is what we
+    copy into `app_user` once, and never consult again.
+    """
+
+    def test_lee_email_y_nombre(self):
+        p = profile_from(claims(email="a@example.com", name="Ana Pérez"))
+        assert p == Profile(email="a@example.com", display_name="Ana Pérez")
+
+    def test_acepta_la_otra_forma_de_clerk(self):
+        """Providers spell these differently, and the token is what it is."""
+        p = profile_from(claims(email_address="b@example.com", given_name="Beto"))
+        assert p == Profile(email="b@example.com", display_name="Beto")
+
+    def test_arma_el_nombre_con_apellido_si_viene_partido(self):
+        p = profile_from(claims(email="c@example.com", given_name="Ce", family_name="De"))
+        assert p is not None and p.display_name == "Ce De"
+
+    def test_sin_email_no_hay_perfil(self):
+        """`app_user.email` is NOT NULL, and inventing one is worse than stopping.
+
+        The same reasoning migration 0002 used when it refused to migrate
+        athletes who had an account and no email.
+        """
+        sin = claims(name="Sin Correo")
+        assert profile_from(sin) is None
+
+    def test_sin_nombre_cae_al_email(self):
+        """A display name is cosmetic; refusing the signup over it would not be."""
+        p = profile_from(claims(email="d@example.com"))
+        assert p is not None and p.display_name == "d@example.com"
+
+    @pytest.mark.parametrize("valor", ["", "   ", 42, None])
+    def test_un_email_que_no_es_email_utilizable_no_alcanza(self, valor):
+        assert profile_from(claims(email=valor)) is None

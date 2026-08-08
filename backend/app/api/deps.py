@@ -29,9 +29,9 @@ from sqlalchemy.orm import Session as OrmSession
 
 from app.core.config import get_settings
 from app.core.jwks import JwksUnavailable, KeyCache, fetch_jwks
-from app.core.tokens import verify
+from app.core.tokens import verify_and_claims
 from app.db import open_session
-from app.domain.identity import ExpectedToken, Identity, Rejection
+from app.domain.identity import ExpectedToken, Identity, Profile, Rejection, profile_from
 
 # The two values of `Active-Role`. Anything else is a 400, the empty string
 # included. See the table in section 3 of the plan: there is no default, ever.
@@ -45,6 +45,9 @@ class TenantContext:
     identity: Identity
     role: str
     db: OrmSession
+    # Only the signup path fills this: it needs a profile out of the token
+    # because the `app_user` row does not exist yet. Empty everywhere else.
+    profile: Profile | None = None
 
 
 @lru_cache(maxsize=1)
@@ -72,9 +75,11 @@ def _bearer(authorization: str | None) -> str:
     return token.strip()
 
 
-def _identify(token: str) -> Identity:
+def _identify(token: str) -> tuple[Identity, Profile | None]:
     try:
-        resultado = verify(token, get_key_cache(), _expected_token(), datetime.now(UTC))
+        resultado, claims = verify_and_claims(
+            token, get_key_cache(), _expected_token(), datetime.now(UTC)
+        )
     except JwksUnavailable as exc:
         # Not a 401. We could not check, which is a problem at the provider's
         # end; telling a legitimate user their credentials are bad during
@@ -85,7 +90,7 @@ def _identify(token: str) -> Identity:
         ) from exc
 
     if isinstance(resultado, Identity):
-        return resultado
+        return resultado, profile_from(claims)
     # Criterion 6: expiry is the one reason worth telling apart, because it is
     # the one where renewing helps. Everything else answers identically, so that
     # no rejection reports how close somebody got.
@@ -140,7 +145,7 @@ def require_tenant_context(
     stops being a missing line and becomes mounting a second router, which is
     loud in any review.
     """
-    identity = _identify(_bearer(authorization))
+    identity, _ = _identify(_bearer(authorization))
     role = _role(active_role)
 
     with open_session() as db:
@@ -154,6 +159,35 @@ def require_tenant_context(
             raise HTTPException(status.HTTP_403_FORBIDDEN, "no tenés ese rol")
 
         yield TenantContext(identity=identity, role=role, db=db)
+
+
+def require_identity_for_signup(
+    authorization: str | None = Header(default=None),
+) -> Iterator[TenantContext]:
+    """Verified identity and a session, without demanding a role first.
+
+    The chicken and egg of T-011: `require_tenant_context` answers 403 to
+    anybody who does not hold the role, so a brand-new identity could never get
+    far enough to create the coach profile that would give them one.
+
+    This is the only door that skips that check, and it is deliberately narrow.
+    It reads no `Active-Role` header — the role is not the caller's to choose
+    here — and pins the context to `coach`, because the single endpoint hanging
+    off it is "make me a coach". Everything else still applies: the token is
+    verified the same way, and the session variables are set before anything is
+    read or written, so RLS governs this endpoint exactly like the rest. The
+    `app_user` policy is what makes it safe — its WITH CHECK allows creating one
+    row, the caller's own, and no `if` in Python is load-bearing.
+    """
+    identity, perfil = _identify(_bearer(authorization))
+    with open_session() as db:
+        db.execute(_SET_IDENTITY, {"sub": identity.auth_user_id})
+        db.execute(_SET_ROLE, {"role": "coach"})
+        yield TenantContext(identity=identity, role="coach", db=db, profile=perfil)
+
+
+def signup_session(ctx: TenantContext = Depends(require_identity_for_signup)) -> OrmSession:
+    return ctx.db
 
 
 def tenant_session(ctx: TenantContext = Depends(require_tenant_context)) -> OrmSession:

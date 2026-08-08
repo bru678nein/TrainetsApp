@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routes import router
+from app.api.routes import alta, router
 from app.core.config import get_settings
 
 
@@ -27,6 +27,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Coaching API", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
+app.include_router(alta)
 
 
 @app.get("/health")

@@ -19,7 +19,7 @@ import uuid
 
 import pytest
 
-from tests.conftest import rutas_de_datos
+from tests.conftest import SIN_ROL, rutas_de_datos
 
 INEXISTENTE = "00000000-0000-0000-0000-000000000000"
 
@@ -37,7 +37,7 @@ CUERPOS: dict[str, dict[str, object]] = {
 # to them. They still have to leak nothing, which is what
 # `test_el_listado_de_b_no_trae_atletas_de_a` checks — one test per entry, and
 # the entry is what says somebody looked.
-SIN_IDENTIFICADOR = {"/api/athletes"}
+SIN_IDENTIFICADOR = {"/api/athletes"} | SIN_ROL
 
 
 def _parametros(ruta: str) -> set[str]:
@@ -183,7 +183,9 @@ def test_un_recurso_ajeno_responde_igual_que_uno_inexistente(como_b, recursos_de
     )
 
 
-@pytest.mark.parametrize("route", rutas_de_datos(), ids=_id_de_ruta)
+@pytest.mark.parametrize(
+    "route", [r for r in rutas_de_datos() if r.path not in SIN_ROL], ids=_id_de_ruta
+)
 def test_toda_ruta_exige_el_header_de_rol(raw_client, mint, recursos_de_a, route):
     """The third leg of criterion 3, and the one that catches a missing dependency.
 

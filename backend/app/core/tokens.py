@@ -42,13 +42,13 @@ _SIGNATURE_ONLY: Options = {
 }
 
 
-def verify(
+def verify_and_claims(
     token: str,
     keys: KeyCache,
     expected: ExpectedToken,
     now: datetime,
-) -> Identity | Rejection:
-    """The identity in this token, or why it was refused.
+) -> tuple[Identity | Rejection, dict[str, object]]:
+    """The identity in this token and its claims, or why it was refused.
 
     Raises `JwksUnavailable` — it does not turn it into a rejection — when the
     provider cannot be reached at all. "We could not check" is a 503 upstream,
@@ -58,21 +58,21 @@ def verify(
     try:
         header = jwt.get_unverified_header(token)
     except jwt.PyJWTError:
-        return Rejection.MALFORMED
+        return Rejection.MALFORMED, {}
 
     algorithm = header.get("alg")
     # Before the JWKS is touched at all: a token with a junk algorithm must not
     # cost us a key lookup, let alone the refresh an unknown `kid` can trigger.
     if not isinstance(algorithm, str) or algorithm not in expected.algorithms:
-        return Rejection.UNEXPECTED_ALGORITHM
+        return Rejection.UNEXPECTED_ALGORITHM, {}
 
     kid = header.get("kid")
     if not isinstance(kid, str) or not kid:
-        return Rejection.UNKNOWN_KEY
+        return Rejection.UNKNOWN_KEY, {}
 
     jwk = keys.key(kid)
     if jwk is None:
-        return Rejection.UNKNOWN_KEY
+        return Rejection.UNKNOWN_KEY, {}
 
     try:
         key = jwt.PyJWK(jwk, algorithm=algorithm).key
@@ -86,11 +86,39 @@ def verify(
             options=_SIGNATURE_ONLY,
         )
     except jwt.InvalidSignatureError:
-        return Rejection.BAD_SIGNATURE
+        return Rejection.BAD_SIGNATURE, {}
     except (jwt.PyJWTError, jwt.exceptions.InvalidKeyError, ValueError, TypeError):
         # A malformed key or an undecodable body. Same answer as a bad
         # signature would be tempting and wrong: this is not "someone tampered
         # with it", it is "this is not a token we can read".
-        return Rejection.MALFORMED
+        return Rejection.MALFORMED, {}
 
-    return identify(claims, expected, algorithm, now)
+    resultado = identify(claims, expected, algorithm, now)
+    if isinstance(resultado, Identity):
+        # Stashed for the one caller that needs more than identity: the signup
+        # endpoint, which has to copy a profile out of the token because the
+        # `app_user` row does not exist yet. Returned alongside rather than
+        # folded into `Identity`, which stays deliberately minimal — the `sub`
+        # and nothing else, so a change of provider is not a change of who
+        # somebody is.
+        return resultado, claims
+    return resultado, {}
+
+
+def verify(
+    token: str,
+    keys: KeyCache,
+    expected: ExpectedToken,
+    now: datetime,
+) -> Identity | Rejection:
+    """The identity in this token, or why it was refused.
+
+    What almost every caller wants. `verify_and_claims` exists for the one that
+    does not: the signup endpoint, which has to copy a profile out of the token
+    because the `app_user` row it would otherwise read does not exist yet.
+
+    Two names rather than one returning a tuple everybody has to unpack — the
+    claims are an exception, and a signature that advertises them at every call
+    site would suggest reaching for them is normal.
+    """
+    return verify_and_claims(token, keys, expected, now)[0]

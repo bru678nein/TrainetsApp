@@ -35,6 +35,16 @@ SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
 # decides which side it falls on.
 SIN_TENANT = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
+# Routes that need a verified identity but cannot need a role: the signup path,
+# where the whole point is that the caller does not hold one yet (T-011).
+#
+# Listed rather than detected, and deliberately awkward to add to. Every walk
+# below that assumes a role skips these, so an entry here is an entry that opts
+# out of a check — which is exactly the kind of thing that should cost a line in
+# a shared file and a justification, instead of happening quietly. What they do
+# not opt out of is answering 401 without credentials.
+SIN_ROL = {"/api/me/coach"}
+
 
 def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:
     """Walk nested routers, not just the top level.
