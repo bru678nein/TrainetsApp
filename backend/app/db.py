@@ -29,7 +29,15 @@ def get_engine() -> Engine:
     """
     dsn = os.getenv("DATABASE_URL")
     if not dsn:
-        raise RuntimeError("Falta DATABASE_URL. Copiá backend/.env.example a .env")
+        # Deliberately does NOT say "copy .env.example to .env": this reads the
+        # process environment with os.getenv, and nothing loads the file into
+        # it. `pydantic-settings` does read `.env`, but only for its own fields
+        # in app.core.config — putting DATABASE_URL there changes nothing here.
+        # The Makefile passes it on the command line, which is what works.
+        raise RuntimeError(
+            "Falta DATABASE_URL en el entorno. `make api` la pasa sola; "
+            "a mano: DATABASE_URL=... python -m uvicorn app.main:app"
+        )
     return create_engine(dsn, pool_pre_ping=True)
 
 
