@@ -13,6 +13,7 @@ migration is wrong, the tests have to find out.
 from __future__ import annotations
 
 import os
+import uuid
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -378,3 +379,124 @@ def session_detail(client: TestClient, athlete_id: str):
         return client.get(f"/api/sessions/{matches[0]['id']}").json()
 
     return _get
+
+
+# --- Escenario compartido para T-015 a T-017 -----------------------------------
+#
+# Se arma con el ORM adentro de la transacción que se revierte, y como dueño, así
+# que RLS no interviene: esto es el montaje, no lo que se prueba. Lo que se prueba
+# corre después, como `coachapp_app`.
+#
+# No depende de la planilla. Los criterios 9 a 11 tienen que correr en CI, donde
+# la planilla no existe, así que el escenario se construye entero acá.
+
+
+class Escenario:
+    """Two coaches, and a person who is a coach and somebody else's athlete.
+
+    That third person is the whole point of criteria 9 to 11: holding both roles
+    must not become a way out of the isolation. Two unrelated coaches would
+    never have caught the leak the spec worries about.
+    """
+
+    def __init__(self, **kwargs: object) -> None:
+        self.__dict__.update(kwargs)
+
+
+@pytest.fixture
+def escenario(db: OrmSession) -> Escenario:
+    from app.models import AppUser as Usuario
+    from app.models import (
+        Athlete,
+        Coach,
+        Exercise,
+        Mesocycle,
+        MovementPattern,
+        PrescribedSet,
+        Prescription,
+        Program,
+        Session,
+    )
+
+    marca = uuid.uuid4().hex[:6]
+
+    def persona(etiqueta: str) -> Usuario:
+        u = Usuario(
+            auth_user_id=f"{etiqueta}-{marca}",
+            email=f"{etiqueta}-{marca}@example.com",
+            display_name=etiqueta.upper(),
+        )
+        db.add(u)
+        db.flush()
+        return u
+
+    pa, pb, pc = persona("a"), persona("b"), persona("c")
+    ca, cb, cc = Coach(user_id=pa.id), Coach(user_id=pb.id), Coach(user_id=pc.id)
+    db.add_all([ca, cb, cc])
+    db.flush()
+
+    patron = MovementPattern(code=f"patron-{marca}", label_es="Patrón")
+    db.add(patron)
+    db.flush()
+
+    def programa(coach: Coach, atleta: Athlete, nombre: str) -> dict[str, object]:
+        """The full chain down to a prescribed set, which is what RLS walks."""
+        ej = Exercise(coach_id=coach.id, pattern_code=patron.code, name=f"{nombre} {marca}")
+        pr = Program(coach_id=coach.id, athlete_id=atleta.id, name=nombre)
+        db.add_all([ej, pr])
+        db.flush()
+        me = Mesocycle(program_id=pr.id, ordinal=1, label="M", week_count=4)
+        db.add(me)
+        db.flush()
+        se = Session(mesocycle_id=me.id, week_number=1, day_number=1)
+        db.add(se)
+        db.flush()
+        pre = Prescription(session_id=se.id, exercise_id=ej.id, position=1)
+        db.add(pre)
+        db.flush()
+        ps = PrescribedSet(prescription_id=pre.id, set_number=1, reps_min=8, reps_max=12)
+        db.add(ps)
+        db.flush()
+        return {"program": pr.id, "session": se.id, "set": ps.id, "exercise": ej.id}
+
+    # C es atleta de A: la persona con los dos roles.
+    at_a_c = Athlete(coach_id=ca.id, user_id=pc.id, full_name="C según A")
+    # C también tiene su propia ficha sin cuenta, en su propio espacio.
+    at_c_x = Athlete(coach_id=cc.id, full_name="Ficha sin cuenta de C")
+    # Y B tiene la suya, sin relación con nadie.
+    at_b = Athlete(coach_id=cb.id, full_name="Atleta de B")
+    db.add_all([at_a_c, at_c_x, at_b])
+    db.flush()
+
+    return Escenario(
+        sub_a=pa.auth_user_id,
+        sub_b=pb.auth_user_id,
+        sub_c=pc.auth_user_id,
+        coach_a=ca.id,
+        coach_b=cb.id,
+        coach_c=cc.id,
+        atleta_de_a=at_a_c.id,
+        atleta_de_b=at_b.id,
+        ficha_de_c=at_c_x.id,
+        prog_a_para_c=programa(ca, at_a_c, "A para C"),
+        prog_b=programa(cb, at_b, "B para su atleta"),
+        prog_c=programa(cc, at_c_x, "C para su ficha"),
+    )
+
+
+@pytest.fixture
+def como(raw_client, mint):
+    """Requests signed as whichever `sub` the test names."""
+
+    def _con(sub: str, rol: str = "coach"):
+        def _pedir(metodo: str, ruta: str, **kwargs):
+            return raw_client.request(
+                metodo,
+                ruta,
+                headers={"Authorization": f"Bearer {mint(sub=sub)}", "Active-Role": rol},
+                **kwargs,
+            )
+
+        return _pedir
+
+    return _con

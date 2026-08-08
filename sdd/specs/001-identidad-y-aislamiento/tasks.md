@@ -23,6 +23,8 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
+| T-014 | Fixtures compartidas: dos entrenadores y la persona con los dos roles | las usan T-016 y T-017 sin duplicar armado; no dependen de la planilla |
+| T-017 | Criterios 9 a 11: coach que se entrena, dos vínculos, rol que no se mezcla | 7 tests; quitando el gate por rol a las policies de coach, caen 2 |
 | T-015 | Recorrido de rutas: sin credenciales, `401` en todas | parametrizado sobre las rutas de la app, no sobre una lista |
 | T-016 | Recorrido de rutas: recurso ajeno = inexistente, y `400` sin `Active-Role` | agregando un endpoint con un identificador no declarado, falla nombrándolo |
 | T-010 | Router de datos montado con `dependencies=[Depends(require_tenant_context)]` | 2 tests; sacándole la dependencia al router fallan los dos |
@@ -193,8 +195,18 @@ La fixture `db` actual comparte una transacción externa entre requests, y ahí 
 test que verifica que una sesión sin contexto tira error no lo puede observar si
 la transacción ya trae contexto de antes.
 
-*Hecha cuando:* las usan T-015 a T-017 sin duplicar armado, y dos requests
+*Hecha cuando:* las usan T-016 y T-017 sin duplicar armado, y dos requests
 seguidos con identidades distintas no comparten contexto de tenant.
+
+La segunda mitad se resolvió distinto de lo previsto. La idea era un cliente con
+transacción real por request; medido, **no hace falta y además no alcanzaría**:
+una variable custom no se puede dejar indefinida, así que ni con conexión nueva
+por request se reproduce "sin contexto" una vez que la conexión sirvió algo. Dos
+requests con identidades distintas ya funcionan bien, porque cada uno pisa el
+contexto del anterior — verificado por los tests de T-017, que hacen exactamente
+eso. La propiedad que la transacción compartida no puede mostrar —que una sesión
+sin contexto explota— se verifica donde corresponde, contra la base, en
+`test_rls.py`.
 
 **T-014a — La fixture no saltea la cadena de seguridad.** `conftest.py` deja de
 usar `dependency_overrides` sobre `tenant_session` y falsifica `open_session`.
