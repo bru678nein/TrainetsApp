@@ -25,6 +25,9 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-006 | `require_tenant_context` y `tenant_session`: token → identidad → rol → `set_config` → sesión | 34 tests con claves RSA reales; sacando el chequeo de rol caen 2, poniendo un default caen 2, interpolando el `sub` en vez de bindearlo cae la de inyección |
 | T-007 | Rol de aplicación que no es dueño de las tablas (migración 0003) | 6 tests; sacando `ALTER DEFAULT PRIVILEGES` cae el de la tabla futura, y dándole `BYPASSRLS` al rol cae el de privilegios |
+| T-008 | RLS: 18 policies, dos por tabla, con `ENABLE` + `FORCE` (migración 0004) | 8 tests como rol de aplicación; sacando el gate por rol caen 2, con `missing_ok` cae 1 |
+| T-008b | `WITH CHECK` en `logged_set` | sacando el segundo predicado, la serie ajena entra y cae el test del criterio 4 |
+| T-009 | Policy de `exercise` con el catálogo global | el coach B ve los globales y no el ejercicio de A |
 
 Las de letra se hicieron antes que el resto a propósito, para que el commit que
 agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un

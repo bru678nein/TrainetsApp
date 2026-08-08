@@ -238,8 +238,32 @@ def app_de_prueba(
 
     @contextmanager
     def _test_session() -> Iterator[OrmSession]:
+        """The app's session, running as the application role.
+
+        Without this the whole of T-008 is theatre. The suite connects as the
+        owner, who is also the cluster superuser here, and a superuser ignores
+        policies unconditionally — `FORCE` does not reach them. Every isolation
+        test would pass while no policy was ever evaluated.
+
+        `SET LOCAL ROLE` rather than a second connection: it keeps one
+        transaction, so the rollback still undoes everything and rows the
+        fixtures wrote are visible. RLS keys on the effective role, so what runs
+        here is what runs in production, where the app simply connects as that
+        role to begin with.
+        """
         sessions_opened.append("abierta")
-        yield db
+        db.execute(sa.text("SET LOCAL ROLE coachapp_app"))
+        try:
+            yield db
+        finally:
+            # A denied write leaves the session in a failed state, and then even
+            # RESET ROLE fails. Rolling back to the savepoint first restores it
+            # so the test can go on inspecting as the owner.
+            try:
+                db.execute(sa.text("RESET ROLE"))
+            except sa.exc.SQLAlchemyError:
+                db.rollback()
+                db.execute(sa.text("RESET ROLE"))
 
     monkeypatch.setattr(deps, "open_session", _test_session)
     return app

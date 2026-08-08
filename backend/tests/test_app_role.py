@@ -134,7 +134,10 @@ class TestElRolPuedeTrabajar:
         try:
             with eng.connect() as conn:
                 assert conn.execute(sa.text("SELECT current_user")).scalar() == APP_ROLE
-                conn.execute(sa.text("SELECT count(*) FROM app_user")).scalar()
+                # Reading is *not* checked here any more: since T-008 a query
+                # with no tenant context errors, which is the whole point. That
+                # is asserted in test_rls.py.
+                conn.execute(sa.text("SELECT 1")).scalar()
         except sa.exc.OperationalError as exc:
             if os.getenv("CI"):
                 pytest.fail(

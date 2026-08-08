@@ -363,14 +363,46 @@ aplicación.
 El día que la 004 quiera mostrar "tu entrenador: X", eso es una policy nueva y
 explícita, no un hueco que ya estaba abierto.
 
-**Las cadenas se escriben completas, aunque Postgres las acorte.** Un `EXISTS`
-contra `program` dentro de una policy de `mesocycle` ya viene filtrado por la
-policy de `program`, porque RLS también se aplica a las subconsultas de una
-policy. Es tentador y no se usa: la policy de `mesocycle` pasaría a leerse como
-"cualquier programa", y su corrección dependería de que la de `program` exista y
-de que el rol no esté exento. Un `\dp` no muestra esa dependencia. Escribir la
-cadena entera cuesta cinco líneas por tabla y sobrevive a que alguien toque la
-otra policy.
+**Las cinco tablas profundas resuelven su cadena dentro de una función
+`SECURITY DEFINER`.** Esta decisión reemplaza a la que decía este párrafo, que
+era escribir cada cadena completa dentro de la policy. Se implementó, se midió
+contra la planilla real —1.326 series— y no funciona:
+
+| Tabla | Niveles | Execution |
+|---|---|---|
+| `athlete` | 0 | 0,14 ms |
+| `session` | 3 | 2 ms |
+| `prescription` | 4 | 1.143 ms |
+| `prescribed_set` | 5 | **timeout a 20 s** |
+
+El motivo es que **RLS también se aplica adentro de las subconsultas de una
+policy**. La de `prescribed_set` lee `prescription`, lo que dispara la policy de
+`prescription`, que lee `session`, y así hacia abajo: el costo se compone en cada
+nivel. Acortar las cadenas para apoyarse en la policy del padre también se midió
+—892 ms y timeout igual— porque lo que cuesta es la profundidad de la recursión,
+no el largo de cada salto.
+
+Adentro de una función `SECURITY DEFINER` el recorrido corre como el dueño, no
+dispara ninguna policy y la recursión se corta. La misma consulta pasa de timeout
+a **60 ms**.
+
+El costo de eso es real, y es lo que dicta cómo están escritas esas funciones:
+saltean RLS por diseño, así que devuelven booleanos y nunca identificadores —lo
+más que revelan es lo que la policy ya revela—, tienen el `search_path` fijado, y
+`EXECUTE` revocado de `PUBLIC` y otorgado sólo al rol de aplicación.
+
+Las tablas llanas —`app_user`, `coach`, `athlete`, `exercise`, `program`— no usan
+funciones: llegan a su tenant en un salto y midieron bastante por debajo del
+milisegundo.
+
+Lo que sigue en pie del párrafo anterior es la advertencia: una policy que se
+apoya en la de su vecina se lee como "cualquier programa" y su corrección depende
+de algo que `\dp` no muestra. Con las funciones eso no aplica, porque el
+predicado de cada tabla es completo aunque el recorrido esté adentro.
+
+**Este es el hallazgo que el spike no podía dar.** Probó corrección con cuatro
+filas; el costo sólo aparece con datos reales, y el propio plan lo dejaba
+anotado como no verificado.
 
 **Denormalizar `coach_id` sigue descartado.** Sería más rápido de consultar y
 agrega una copia del tenant que hay que mantener consistente en cada insert; bajo

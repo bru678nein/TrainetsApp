@@ -122,7 +122,7 @@ verifica hoy y con qué.
 |---|---|
 | I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`. Automático. |
 | II — la base rechaza lo imposible | `tests/test_schema.py`: CHECKs, `citext`, índice funcional, vista. Automático. |
-| III — aislamiento por tenant | **Nada.** No hay RLS ni tests de aislamiento. Llega con la feature 001. |
+| III — aislamiento por tenant | RLS aplicado en la migración 0004: 18 policies, dos por tabla, con `FORCE`. `tests/test_rls.py` verifica el aislamiento entre entrenadores como rol de aplicación. **Falta la mitad HTTP**: que valga para *todas* las rutas y no sólo para las que alguien testeó es T-015 y T-016. |
 | IV — tests del dominio primero | Revisión humana. No es automatizable. |
 | V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
 | VI — simplicidad por default | Revisión humana. |
