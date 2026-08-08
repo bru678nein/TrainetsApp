@@ -1,11 +1,33 @@
+# El hook usa el ruff del venv, no uno propio. Antes traía el suyo pineado en
+# v0.8.4 mientras `make lint` y CI corrían el de requirements-dev, y las dos
+# versiones no coinciden: `make check` daba "All checks passed" sobre código que
+# el hook rechazaba dos segundos después (UP038, deprecada en ruff moderno y
+# viva en la vieja). Hoy el hook era el estricto y salió barato; al revés te deja
+# CI en rojo después de un commit limpio en local.
+#
+# Es la misma regla que ya aplica el Makefile con CI: ningún comando de la suite
+# se escribe dos veces. Si hay un solo ruff, no hay nada que sincronizar.
+#
+# `ruff check` lo resuelve solo: descubre la config subiendo desde cada archivo,
+# así que con rutas `backend/...` toma `backend/pyproject.toml` aunque el hook
+# corra desde la raíz. Verificado mirando los settings resueltos.
+#
+# Requiere el venv, que lo crea `make setup` — el mismo target que instala este
+# hook, así que no puede faltar uno sin el otro.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+  - repo: local
     hooks:
       - id: ruff
-        args: [--fix]
+        name: ruff
+        entry: backend/.venv/bin/python -m ruff check --fix
+        language: system
+        types_or: [python, pyi]
         files: ^backend/
       - id: ruff-format
+        name: ruff-format
+        entry: backend/.venv/bin/python -m ruff format
+        language: system
+        types_or: [python, pyi]
         files: ^backend/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
