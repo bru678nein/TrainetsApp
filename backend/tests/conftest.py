@@ -114,10 +114,26 @@ def client(db: OrmSession) -> Iterator[TestClient]:
 
 
 @pytest.fixture
-def athlete_id(client: TestClient) -> str:
+def seeded() -> None:
+    """Skip when the real spreadsheet is missing.
+
+    The spreadsheet is not versioned — it holds personal data — so it is absent
+    on a fresh clone and in CI. Any test that asserts something about the
+    imported data has to depend on this fixture, or it fails on every machine
+    that does not happen to have the file.
+
+    `test_lista_atletas` did not, and turned CI red on every commit including
+    documentation-only ones.
+    """
+    if not SPREADSHEET.exists():
+        pytest.skip(f"Falta {SPREADSHEET}. Ver data/README.md")
+
+
+@pytest.fixture
+def athlete_id(client: TestClient, seeded: None) -> str:
     body = client.get("/api/athletes").json()
     if not body:
-        pytest.skip(f"No hay atletas: falta {SPREADSHEET}. Ver data/README.md")
+        pytest.skip(f"No hay atletas pese a existir {SPREADSHEET}: ¿falló el import?")
     return str(body[0]["id"])
 
 

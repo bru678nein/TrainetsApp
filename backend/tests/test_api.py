@@ -14,10 +14,13 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
-def test_lista_atletas(client):
+def test_lista_atletas(client, seeded):
     body = client.get("/api/athletes").json()
     assert len(body) == 1
-    assert body[0]["full_name"] == "Nico D."
+    # The athlete's name is deliberately not asserted. data/ is gitignored
+    # because it holds personal data, and hardcoding the name here would put it
+    # back into the repository through the test suite.
+    assert body[0]["full_name"]
 
 
 NO_EXISTE = "00000000-0000-0000-0000-000000000000"

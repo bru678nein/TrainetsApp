@@ -42,14 +42,18 @@ jobs:
             exit 1
           fi
       # Lint y tests se invocan por los targets del Makefile, no reescribiendo
-      # los comandos acá. `BIN=` vacía el prefijo del venv: en CI las
-      # herramientas están instaladas en el sistema. El cwd, las variables de
-      # entorno y los flags salen de un solo lugar; si CI los repitiera, tarde o
-      # temprano divergen de lo que corre `make check` y deja de ser una red.
-      - run: make lint BIN=
+      # los comandos acá. `PY_RUN=python` reemplaza al intérprete del venv: en
+      # CI las dependencias están instaladas en el Python del runner. El cwd,
+      # las variables de entorno y los flags salen de un solo lugar; si CI los
+      # repitiera, tarde o temprano divergen de lo que corre `make check`.
+      #
+      # Todo por `python -m`, nunca por el nombre del ejecutable: el directorio
+      # de scripts de pip no siempre está en el PATH del runner, y ahí el
+      # comando falla con "not found" en vez de con algo que se entienda.
+      - run: make lint PY_RUN=python
       - name: Las migraciones aplican y revierten sobre una base vacía
         run: |
-          alembic upgrade head
-          alembic downgrade base
+          python -m alembic upgrade head
+          python -m alembic downgrade base
         working-directory: backend
-      - run: make test BIN= PYTEST_ARGS="--cov=app --cov-report=term-missing"
+      - run: make test PY_RUN=python PYTEST_ARGS="--cov=app --cov-report=term-missing"
