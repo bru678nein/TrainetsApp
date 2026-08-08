@@ -200,3 +200,38 @@ class TestElCatalogoGlobal:
         # while B saw everything.
         ajeno = f"Ej {mundo['a'].persona.display_name}"
         assert ajeno not in nombres, "vio el ejercicio de otro coach"
+
+
+class TestElContextoOlvidadoNoEsSilencioso:
+    """Migration 0005. The guarantee the 001 plan leans on, on a real pool.
+
+    `SET LOCAL` reverts at commit, but a custom setting that has ever been set
+    cannot go back to undefined — it reverts to the empty string. So on the
+    second transaction a connection serves, `current_setting` stops erroring and
+    starts returning '', every policy matches nothing, and the request answers
+    zero rows without a word.
+
+    That is the failure the whole design exists to prevent, arriving by the door
+    nobody watched.
+    """
+
+    def test_una_segunda_transaccion_sin_contexto_falla(self, engine):
+        """One connection, two transactions: the shape a pool actually serves."""
+        conn = engine.connect()
+        try:
+            with conn.begin():
+                conn.execute(sa.text("SET LOCAL ROLE coachapp_app"))
+                conn.execute(sa.text("SELECT set_config('app.current_auth_user_id','x',true)"))
+                conn.execute(sa.text("SELECT set_config('app.active_role','coach',true)"))
+                conn.execute(sa.text("SELECT count(*) FROM athlete"))
+
+            # Same connection, next transaction, and this one forgets. Before
+            # migration 0005 it answered 0 rows without complaining.
+            with conn.begin(), pytest.raises(sa.exc.DatabaseError) as exc:
+                conn.execute(sa.text("SET LOCAL ROLE coachapp_app"))
+                conn.execute(sa.text("SELECT count(*) FROM athlete"))
+            assert "contexto" in str(exc.value), (
+                f"no explotó por falta de contexto sino por otra cosa: {exc.value}"
+            )
+        finally:
+            conn.close()

@@ -167,6 +167,30 @@ una lista vacía y puede pasar meses sin que nadie lo note.
 Vale para las dos variables. El contrato completo —cuáles son, qué llevan y por
 qué— está en la sección 4; acá sólo importa que ninguna tiene default.
 
+**Corrección, medida después de implementarlo.** Lo de arriba es cierto sólo en
+una conexión que nunca llevó contexto. Una variable custom, una vez seteada, no
+vuelve a estar indefinida: `SET LOCAL` revierte al terminar la transacción, pero
+lo que queda es la **cadena vacía**, y `current_setting` deja de errorar.
+
+    tx1  set_config('app.probe','request-1',true)  ->  'request-1'
+    COMMIT
+    tx2  current_setting('app.probe')              ->  ''   (sin error)
+
+O sea que a partir del segundo request que sirve una conexión del pool —todos
+menos el primero— un `SET LOCAL` olvidado se lee como `''`,
+`app_current_user_id()` resuelve NULL, ninguna policy matchea y la respuesta son
+cero filas en silencio. Exactamente la falla que esta capa existe para evitar,
+entrando por otra puerta.
+
+No era un agujero abierto: `require_tenant_context` cuelga del router y
+`tenant_session` es la única puerta a la base, así que todo request de la API
+setea las dos variables. Lo falso era la garantía, y una garantía documentada que
+no se cumple es peor que ninguna, porque alguien se apoya en ella.
+
+La migración 0005 lo cierra: las dos variables se leen por funciones
+—`app_auth_user_id()` y `app_active_role()`— que rechazan la cadena vacía, y las
+policies pasan por ellas.
+
 El costo es que una consulta legítima fuera del ciclo de request —una migración,
 un script de mantenimiento— revienta si no setea el contexto. Es el precio
 correcto: obliga a ser explícito justo donde conviene serlo.
