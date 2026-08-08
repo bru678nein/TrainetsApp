@@ -117,7 +117,7 @@ del request, y un dato puede faltar.
 | Header ausente o vacío | `400`, sin tocar la base |
 | Valor distinto de `coach` o `athlete` | `400` |
 | La persona no tiene ese rol | `403` |
-| La persona tiene ese rol | Se resuelve el tenant y se hace `SET LOCAL` |
+| La persona tiene ese rol | Se hace `SET LOCAL` de las dos variables de la sección 4 |
 
 Elegir un rol "razonable" cuando el header no viene —el más amplio, o el único
 que la persona tiene— es exactamente la falla que convierte a un atleta que
@@ -158,11 +158,14 @@ sesión. El acceso a datos y la resolución de tenant dejan de poder pedirse por
 separado, y eso es lo que de verdad reemplaza a los prefijos por rol.
 
 **3. Las policies fallan ruidosamente, no vacías.** Se usa
-`current_setting('app.current_user_id')` sin el segundo argumento, así que una
-sesión sin contexto **tira error** en vez de devolver cero filas. Un `SET LOCAL`
-olvidado deja de parecerse a "este usuario no tiene datos" y se parece a lo que
-es: un bug. Con `missing_ok = true`, el mismo error se ve como una lista vacía y
-puede pasar meses sin que nadie lo note.
+`current_setting('app.current_auth_user_id')` sin el segundo argumento, así que
+una sesión sin contexto **tira error** en vez de devolver cero filas. Un
+`SET LOCAL` olvidado deja de parecerse a "este usuario no tiene datos" y se
+parece a lo que es: un bug. Con `missing_ok = true`, el mismo error se ve como
+una lista vacía y puede pasar meses sin que nadie lo note.
+
+Vale para las dos variables. El contrato completo —cuáles son, qué llevan y por
+qué— está en la sección 4; acá sólo importa que ninguna tiene default.
 
 El costo es que una consulta legítima fuera del ciclo de request —una migración,
 un script de mantenimiento— revienta si no setea el contexto. Es el precio
@@ -179,53 +182,249 @@ el `400` del header ausente—; uno de composición, no.
 
 Dos capas, y la de abajo es la que manda.
 
-**RLS en Postgres.** Cada request abre transacción y hace `SET LOCAL` de la
-identidad y el rol resueltos. Las policies leen esas variables con
-`current_setting('app.current_user_id', true)`. `SET LOCAL` y no `SET`: el valor
-muere con la transacción, así que una conexión reciclada del pool no arrastra el
-tenant del request anterior. Ese bug es silencioso y devuelve datos de otro
-usuario.
+### El contrato de la sesión
 
-Dos detalles que rompen esto en silencio si se pasan por alto:
+Cada request abre transacción y hace `SET LOCAL` de **dos** variables. Siempre
+las dos, siempre en el mismo lugar, ninguna con default:
 
-- **La app no se conecta como dueña de las tablas.** El dueño saltea RLS por
-  default. Hace falta un rol de aplicación sin privilegios especiales, y el DSN
-  de la app lo usa.
-- **`FORCE ROW LEVEL SECURITY` en cada tabla**, además de `ENABLE`. Con `ENABLE`
-  solo, el dueño sigue exento y los tests —que corren migraciones como dueño—
-  pasarían sobre policies que en producción no se aplican igual.
+| Variable | Tipo | Valor |
+|---|---|---|
+| `app.current_auth_user_id` | `text` | El `sub` del JWT, tal cual lo devolvió la verificación de la sección 2 |
+| `app.active_role` | `text` | `coach` o `athlete`, del header `Active-Role` |
 
-**Cómo llega cada tabla a su tenant.** El artículo III (versión 1.1) exige que
-esté declarado, porque sólo tres tablas tienen `coach_id` propio:
+**`active_role` y no `current_role`.** `CURRENT_ROLE` es una función del estándar
+SQL y una palabra reservada de Postgres: `SET LOCAL app.current_role = 'coach'`
+es un error de sintaxis, con prefijo y todo. Lo desagradable es que
+`current_setting('app.current_role')` **sí** compila dentro de la policy, porque
+ahí es un literal de texto — o sea que el DDL entra sin una queja y la app revienta
+recién en runtime, en la línea que setea el contexto. Se puede sortear con
+comillas dobles o con `set_config()`, pero las dos dejan una trampa para el
+próximo que escriba la línea sin acordarse. Renombrar sale gratis y además espeja
+el nombre del header.
 
-| Tabla | Camino al entrenador |
-|---|---|
-| `coach` | Es el tenant |
-| `athlete` | `coach_id` |
-| `program` | `coach_id` |
-| `exercise` | `coach_id`, o `NULL` = catálogo global |
-| `mesocycle` | `program` |
-| `session` | `mesocycle → program` |
-| `prescription` | `session → mesocycle → program` |
-| `prescribed_set` | `prescription → … → program` |
-| `logged_set` | `prescribed_set → … → program`, y además `athlete_id` para el rol atleta |
-| `movement_pattern` | Referencia pura, sin RLS |
+`SET LOCAL` y no `SET`: el valor muere con la transacción, así que una conexión
+reciclada del pool no arrastra el tenant del request anterior. Ese bug es
+silencioso y devuelve datos de otro usuario.
 
-Las cinco de abajo llevan policy con `EXISTS` subiendo la cadena, **no una
-columna `coach_id` denormalizada**. Denormalizar sería más rápido de consultar y
-agrega una copia del tenant que hay que mantener consistente en cada insert; con
+**La variable lleva el `sub`, no `app_user.id`.** Parece un rodeo —el `id` es lo
+que las policies terminan comparando— y es lo que evita un punto muerto: para
+traducir `sub` a `app_user.id` hay que leer `app_user`, y esa lectura ocurre
+*antes* de que exista contexto. Con RLS forzado sobre `app_user`, tira error. Sin
+RLS sobre `app_user`, cualquier entrenador lee el email de todas las personas del
+sistema, que es dato personal y no es de nadie más que de su dueño.
+
+Con el `sub` el problema no se resuelve: desaparece. El `SET LOCAL` pasa a ser
+función pura del token verificado y no toca la base, así que no existe ningún
+instante en que haya una sesión abierta sin contexto.
+
+El costo es un join más por policy, contra una columna `UNIQUE`. Y un corolario
+de tipo que conviene tener presente: la variable es `text`, no `uuid`. Castearla
+con `::uuid` es un error; el nombre lo dice para que se note al leerlo.
+
+Las policies traducen con una función, escrita una sola vez:
+
+```sql
+CREATE FUNCTION app_current_user_id() RETURNS uuid LANGUAGE sql STABLE AS $$
+    SELECT u.id FROM app_user u
+    WHERE u.auth_user_id = current_setting('app.current_auth_user_id')
+$$;
+```
+
+`STABLE` y no `IMMUTABLE`: dentro de una transacción el valor no cambia, pero
+depende del estado de la sesión. Declararla `IMMUTABLE` habilitaría al planner a
+constant-foldear el resultado entre transacciones, que es exactamente la clase de
+optimización que convierte esto en una filtración.
+
+La policy de `app_user` **no** puede usar esta función: se llamaría a sí misma. Y
+no falla lindo — el detector de recursión de Postgres
+(`infinite recursion detected in policy`) mira referencias directas a la propia
+tabla, y acá la referencia pasa por una función, así que no lo ve: la consulta se
+va de pila y muere con `stack depth limit exceeded` (`54001`), un error que no
+menciona ni RLS ni la policy. Peor síntoma, misma causa. Se escribe directo
+contra `auth_user_id`.
+
+### Dos policies por tabla, una por rol
+
+No una policy con un `OR` adentro. Cada rol lleva la suya, nombrada
+`<tabla>_as_<rol>`, y cada una arranca chequeando el rol activo:
+
+```sql
+CREATE POLICY athlete_as_coach ON athlete
+    USING (current_setting('app.active_role') = 'coach'
+           AND EXISTS (SELECT 1 FROM coach c
+                       WHERE c.id = athlete.coach_id
+                         AND c.user_id = app_current_user_id()));
+
+CREATE POLICY athlete_as_athlete ON athlete
+    USING (current_setting('app.active_role') = 'athlete'
+           AND athlete.user_id = app_current_user_id());
+```
+
+Postgres combina las policies permisivas con `OR`, así que hay que garantizar que
+nunca sean verdaderas las dos a la vez. Lo garantiza el chequeo de rol: la
+variable tiene un solo valor.
+
+El argumento en contra del `OR` es más fino de lo que parece, y conviene dejarlo
+escrito bien porque la versión simple es falsa. Probado contra Postgres: un único
+`USING (predicado_coach OR predicado_atleta)` sobre `athlete`, con las policies de
+este plan, **no** filtró. El motivo es que el `EXISTS` contra `coach` corre bajo
+la policy de `coach`, que a su vez filtra por rol y devuelve cero filas cuando el
+rol activo es `athlete`. O sea que al `OR` lo salvó otra tabla.
+
+Basta con aflojar esa otra policy para que el `OR` filtre. Escribiendo `coach`
+como `USING (user_id = app_current_user_id())` —perfectamente razonable leída
+sola: "el entrenador se ve a sí mismo"— la persona que es coach y además atleta
+de otro pasa a ver, con rol `athlete`, las fichas de su propio espacio de
+entrenador. Es el riesgo 2 de la spec, reproducido. Con las dos policies por rol
+y *esa misma* policy floja de `coach`, no filtra.
+
+Esa es la diferencia que importa: el `OR` es correcto sólo mientras todas sus
+tablas vecinas sigan filtrando por rol, y esa dependencia no está escrita en
+ningún lado ni la muestra un `\dp`. El gate propio no depende de nadie.
+
+Partirlo en dos hace visible además lo que falta: `\dp` lista las policies por
+tabla, y una tabla con `_as_coach` y sin `_as_athlete` se ve de un vistazo.
+
+### `USING` no alcanza: hace falta `WITH CHECK`
+
+`USING` filtra las filas que se leen, y las que ya existen para un `UPDATE` o un
+`DELETE`. **No se aplica a un `INSERT`**: una fila nueva todavía no existe, así
+que no hay nada que filtrar. Lo que gobierna un `INSERT` —y la fila resultante de
+un `UPDATE`— es `WITH CHECK`.
+
+Es la diferencia entre "no ves lo ajeno" y "no escribís sobre lo ajeno", y el
+criterio de aceptación 4 —un atleta no registra una serie prescrita a otro— es lo
+segundo. Con `USING` solo ese criterio no se cumple, aunque todos los tests de
+lectura queden verdes.
+
+`logged_set` es donde importa, porque es la única tabla que el atleta escribe:
+
+```sql
+CREATE POLICY logged_set_as_athlete ON logged_set
+    USING (current_setting('app.active_role') = 'athlete'
+           AND EXISTS (SELECT 1 FROM athlete a
+                       WHERE a.id = logged_set.athlete_id
+                         AND a.user_id = app_current_user_id()))
+    WITH CHECK (
+        current_setting('app.active_role') = 'athlete'
+        -- la fila es mía...
+        AND EXISTS (SELECT 1 FROM athlete a
+                    WHERE a.id = logged_set.athlete_id
+                      AND a.user_id = app_current_user_id())
+        -- ...y la serie que estoy registrando me fue prescrita a mí
+        AND EXISTS (SELECT 1
+                    FROM prescribed_set ps
+                    JOIN prescription pr ON pr.id = ps.prescription_id
+                    JOIN session      s  ON s.id  = pr.session_id
+                    JOIN mesocycle    m  ON m.id  = s.mesocycle_id
+                    JOIN program      p  ON p.id  = m.program_id
+                    WHERE ps.id = logged_set.prescribed_set_id
+                      AND p.athlete_id = logged_set.athlete_id));
+```
+
+El segundo `EXISTS` es el criterio 4 entero. Sin él, el atleta manda su propio
+`athlete_id` y un `prescribed_set_id` ajeno, y la fila entra: los dos predicados
+de "es mío" pasan por separado; lo que falta verificar es que se correspondan
+entre sí.
+
+### Cómo llega cada tabla a su tenant
+
+El artículo III (versión 1.1) exige que el camino esté declarado. Son dos
+caminos, uno por rol, porque el rol activo cambia el predicado:
+
+| Tabla | Rol `coach` | Rol `athlete` |
+|---|---|---|
+| `app_user` | la propia fila, por `auth_user_id` | ídem |
+| `coach` | `user_id` | ninguno — ver abajo |
+| `athlete` | `coach_id → coach.user_id` | `user_id` |
+| `exercise` | `coach_id` propio, o `NULL` = catálogo global | global, o del entrenador que lo entrena |
+| `program` | `coach_id → coach.user_id` | `athlete_id → athlete.user_id` |
+| `mesocycle` | `program → coach` | `program → athlete` |
+| `session` | `mesocycle → program → coach` | ídem hasta `athlete` |
+| `prescription` | `session → … → coach` | ídem |
+| `prescribed_set` | `prescription → … → coach` | ídem |
+| `logged_set` | `prescribed_set → … → coach` | `athlete_id → athlete.user_id`, más el `WITH CHECK` de arriba |
+| `movement_pattern` | referencia pura, sin RLS | ídem |
+
+Cuatro decisiones que la tabla esconde:
+
+**`app_user` sólo se ve a sí mismo, en los dos roles.** El entrenador no lee la
+identidad de sus atletas porque no la necesita: `full_name` y `email` viven en
+`athlete`, cargados a mano por él. Cuando la feature 003 vincule identidades con
+fichas va a hacer falta abrir algo acá, y es mejor que sea una decisión de esa
+feature y no un permiso que ya venía puesto.
+
+Su `WITH CHECK (auth_user_id = current_setting('app.current_auth_user_id'))` es
+además lo que hace segura la T-011: en el primer login la fila no existe todavía,
+y la policy deja crear exactamente una —la propia— sin ningún `if` en la
+aplicación.
+
+**El atleta no lee `coach`.** Hoy ningún endpoint devuelve datos del entrenador.
+El día que la 004 quiera mostrar "tu entrenador: X", eso es una policy nueva y
+explícita, no un hueco que ya estaba abierto.
+
+**Las cadenas se escriben completas, aunque Postgres las acorte.** Un `EXISTS`
+contra `program` dentro de una policy de `mesocycle` ya viene filtrado por la
+policy de `program`, porque RLS también se aplica a las subconsultas de una
+policy. Es tentador y no se usa: la policy de `mesocycle` pasaría a leerse como
+"cualquier programa", y su corrección dependería de que la de `program` exista y
+de que el rol no esté exento. Un `\dp` no muestra esa dependencia. Escribir la
+cadena entera cuesta cinco líneas por tabla y sobrevive a que alguien toque la
+otra policy.
+
+**Denormalizar `coach_id` sigue descartado.** Sería más rápido de consultar y
+agrega una copia del tenant que hay que mantener consistente en cada insert; bajo
 RLS, una copia desincronizada no es un dato feo, es una filtración. Los `EXISTS`
 suben por claves foráneas ya indexadas, así que el costo es aceptable a esta
 escala. Si alguna vez mide mal, denormalizar es una migración posterior — al
 revés no.
 
-`exercise` lleva policy propia: `coach_id IS NULL` es el catálogo global y tiene
-que seguir siendo visible para todos los entrenadores.
+### Los dos detalles que rompen esto en silencio
+
+- **La app no se conecta como dueña de las tablas.** El dueño saltea RLS por
+  default. Hace falta un rol de aplicación sin privilegios especiales, y el DSN
+  de la app lo usa (T-007).
+- **`FORCE ROW LEVEL SECURITY` en cada tabla**, además de `ENABLE`. Con `ENABLE`
+  solo, el dueño sigue exento y los tests —que corren migraciones como dueño—
+  pasarían sobre policies que en producción no se aplican igual.
 
 **Dependencia obligatoria en la capa HTTP.** El router de datos se monta con la
-dependencia que resuelve identidad y rol y hace el `SET LOCAL`. Olvidarse no
-deja el endpoint abierto: deja el endpoint sin variables de sesión, y las
-policies devuelven cero filas. El default es romper, no filtrar.
+dependencia que resuelve identidad y rol y hace el `SET LOCAL`. Olvidarse no deja
+el endpoint abierto: lo deja sin variables de sesión, y `current_setting` sin el
+segundo argumento tira error. El default es romper, no filtrar.
+
+### Qué de todo esto está probado, y qué no
+
+Esta sección se escribió dos veces. La primera versión era razonamiento; la
+segunda es lo que quedó después de correrlo contra Postgres 16 en una base
+desechable, con las migraciones reales aplicadas y un rol de aplicación sin
+privilegios. Lo que el spike encontró:
+
+- **`app.current_role` no compila.** Es palabra reservada. Esa es la razón del
+  rename, y no se hubiera visto hasta implementar T-006.
+- **`app_user` recursiva muere por pila, no por el detector de recursión.**
+- **El `OR` no filtra por sí solo** en esta configuración; filtra en cuanto una
+  policy vecina deja de gatear por rol. El argumento de arriba está reescrito
+  sobre eso.
+
+Verificado, cada uno con su control negativo —desarmar la decisión y comprobar
+que la fuga aparece—:
+
+| Qué | Resultado |
+|---|---|
+| Sesión sin contexto | error, no cero filas |
+| Coach A pidiendo por id un recurso de B | cero filas, igual que un id inexistente |
+| Persona atleta de dos entrenadores | ve sus dos fichas, nada de los espacios |
+| Persona con los dos roles, rol `athlete` | no alcanza su propio espacio de coach |
+| Catálogo global de `exercise` | visible; el de otro coach, no |
+| Criterio 4 vía `WITH CHECK` | rechazado por la base |
+| Criterio 4 **sin** el segundo `EXISTS` | **entra** — T-008b tiene motivo |
+| `ENABLE` sin `FORCE`, dueño no superusuario | ve las cuatro filas |
+| `ENABLE` + `FORCE`, mismo dueño | ve sólo las dos suyas |
+
+Lo que **no** está probado y sigue siendo razonamiento: el rendimiento de los
+`EXISTS` a escala (el spike tiene cuatro atletas), el comportamiento con el pool
+de conexiones real, y todo lo de la capa HTTP, que es T-006.
 
 ## 5. Cómo se verifica que no falte ninguna ruta
 

@@ -11,18 +11,23 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ---
 
-## Adelantadas
+## Hechas
 
-| ID | Tarea | Estado |
+| ID | Tarea | Verificado con |
 |---|---|---|
-| T-006a | `tenant_session` como única puerta a la base; `get_db` deja de ser dependencia pública | hecha |
-| T-016a | Test de composición: toda ruta `/api` depende de `tenant_session` | hecha |
-| T-001 | Migración de identidad: `app_user`, `user_id` en `coach` y `athlete`, índice parcial | hecha |
-| T-002 | Modelos al día | hecha |
+| T-006a | `tenant_session` como única puerta a la base; `get_db` deja de ser dependencia pública | 71 tests |
+| T-016a | Test de composición: toda ruta `/api` depende de `tenant_session` | falla si se le saca la dependencia a un endpoint |
+| T-001 | Migración de identidad: `app_user`, `user_id` en `coach` y `athlete`, índice parcial | `upgrade`/`downgrade` ida y vuelta sobre la base sembrada |
+| T-002 | Modelos al día | `test_la_migracion_no_divergio_de_los_modelos` |
+| T-003 | `docs/schema.sql` al día | tablas y columnas comparadas contra `models.py` |
 
-Se hicieron antes que el resto a propósito, para que el commit que agregue la
-seguridad no venga mezclado con un refactor de seis firmas. Lo que falta de
-ellas es el contenido, en T-006 y T-016.
+Las dos `a` se hicieron antes que el resto a propósito, para que el commit que
+agregue la seguridad no venga mezclado con un refactor de seis firmas. Lo que
+falta de ellas es el contenido, en T-006 y T-016.
+
+T-003 salió más grande de lo previsto: la sección de RLS de `schema.sql` asumía
+`coach_id` en todas las tablas, `ENABLE` sin `FORCE`, y `current_setting` con
+`missing_ok`. Las tres corregidas.
 
 ## Base de datos
 
@@ -53,16 +58,31 @@ dueño de las tablas. `.env.example` y el DSN de CI actualizados.
 *Hecha cuando:* conectando con ese rol, un `SELECT` sin contexto de tenant
 devuelve error, no filas. Es lo que hace que `FORCE ROW LEVEL SECURITY` importe.
 
-**T-008 — Migración de RLS.** `ENABLE` + `FORCE` y policies por tabla, con los
-caminos de la sección 4 del plan.
+**T-008 — Migración de RLS.** La función `app_current_user_id()`, `ENABLE` +
+`FORCE`, y **dos** policies por tabla —`<tabla>_as_coach` y `<tabla>_as_athlete`—
+con los caminos de la sección 4 del plan. `app_user` lleva la suya, escrita
+directo contra `auth_user_id` para no recursionar.
 
 *Hecha cuando:* con contexto del coach A, una consulta directa a `logged_set`
-—la tabla más profunda— no devuelve nada de B.
+—la tabla más profunda— no devuelve nada de B; **y** con contexto de atleta, la
+misma consulta devuelve sólo lo propio. Las dos mitades: una policy de coach
+correcta con la de atleta ausente pasa el primer test y deja el rol atleta viendo
+todo.
+
+**T-008b — `WITH CHECK` en `logged_set`.** El `INSERT` exige que la serie
+registrada le haya sido prescrita al mismo atleta que la firma.
+
+*Hecha cuando:* un atleta que manda su propio `athlete_id` con un
+`prescribed_set_id` de otro es rechazado por la base, no por un `if`. Es el
+criterio de aceptación 4, y **no lo cubre `USING`**: `USING` no se aplica a un
+`INSERT`. Va aparte de T-008 para que no se dé por hecha con los tests de lectura
+en verde.
 
 **T-009 — Policy de `exercise`.** El catálogo global (`coach_id IS NULL`) sigue
-visible para todos.
+visible para todos, en los dos roles.
 
-*Hecha cuando:* A ve sus ejercicios y los globales, y ninguno de B.
+*Hecha cuando:* A ve sus ejercicios y los globales, y ninguno de B; y el atleta
+ve los globales más los de su entrenador, que son los que aparecen en su sesión.
 
 ## Autenticación
 
@@ -80,6 +100,11 @@ desconocido.
 
 **T-006 — `require_tenant_context` y `tenant_session`.** Token → identidad →
 header `Active-Role` → `SET LOCAL` → cede la sesión. Sin default.
+
+El `SET LOCAL` es de las **dos** variables del contrato de la sección 4:
+`app.current_auth_user_id` (el `sub`, texto, sin castear) y `app.active_role`.
+Ninguna se deriva leyendo la base: si hiciera falta una consulta para armar el
+contexto, esa consulta correría sin contexto.
 
 *Hecha cuando:* los cuatro casos de la tabla de la sección 3 del plan tienen
 test: header ausente `400`, valor inválido `400`, rol no poseído `403`, rol
@@ -142,8 +167,10 @@ cumplimiento de la constitución: los artículos III y X dejan de estar en deuda
 ## Orden
 
 T-001 abre todo. Después, dos caminos que no se pisan: base (T-002, T-003,
-T-007, T-008, T-009) y auth (T-004, T-005, T-006). Los dos tienen que estar
-antes de T-010, y T-014 antes de las de verificación.
+T-007, T-008, T-008b, T-009) y auth (T-004, T-005, T-006). Los dos tienen que
+estar antes de T-010, y T-014 antes de las de verificación.
 
-Dieciocho más las dos adelantadas. El límite de `sdd/README.md` son veinte; si
-aparecen más, algo de acá era otra feature.
+Dieciocho más las tres con letra. Las letras son mitades de una tarea que se
+parten para que el diff se lea, no tareas nuevas: el límite de veinte de
+`sdd/README.md` se cuenta sobre las numeradas. Si aparece una T-019, ahí sí algo
+de acá era otra feature.
