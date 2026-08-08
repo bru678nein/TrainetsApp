@@ -456,6 +456,50 @@ Fixtures nuevas: dos entrenadores con un atleta cada uno, y una persona con
 perfil de entrenador y ficha de atleta bajo su propio espacio, para los
 criterios 9 a 11.
 
+### El arnés de tests, que era el agujero más grande de todo esto
+
+Los cuatro tests de arriba no valen nada si la fixture que los corre saltea lo
+que pretenden verificar. Y lo salteaba.
+
+`conftest.py` hacía `app.dependency_overrides[tenant_session] = lambda: db`.
+`dependency_overrides` reemplaza una dependencia **y todo su subárbol**: en
+cuanto T-006 cuelgue `require_tenant_context` de `tenant_session`, ese override
+se lleva puestos la verificación del token, el header y el `SET LOCAL`, y la
+suite entera queda verde sobre seguridad que nunca corrió.
+
+No es una predicción. Colgándole a `tenant_session` una subdependencia que tira
+`AssertionError` siempre, los 71 tests pasaban — T-016a incluido, porque afirma
+que `tenant_session` está en el árbol de dependencias, y eso sigue siendo cierto
+mientras el override se encarga de que la función no se ejecute. El test de
+composición y el de comportamiento fallaban los dos por el mismo motivo.
+
+La costura se bajó un nivel: se falsifica `open_session`, o sea de dónde sale la
+conexión, y `tenant_session` corre entero. La regla que queda escrita es
+**falsificar lo más externo que haga falta, nunca aquello que se quiere
+verificar**. Cuando llegue T-006, lo que se falsifica es el proveedor de
+identidad, no la resolución de tenant.
+
+Con el mismo simulacro, la fixture nueva da 7 fallidos y 13 errores.
+
+### Lo que sigue roto en el arnés, y lo choca T-014
+
+La fixture `db` abre una transacción externa que se revierte al final, y el
+`commit()` del endpoint sólo libera un `SAVEPOINT`. Medido: un
+`SET LOCAL app.probe = 'primer_request'` sigue visible después del `commit()` y
+lo ve el request siguiente de la misma transacción.
+
+O sea que dos requests dentro de un mismo test comparten contexto de tenant.
+Para la mayoría de los tests da igual —cada request setea el suyo y pisa el
+anterior—, pero rompe justo los que importan: el que verifica que **una sesión
+sin contexto tira error** no puede observarlo si la transacción ya trae contexto
+de un request previo. Es el `SET LOCAL` fallando dentro del arnés por la misma
+razón por la que existe en producción.
+
+T-014 tiene que resolverlo antes que T-015 a T-017 se apoyen encima. La salida
+esperada es un segundo cliente para los tests de seguridad, con transacción real
+por request y limpieza por otra vía, conviviendo con la fixture rápida para los
+funcionales. Decidirlo es parte de T-014, no de este plan.
+
 ## 6. Tareas
 
 De la 6 y la 10 ya está hecha la parte estructural, antes de empezar el resto:

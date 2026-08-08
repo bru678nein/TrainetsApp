@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -102,15 +103,49 @@ def db(engine: Engine) -> Iterator[OrmSession]:
 
 
 @pytest.fixture
-def client(db: OrmSession) -> Iterator[TestClient]:
-    from app.api.deps import tenant_session
+def aperturas() -> list[str]:
+    """Records every time the app opened a session through the real seam.
+
+    `test_la_peticion_pasa_por_tenant_session_de_verdad` reads it. Empty after a
+    request means something short-circuited `tenant_session`, which is the
+    failure this whole fixture is shaped to prevent.
+    """
+    return []
+
+
+@pytest.fixture
+def client(
+    db: OrmSession, aperturas: list[str], monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
+    """Test client that fakes the connection, never the tenant door.
+
+    It used to be `dependency_overrides[tenant_session] = lambda: db`, and that
+    was a trap with a fuse on it. `dependency_overrides` replaces a dependency
+    *and its whole subtree*: the moment T-006 makes `tenant_session` depend on
+    `require_tenant_context`, the override would skip token verification, the
+    `Active-Role` header and the `SET LOCAL` — and every test would stay green.
+
+    That is not a prediction. Hanging a sub-dependency off `tenant_session` that
+    raises unconditionally, the 71 tests still passed, T-016a included: it
+    asserts `tenant_session` is in each route's dependency tree, which stays
+    true while the override makes sure the function never runs.
+
+    So the seam moved down, to where the connection comes from. `tenant_session`
+    now runs for real — every line of it — and only `open_session` is faked. The
+    rule this encodes: **fake the outermost thing you have to, never the thing
+    you are trying to verify.** When T-006 lands, what gets faked is the identity
+    provider, not tenant resolution.
+    """
+    from app.api import deps
     from app.main import app
 
-    app.dependency_overrides[tenant_session] = lambda: db
-    try:
-        yield TestClient(app)
-    finally:
-        app.dependency_overrides.clear()
+    @contextmanager
+    def _sesion_de_prueba() -> Iterator[OrmSession]:
+        aperturas.append("abierta")
+        yield db
+
+    monkeypatch.setattr(deps, "open_session", _sesion_de_prueba)
+    yield TestClient(app)
 
 
 @pytest.fixture

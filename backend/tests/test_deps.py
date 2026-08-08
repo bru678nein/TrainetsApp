@@ -88,3 +88,36 @@ def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
 def test_la_lista_blanca_no_incluye_rutas_de_la_api():
     """Nobody silences a data endpoint by adding it to the allowlist."""
     assert not [p for p in SIN_TENANT if p.startswith("/api")]
+
+
+def test_la_peticion_pasa_por_tenant_session_de_verdad(client, aperturas):
+    """The other half of the test above, and the one that was missing.
+
+    The composition test proves `tenant_session` is in the dependency tree. It
+    does not prove the function *runs*: an entry in `dependency_overrides`
+    replaces it along with its whole subtree, and the tree still reads the same.
+    That is exactly how a suite ends up green over security that never executed.
+
+    This one asserts the real body ran, by watching the seam the fixture fakes.
+    Reintroduce `dependency_overrides[tenant_session]` and it fails here.
+    """
+    client.get("/api/athletes")
+    assert aperturas, (
+        "la petición no abrió sesión por tenant_session: alguien la reemplazó "
+        "con dependency_overrides y la cadena de seguridad no corrió."
+    )
+
+
+def test_ninguna_dependencia_esta_pisada(client):
+    """No test fakes a dependency of the app; the fixture fakes the connection.
+
+    Stated as an invariant so the next person who reaches for
+    `dependency_overrides` on a security dependency finds out here, with a
+    reason, instead of six months later.
+    """
+    from app.main import app
+
+    assert app.dependency_overrides == {}, (
+        f"hay dependencias pisadas: {list(app.dependency_overrides)}. "
+        "Falsificá de dónde sale la conexión, no la puerta al tenant."
+    )

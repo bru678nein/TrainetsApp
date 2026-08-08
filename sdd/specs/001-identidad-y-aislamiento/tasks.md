@@ -20,10 +20,17 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-001 | Migración de identidad: `app_user`, `user_id` en `coach` y `athlete`, índice parcial | `upgrade`/`downgrade` ida y vuelta sobre la base sembrada |
 | T-002 | Modelos al día | `test_la_migracion_no_divergio_de_los_modelos` |
 | T-003 | `docs/schema.sql` al día | tablas y columnas comparadas contra `models.py` |
+| T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 
-Las dos `a` se hicieron antes que el resto a propósito, para que el commit que
-agregue la seguridad no venga mezclado con un refactor de seis firmas. Lo que
-falta de ellas es el contenido, en T-006 y T-016.
+Las de letra se hicieron antes que el resto a propósito, para que el commit que
+agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un
+arreglo del arnés de tests. Lo que falta de ellas es el contenido, en T-006,
+T-014 y T-016.
+
+T-014a no estaba prevista: apareció al revisar si los tests de T-015 a T-017 iban
+a verificar algo de verdad. No iban. Con `dependency_overrides` sobre
+`tenant_session`, toda la cadena que agrega T-006 quedaba salteada y la suite
+seguía verde.
 
 T-003 salió más grande de lo previsto: la sección de RLS de `schema.sql` asumía
 `coach_id` en todas las tablas, `ENABLE` sin `FORCE`, y `current_setting` con
@@ -135,7 +142,22 @@ ve su espacio vacío.
 **T-014 — Fixtures.** Dos entrenadores con un atleta cada uno, y una persona con
 perfil de entrenador más ficha de atleta en su propio espacio.
 
-*Hecha cuando:* las usan T-015 a T-017 sin duplicar armado.
+Además: un cliente para los tests de seguridad con transacción real por request.
+La fixture `db` actual comparte una transacción externa entre requests, y ahí el
+`SET LOCAL` del primero sigue visible para el segundo — medido, no supuesto. El
+test que verifica que una sesión sin contexto tira error no lo puede observar si
+la transacción ya trae contexto de antes.
+
+*Hecha cuando:* las usan T-015 a T-017 sin duplicar armado, y dos requests
+seguidos con identidades distintas no comparten contexto de tenant.
+
+**T-014a — La fixture no saltea la cadena de seguridad.** `conftest.py` deja de
+usar `dependency_overrides` sobre `tenant_session` y falsifica `open_session`.
+
+*Hecha cuando:* colgándole a `tenant_session` una subdependencia que falla
+siempre, la suite falla. Con el override anterior pasaban los 71 tests, T-016a
+incluido. Adelantada por el mismo motivo que T-006a y T-016a: que el commit que
+agregue la seguridad no venga mezclado con un arreglo del arnés.
 
 **T-015 — Recorrido de rutas: sin credenciales.** Toda ruta fuera de la lista
 blanca responde `401`.
@@ -170,7 +192,7 @@ T-001 abre todo. Después, dos caminos que no se pisan: base (T-002, T-003,
 T-007, T-008, T-008b, T-009) y auth (T-004, T-005, T-006). Los dos tienen que
 estar antes de T-010, y T-014 antes de las de verificación.
 
-Dieciocho más las tres con letra. Las letras son mitades de una tarea que se
+Dieciocho más las cuatro con letra. Las letras son mitades de una tarea que se
 parten para que el diff se lea, no tareas nuevas: el límite de veinte de
 `sdd/README.md` se cuenta sobre las numeradas. Si aparece una T-019, ahí sí algo
 de acá era otra feature.
