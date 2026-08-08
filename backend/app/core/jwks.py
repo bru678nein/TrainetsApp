@@ -34,10 +34,10 @@ from collections.abc import Callable
 import httpx
 
 Jwks = dict[str, object]
-Clave = dict[str, object]
+Key = dict[str, object]
 
 
-class JwksInalcanzable(RuntimeError):
+class JwksUnavailable(RuntimeError):
     """The key set could not be read: network, HTTP status, or unparseable body.
 
     One exception for the three because the caller does the same thing with all
@@ -47,33 +47,33 @@ class JwksInalcanzable(RuntimeError):
     """
 
 
-def traer_jwks(url: str, cliente: httpx.Client | None = None, timeout: float = 5.0) -> Jwks:
+def fetch_jwks(url: str, client: httpx.Client | None = None, timeout: float = 5.0) -> Jwks:
     """One HTTP GET, parsed. Everything that can go wrong becomes one exception.
 
-    `cliente` is injectable so the tests can drive it through a transport
+    `client` is injectable so the tests can drive it through a transport
     instead of a socket. In production the caller passes a long-lived client so
     the connection is reused.
     """
-    propio = cliente is None
-    cliente = cliente or httpx.Client(timeout=timeout)
+    own = client is None
+    client = client or httpx.Client(timeout=timeout)
     try:
-        respuesta = cliente.get(url, timeout=timeout)
-        respuesta.raise_for_status()
-        cuerpo = respuesta.json()
+        response = client.get(url, timeout=timeout)
+        response.raise_for_status()
+        body = response.json()
     except (httpx.HTTPError, ValueError) as exc:
-        raise JwksInalcanzable(f"no se pudo leer el JWKS de {url}: {exc}") from exc
+        raise JwksUnavailable(f"no se pudo leer el JWKS de {url}: {exc}") from exc
     finally:
-        if propio:
-            cliente.close()
-    if not isinstance(cuerpo, dict) or not isinstance(cuerpo.get("keys"), list):
-        raise JwksInalcanzable(f"el JWKS de {url} no tiene una lista 'keys'")
-    return cuerpo
+        if own:
+            client.close()
+    if not isinstance(body, dict) or not isinstance(body.get("keys"), list):
+        raise JwksUnavailable(f"el JWKS de {url} no tiene una lista 'keys'")
+    return body
 
 
-class CacheDeClaves:
+class KeyCache:
     """The provider's signing keys, refreshed on a policy rather than on demand.
 
-    `traer` is injected rather than built here: it is what makes this testable
+    `fetch` is injected rather than built here: it is what makes this testable
     without a socket, and it keeps the fetching and the deciding apart.
 
     The clock is `time.monotonic` and not `time.time`, because both windows here
@@ -82,7 +82,7 @@ class CacheDeClaves:
 
     Not locked, deliberately. FastAPI runs sync endpoints in a threadpool, so
     several requests can be in here at once, and the worst that happens is two
-    concurrent refreshes: rebinding `self._claves` is atomic, so nobody reads a
+    concurrent refreshes: rebinding `self._keys` is atomic, so nobody reads a
     half-built dict, and the cooldown bounds how often the race can even occur.
     A lock would buy one saved request and put a contention point in front of
     every authenticated call.
@@ -90,50 +90,50 @@ class CacheDeClaves:
 
     def __init__(
         self,
-        traer: Callable[[], Jwks],
-        ttl_segundos: float = 300.0,
-        cooldown_segundos: float = 60.0,
-        reloj: Callable[[], float] = time.monotonic,
+        fetch: Callable[[], Jwks],
+        ttl_seconds: float = 300.0,
+        cooldown_seconds: float = 60.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        self._traer = traer
-        self._ttl = ttl_segundos
-        self._cooldown = cooldown_segundos
-        self._reloj = reloj
-        self._claves: dict[str, Clave] = {}
-        self._traido_en: float | None = None
-        # Kept apart from `_traido_en` on purpose. Measuring the cooldown from
+        self._fetch = fetch
+        self._ttl = ttl_seconds
+        self._cooldown = cooldown_seconds
+        self._clock = clock
+        self._keys: dict[str, Key] = {}
+        self._fetched_at: float | None = None
+        # Kept apart from `_fetched_at` on purpose. Measuring the cooldown from
         # the last fetch of any kind means the startup fetch silences the first
         # unknown-kid lookup, and a rotation right after boot waits out the
         # whole cooldown for no reason. Only on-demand refreshes are rationed.
-        self._refrescado_a_demanda_en: float | None = None
+        self._on_demand_refresh_at: float | None = None
 
-    def clave(self, kid: str) -> Clave | None:
+    def key(self, kid: str) -> Key | None:
         """The signing key for `kid`, or None if the provider does not publish it.
 
         None is an answer, not a failure: a token whose `kid` nobody publishes is
-        a token we cannot verify. It is distinguished from `JwksInalcanzable`,
+        a token we cannot verify. It is distinguished from `JwksUnavailable`,
         which means we do not know — that one is a 503 upstream, not a 401.
         """
-        if self._traido_en is None or self._reloj() - self._traido_en >= self._ttl:
-            self._refrescar()
+        if self._fetched_at is None or self._clock() - self._fetched_at >= self._ttl:
+            self._refresh()
 
-        if kid in self._claves:
-            return self._claves[kid]
+        if kid in self._keys:
+            return self._keys[kid]
 
         # Unknown kid. This is the rotation path and the abuse path at once, and
         # the cooldown is what tells them apart: a real rotation happens once and
         # can wait, a flood of forged kids gets exactly one lookup between them.
-        ultimo = self._refrescado_a_demanda_en
-        if ultimo is not None and self._reloj() - ultimo < self._cooldown:
+        last = self._on_demand_refresh_at
+        if last is not None and self._clock() - last < self._cooldown:
             return None
         # Stamped before the fetch, not after: a provider that is failing must
         # consume the cooldown too, or an unreachable JWKS plus forged kids is
         # the unbounded traffic this is here to prevent.
-        self._refrescado_a_demanda_en = self._reloj()
-        self._refrescar()
-        return self._claves.get(kid)
+        self._on_demand_refresh_at = self._clock()
+        self._refresh()
+        return self._keys.get(kid)
 
-    def _refrescar(self) -> None:
+    def _refresh(self) -> None:
         """Fetch and replace. On failure, keep what we had.
 
         Dropping the cache on a failed fetch turns one transient blip at the
@@ -143,24 +143,24 @@ class CacheDeClaves:
         a 401 for what is really a 503.
         """
         try:
-            jwks = self._traer()
-            claves = jwks.get("keys")
+            jwks = self._fetch()
+            keys_ = jwks.get("keys")
             # Adentro del `try` a propósito, y con un chequeo real en vez de un
-            # `assert`: `traer_jwks` ya lo garantiza, pero `traer` es inyectable
-            # y `python -O` borra los assert. Un cuerpo malformado es el mismo
-            # problema que uno inalcanzable —no conseguimos claves usables— y
-            # merece la misma respuesta: conservar lo que había.
-            if not isinstance(claves, list):
-                raise JwksInalcanzable("el JWKS no trae una lista 'keys'")
-        except JwksInalcanzable:
-            if not self._claves:
+            # `assert`: `fetch_jwks` ya lo garantiza, pero `fetch` es inyectable
+            # y `python -O` borra los assert. Un body malformado es el mismo
+            # problema que uno inalcanzable —no conseguimos keys_ usables— y
+            # merece la misma response: conservar lo que había.
+            if not isinstance(keys_, list):
+                raise JwksUnavailable("el JWKS no trae una lista 'keys'")
+        except JwksUnavailable:
+            if not self._keys:
                 raise
-            # The stale set stays, and so does `_traido_en`: a provider that is
+            # The stale set stays, and so does `_fetched_at`: a provider that is
             # down must not be retried on every single request.
-            self._traido_en = self._reloj()
+            self._fetched_at = self._clock()
             return
 
-        self._claves = {
-            str(k["kid"]): k for k in claves if isinstance(k, dict) and k.get("kid") is not None
+        self._keys = {
+            str(k["kid"]): k for k in keys_ if isinstance(k, dict) and k.get("kid") is not None
         }
-        self._traido_en = self._reloj()
+        self._fetched_at = self._clock()

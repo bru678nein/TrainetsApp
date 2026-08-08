@@ -5,5 +5,10 @@ pydantic>=2.9
 pydantic-settings>=2.6
 alembic>=1.14
 psycopg[binary]>=3.2
+# ADR 0004: reemplaza a python-jose. El extra `crypto` trae `cryptography`, que
+# es lo que verifica RS256; sin él PyJWT sólo hace HMAC.
+# >=2.13.0 no es capricho: en esa versión un fetch fallido del JWKS dejó de
+# borrar la caché de claves (GHSA-fhv5-28vv-h8m8).
+pyjwt[crypto]>=2.13.0
 httpx>=0.27
 openpyxl>=3.1

@@ -90,7 +90,7 @@ def test_la_lista_blanca_no_incluye_rutas_de_la_api():
     assert not [p for p in SIN_TENANT if p.startswith("/api")]
 
 
-def test_la_peticion_pasa_por_tenant_session_de_verdad(client, aperturas):
+def test_la_peticion_pasa_por_tenant_session_de_verdad(client, sessions_opened):
     """The other half of the test above, and the one that was missing.
 
     The composition test proves `tenant_session` is in the dependency tree. It
@@ -102,7 +102,7 @@ def test_la_peticion_pasa_por_tenant_session_de_verdad(client, aperturas):
     Reintroduce `dependency_overrides[tenant_session]` and it fails here.
     """
     client.get("/api/athletes")
-    assert aperturas, (
+    assert sessions_opened, (
         "la petición no abrió sesión por tenant_session: alguien la reemplazó "
         "con dependency_overrides y la cadena de seguridad no corrió."
     )

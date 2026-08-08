@@ -103,7 +103,7 @@ def db(engine: Engine) -> Iterator[OrmSession]:
 
 
 @pytest.fixture
-def aperturas() -> list[str]:
+def sessions_opened() -> list[str]:
     """Records every time the app opened a session through the real seam.
 
     `test_la_peticion_pasa_por_tenant_session_de_verdad` reads it. Empty after a
@@ -115,7 +115,7 @@ def aperturas() -> list[str]:
 
 @pytest.fixture
 def client(
-    db: OrmSession, aperturas: list[str], monkeypatch: pytest.MonkeyPatch
+    db: OrmSession, sessions_opened: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[TestClient]:
     """Test client that fakes the connection, never the tenant door.
 
@@ -140,11 +140,11 @@ def client(
     from app.main import app
 
     @contextmanager
-    def _sesion_de_prueba() -> Iterator[OrmSession]:
-        aperturas.append("abierta")
+    def _test_session() -> Iterator[OrmSession]:
+        sessions_opened.append("abierta")
         yield db
 
-    monkeypatch.setattr(deps, "open_session", _sesion_de_prueba)
+    monkeypatch.setattr(deps, "open_session", _test_session)
     yield TestClient(app)
 
 

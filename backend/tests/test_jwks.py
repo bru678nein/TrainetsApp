@@ -23,81 +23,81 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.core.jwks import CacheDeClaves, JwksInalcanzable, traer_jwks
+from app.core.jwks import JwksUnavailable, KeyCache, fetch_jwks
 
 TTL = 300.0
 COOLDOWN = 60.0
 
 
-class RelojFalso:
+class FakeClock:
     def __init__(self) -> None:
-        self.ahora = 1000.0
+        self.now = 1000.0
 
     def __call__(self) -> float:
-        return self.ahora
+        return self.now
 
-    def avanzar(self, segundos: float) -> None:
-        self.ahora += segundos
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
 
 
-class ProveedorFalso:
+class FakeProvider:
     """Stands in for the provider, and counts how often it was asked."""
 
     def __init__(self, *kids: str) -> None:
         self.kids = list(kids)
-        self.llamadas = 0
-        self.falla = False
+        self.calls = 0
+        self.fails = False
 
     def __call__(self) -> dict[str, object]:
-        self.llamadas += 1
-        if self.falla:
-            raise JwksInalcanzable("simulado")
+        self.calls += 1
+        if self.fails:
+            raise JwksUnavailable("simulado")
         return {"keys": [{"kid": k, "kty": "RSA", "n": f"n-{k}", "e": "AQAB"} for k in self.kids]}
 
 
 @pytest.fixture
-def reloj() -> RelojFalso:
-    return RelojFalso()
+def clock() -> FakeClock:
+    return FakeClock()
 
 
-def cache(proveedor: ProveedorFalso, reloj: RelojFalso) -> CacheDeClaves:
-    return CacheDeClaves(proveedor, ttl_segundos=TTL, cooldown_segundos=COOLDOWN, reloj=reloj)
+def cache(provider: FakeProvider, clock: FakeClock) -> KeyCache:
+    return KeyCache(provider, ttl_seconds=TTL, cooldown_seconds=COOLDOWN, clock=clock)
 
 
-class TestCamminoFeliz:
-    def test_devuelve_la_clave_pedida(self, reloj):
-        c = cache(ProveedorFalso("k1"), reloj)
-        assert c.clave("k1")["kid"] == "k1"
+class TestHappyPath:
+    def test_devuelve_la_clave_pedida(self, clock):
+        c = cache(FakeProvider("k1"), clock)
+        assert c.key("k1")["kid"] == "k1"
 
-    def test_no_vuelve_a_la_red_si_ya_la_tiene(self, reloj):
-        p = ProveedorFalso("k1", "k2")
-        c = cache(p, reloj)
+    def test_no_vuelve_a_la_red_si_ya_la_tiene(self, clock):
+        p = FakeProvider("k1", "k2")
+        c = cache(p, clock)
         for _ in range(10):
-            assert c.clave("k1") is not None
-            assert c.clave("k2") is not None
-        assert p.llamadas == 1, "cacheó mal: fue a la red más de una vez"
+            assert c.key("k1") is not None
+            assert c.key("k2") is not None
+        assert p.calls == 1, "cacheó mal: fue a la red más de una vez"
 
 
-class TestRotacionDeClaves:
+class TestKeyRotation:
     """The acceptance criterion of T-005: a rotation resolves without a restart."""
 
-    def test_un_kid_nuevo_se_resuelve_sin_reiniciar(self, reloj):
-        p = ProveedorFalso("vieja")
-        c = cache(p, reloj)
-        assert c.clave("vieja") is not None
+    def test_un_kid_nuevo_se_resuelve_sin_reiniciar(self, clock):
+        p = FakeProvider("vieja")
+        c = cache(p, clock)
+        assert c.key("vieja") is not None
 
-        p.kids = ["vieja", "nueva"]  # el proveedor rota
-        reloj.avanzar(COOLDOWN + 1)
-        assert c.clave("nueva") is not None, "una rotación exige reiniciar la app"
-        assert p.llamadas == 2
+        p.kids = ["vieja", "nueva"]  # el provider rota
+        clock.advance(COOLDOWN + 1)
+        assert c.key("nueva") is not None, "una rotación exige reiniciar la app"
+        assert p.calls == 2
 
-    def test_el_ttl_vencido_refresca_solo(self, reloj):
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
-        reloj.avanzar(TTL + 1)
-        c.clave("k1")
-        assert p.llamadas == 2
+    def test_el_ttl_vencido_refresca_solo(self, clock):
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
+        clock.advance(TTL + 1)
+        c.key("k1")
+        assert p.calls == 2
 
 
 class TestCooldown:
@@ -108,112 +108,112 @@ class TestCooldown:
     caller.
     """
 
-    def test_un_kid_desconocido_refresca_una_vez(self, reloj):
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
-        assert c.clave("inventado") is None
-        assert p.llamadas == 2
+    def test_un_kid_desconocido_refresca_una_vez(self, clock):
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
+        assert c.key("inventado") is None
+        assert p.calls == 2
 
-    def test_mil_kids_inventados_no_son_mil_peticiones(self, reloj):
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
+    def test_mil_kids_inventados_no_son_mil_peticiones(self, clock):
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
         for i in range(1000):
-            assert c.clave(f"inventado-{i}") is None
-        assert p.llamadas == 2, (
-            f"{p.llamadas} peticiones al proveedor: sin cooldown, cualquiera sin "
+            assert c.key(f"inventado-{i}") is None
+        assert p.calls == 2, (
+            f"{p.calls} peticiones al provider: sin cooldown, cualquiera sin "
             f"autenticarse fabrica tráfico saliente ilimitado"
         )
 
-    def test_pasado_el_cooldown_vuelve_a_intentar(self, reloj):
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
-        c.clave("inventado")
-        assert p.llamadas == 2
-        reloj.avanzar(COOLDOWN + 1)
-        c.clave("otro-inventado")
-        assert p.llamadas == 3, "el cooldown no se libera: una rotación real no entraría nunca"
+    def test_pasado_el_cooldown_vuelve_a_intentar(self, clock):
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
+        c.key("inventado")
+        assert p.calls == 2
+        clock.advance(COOLDOWN + 1)
+        c.key("other-inventado")
+        assert p.calls == 3, "el cooldown no se libera: una rotación real no entraría nunca"
 
 
-class TestProveedorCaido:
+class TestProviderDown:
     """The other half of the advisory: a transient failure must not kill auth."""
 
-    def test_sigue_sirviendo_lo_cacheado(self, reloj):
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
+    def test_sigue_sirviendo_lo_cacheado(self, clock):
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
 
-        p.falla = True
-        reloj.avanzar(TTL + 1)
-        assert c.clave("k1") is not None, (
-            "un fallo transitorio del proveedor borró la caché y dejó sin auth a "
+        p.fails = True
+        clock.advance(TTL + 1)
+        assert c.key("k1") is not None, (
+            "un fallo transitorio del provider borró la caché y dejó sin auth a "
             "toda la app: es exactamente el bug que PyJWT arregló en 2.13.0"
         )
 
-    def test_sin_nada_cacheado_el_fallo_se_propaga(self, reloj):
+    def test_sin_nada_cacheado_el_fallo_se_propaga(self, clock):
         """Failing silently on the first fetch would look like "no such key"."""
-        p = ProveedorFalso("k1")
-        p.falla = True
-        c = cache(p, reloj)
-        with pytest.raises(JwksInalcanzable):
-            c.clave("k1")
+        p = FakeProvider("k1")
+        p.fails = True
+        c = cache(p, clock)
+        with pytest.raises(JwksUnavailable):
+            c.key("k1")
 
-    def test_no_se_reintenta_en_cada_peticion(self, reloj):
+    def test_no_se_reintenta_en_cada_peticion(self, clock):
         """A comment used to claim this and nothing checked it.
 
         A provider that is down and retried once per request turns its outage
         into our outage, and adds our traffic to whatever is already wrong at
         their end.
         """
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
 
-        p.falla = True
-        reloj.avanzar(TTL + 1)
+        p.fails = True
+        clock.advance(TTL + 1)
         for _ in range(50):
-            c.clave("k1")
-        assert p.llamadas == 2, f"{p.llamadas} intentos contra un proveedor caído"
+            c.key("k1")
+        assert p.calls == 2, f"{p.calls} intentos contra un provider caído"
 
-    def test_un_jwks_sin_lista_de_claves_no_vacia_el_cache(self, reloj):
-        """`traer` is injectable, so the guard cannot be an `assert`.
+    def test_un_jwks_sin_lista_de_claves_no_vacia_el_cache(self, clock):
+        """`fetch` is injectable, so the guard cannot be an `assert`.
 
         Under `python -O` an assert disappears, and the cache would end up empty
         without a word — indistinguishable from a provider publishing no keys.
         """
-        p = ProveedorFalso("k1")
-        c = cache(p, reloj)
-        c.clave("k1")
+        p = FakeProvider("k1")
+        c = cache(p, clock)
+        c.key("k1")
 
-        c._traer = lambda: {"algo": "otra cosa"}  # type: ignore[method-assign]
-        reloj.avanzar(TTL + 1)
-        assert c.clave("k1") is not None, "un JWKS malformado dejó el caché vacío"
+        c._fetch = lambda: {"algo": "otra cosa"}  # type: ignore[method-assign]
+        clock.advance(TTL + 1)
+        assert c.key("k1") is not None, "un JWKS malformado dejó el caché vacío"
 
 
-class TestTraerJwks:
+class TestFetchJwks:
     def test_pide_la_url_y_devuelve_las_claves(self):
-        pedidas: list[str] = []
+        requested: list[str] = []
 
-        def responder(request: httpx.Request) -> httpx.Response:
-            pedidas.append(str(request.url))
+        def respond(request: httpx.Request) -> httpx.Response:
+            requested.append(str(request.url))
             return httpx.Response(200, json={"keys": [{"kid": "k1"}]})
 
-        cliente = httpx.Client(transport=httpx.MockTransport(responder))
-        assert traer_jwks("https://clerk.example.com/.well-known/jwks.json", cliente) == {
+        client = httpx.Client(transport=httpx.MockTransport(respond))
+        assert fetch_jwks("https://clerk.example.com/.well-known/jwks.json", client) == {
             "keys": [{"kid": "k1"}]
         }
-        assert pedidas == ["https://clerk.example.com/.well-known/jwks.json"]
+        assert requested == ["https://clerk.example.com/.well-known/jwks.json"]
 
     def test_un_500_no_se_confunde_con_un_jwks_vacio(self):
-        cliente = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(500)))
-        with pytest.raises(JwksInalcanzable):
-            traer_jwks("https://clerk.example.com/.well-known/jwks.json", cliente)
+        client = httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(500)))
+        with pytest.raises(JwksUnavailable):
+            fetch_jwks("https://clerk.example.com/.well-known/jwks.json", client)
 
     def test_un_cuerpo_que_no_es_json_tampoco(self):
-        cliente = httpx.Client(
+        client = httpx.Client(
             transport=httpx.MockTransport(lambda _: httpx.Response(200, text="<html>bienvenido"))
         )
-        with pytest.raises(JwksInalcanzable):
-            traer_jwks("https://clerk.example.com/.well-known/jwks.json", cliente)
+        with pytest.raises(JwksUnavailable):
+            fetch_jwks("https://clerk.example.com/.well-known/jwks.json", client)
