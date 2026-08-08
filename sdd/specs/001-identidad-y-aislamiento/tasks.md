@@ -11,6 +11,19 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ---
 
+## Pendientes
+
+Cuatro, y las tres primeras son las únicas escrituras que faltan: hasta que
+existan, la API sólo lee —salvo registrar una serie ya prescrita— y no hay forma
+de crear un entrenador ni un atleta salvo por el importador.
+
+| ID | Tarea |
+|---|---|
+| T-011 | Alta de entrenador en el primer login |
+| T-012 | Crear atleta sin cuenta |
+| T-013 | Cierre de sesión |
+| T-018 | Documentación y tabla de cumplimiento |
+
 ## Hechas
 
 | ID | Tarea | Verificado con |
