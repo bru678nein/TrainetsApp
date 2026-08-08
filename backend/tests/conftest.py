@@ -13,7 +13,7 @@ migration is wrong, the tests have to find out.
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -113,11 +113,108 @@ def sessions_opened() -> list[str]:
     return []
 
 
+SUB_DE_PRUEBA = "seed-coach"
+"""The `sub` the test tokens carry.
+
+It is the one the importer gives the seeded coach, so with the spreadsheet
+present the test identity *is* that coach and owns the seeded athletes. Without
+the spreadsheet — a clean clone, CI — `identidad_sembrada` creates the row, so
+the role check has something to find either way.
+"""
+
+
+@pytest.fixture(scope="session")
+def keypair() -> tuple[object, dict]:
+    """One RSA key for the whole suite. Generating it is not free."""
+    import json
+
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from jwt.algorithms import RSAAlgorithm
+
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    jwk = json.loads(RSAAlgorithm.to_jwk(private.public_key()))
+    jwk["kid"] = "kid-de-prueba"
+    return private, jwk
+
+
 @pytest.fixture
-def client(
-    db: OrmSession, sessions_opened: list[str], monkeypatch: pytest.MonkeyPatch
-) -> Iterator[TestClient]:
-    """Test client that fakes the connection, never the tenant door.
+def mint(keypair) -> Callable[..., str]:
+    """Mints a signed token. Overrides let a test break exactly one claim."""
+    import jwt as pyjwt
+
+    private, _ = keypair
+
+    def _mint(sub: str = SUB_DE_PRUEBA, **overrides: object) -> str:
+        from datetime import UTC, datetime, timedelta
+
+        now = datetime.now(UTC)
+        claims: dict[str, object] = {
+            "sub": sub,
+            "iss": "https://clerk.test",
+            "azp": "https://app.test",
+            "exp": (now + timedelta(minutes=5)).timestamp(),
+            "nbf": (now - timedelta(minutes=1)).timestamp(),
+        }
+        claims.update(overrides)
+        return pyjwt.encode(claims, private, algorithm="RS256", headers={"kid": "kid-de-prueba"})
+
+    return _mint
+
+
+@pytest.fixture
+def identidad_sembrada(db: OrmSession) -> str:
+    """Guarantees the test `sub` exists as a person holding the coach role.
+
+    Created inside the rolled-back transaction, and only when absent: with the
+    spreadsheet imported the importer already made it, and `auth_user_id` is
+    UNIQUE.
+    """
+    from app.models import AppUser, Coach
+
+    existente = db.query(AppUser).filter(AppUser.auth_user_id == SUB_DE_PRUEBA).one_or_none()
+    if existente is None:
+        existente = AppUser(
+            auth_user_id=SUB_DE_PRUEBA, email="coach@example.com", display_name="Coach"
+        )
+        db.add(existente)
+        db.flush()
+    if db.query(Coach).filter(Coach.user_id == existente.id).one_or_none() is None:
+        db.add(Coach(user_id=existente.id))
+    db.flush()
+    return SUB_DE_PRUEBA
+
+
+@pytest.fixture
+def auth(monkeypatch: pytest.MonkeyPatch, keypair) -> None:
+    """Points the app at a fake provider, and at nothing else.
+
+    This is the T-014a rule applied: the identity provider is the outermost
+    thing, so it is the only thing faked. Token verification, the header check,
+    the session variables and the role lookup all run for real.
+    """
+    from app.api import deps
+    from app.core.config import Settings
+    from app.core.jwks import KeyCache
+
+    _, jwk = keypair
+    ajustes = Settings(
+        auth_issuer="https://clerk.test",
+        auth_authorized_party="https://app.test",
+        auth_jwks_url="https://clerk.test/.well-known/jwks.json",
+    )
+    monkeypatch.setattr(deps, "get_settings", lambda: ajustes)
+    monkeypatch.setattr(deps, "get_key_cache", lambda: KeyCache(lambda: {"keys": [jwk]}))
+
+
+@pytest.fixture
+def app_de_prueba(
+    db: OrmSession,
+    sessions_opened: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    auth: None,
+    identidad_sembrada: str,
+):
+    """The app with the connection faked, and nothing else.
 
     It used to be `dependency_overrides[tenant_session] = lambda: db`, and that
     was a trap with a fuse on it. `dependency_overrides` replaces a dependency
@@ -145,7 +242,22 @@ def client(
         yield db
 
     monkeypatch.setattr(deps, "open_session", _test_session)
-    yield TestClient(app)
+    return app
+
+
+@pytest.fixture
+def client(app_de_prueba, mint) -> Iterator[TestClient]:
+    """Authenticated by default, so tests about something else stay about it."""
+    yield TestClient(
+        app_de_prueba,
+        headers={"Authorization": f"Bearer {mint()}", "Active-Role": "coach"},
+    )
+
+
+@pytest.fixture
+def raw_client(app_de_prueba) -> Iterator[TestClient]:
+    """No default headers. For the tests that are about the headers."""
+    yield TestClient(app_de_prueba)
 
 
 @pytest.fixture

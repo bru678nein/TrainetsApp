@@ -23,6 +23,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
+| T-006 | `require_tenant_context` y `tenant_session`: token → identidad → rol → `set_config` → sesión | 34 tests con claves RSA reales; sacando el chequeo de rol caen 2, poniendo un default caen 2, interpolando el `sub` en vez de bindearlo cae la de inyección |
 
 Las de letra se hicieron antes que el resto a propósito, para que el commit que
 agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un
@@ -126,6 +127,12 @@ contexto, esa consulta correría sin contexto.
 *Hecha cuando:* los cuatro casos de la tabla de la sección 3 del plan tienen
 test: header ausente `400`, valor inválido `400`, rol no poseído `403`, rol
 válido resuelve.
+
+Detalle que apareció al implementarla y que el plan no decía: **`SET LOCAL` no
+acepta parámetros.** Usarlo obligaría a pegar el `sub` dentro de la sentencia, y
+el `sub` viene de afuera. Se usa `set_config(nombre, valor, true)`, que es lo
+mismo —el tercer argumento es `is_local`— pero con el valor bindeado. Tiene test
+propio: un `sub` con comillas termina en `403` y no en SQL ejecutado.
 
 **T-013 — Cierre de sesión.** El token anterior deja de servir.
 
