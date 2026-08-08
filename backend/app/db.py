@@ -1,8 +1,8 @@
-"""Motor y sesiones de SQLAlchemy.
+"""SQLAlchemy engine and sessions.
 
-Este módulo no expone ninguna dependencia de FastAPI a propósito. La única
-puerta de acceso a la base desde un endpoint es `app.api.deps.tenant_session`,
-que es donde va a vivir la resolución de tenant. Ver plan de 001, sección 3.
+This module deliberately exposes no FastAPI dependency. The only way into the
+database from an endpoint is `app.api.deps.tenant_session`, which is where
+tenant resolution will live. See the 001 plan, section 3.
 """
 
 import os
@@ -17,15 +17,15 @@ from sqlalchemy.orm import Session
 
 @lru_cache(maxsize=1)
 def get_engine() -> Engine:
-    """El engine se crea en el primer uso, no al importar el módulo.
+    """Built on first use, not at import time.
 
-    Crearlo a nivel de módulo hacía que `import app.db` reventara sin
-    `DATABASE_URL`, incluso cuando quien importa no va a tocar la base: los
-    tests, por ejemplo, sólo necesitan la dependencia para sobrescribirla con
+    Building it at module level made `import app.db` blow up without
+    `DATABASE_URL`, even for importers that never touch the database: the tests,
+    for one, only need the dependency in order to override it with
     `dependency_overrides`.
 
-    Sin default a SQLite: el proyecto es sólo PostgreSQL y un fallback
-    silencioso a otro motor es la forma más rápida de que los tests mientan.
+    No SQLite fallback: this project targets PostgreSQL only, and silently
+    falling back to another engine is the fastest way to make tests lie.
     """
     dsn = os.getenv("DATABASE_URL")
     if not dsn:
@@ -35,14 +35,14 @@ def get_engine() -> Engine:
 
 @contextmanager
 def open_session() -> Iterator[Session]:
-    """Sesión cruda, sin contexto de tenant.
+    """Raw session, with no tenant context.
 
-    No es una dependencia de FastAPI: es un context manager, y esa diferencia es
-    el punto. `Depends(open_session)` no da una sesión utilizable, así que un
-    endpoint no puede saltearse `app.api.deps.tenant_session` por descuido.
+    Not a FastAPI dependency: it is a context manager, and that difference is
+    the point. `Depends(open_session)` yields nothing usable, so an endpoint
+    cannot skip `app.api.deps.tenant_session` by accident.
 
-    Hoy su único llamador es `tenant_session`. El importador arma su propio
-    engine porque recibe el DSN por argumento y corre fuera de la app.
+    Its only caller today is `tenant_session`. The importer builds its own
+    engine because it takes the DSN as an argument and runs outside the app.
     """
     with Session(get_engine(), expire_on_commit=False) as db:
         yield db

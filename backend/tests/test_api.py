@@ -1,11 +1,12 @@
-"""Test end-to-end contra los datos reales importados de la planilla.
+"""End-to-end tests against the real data imported from the spreadsheet.
 
-Las fixtures `client` y `athlete_id` viven en conftest.py: montan Postgres,
-corren las migraciones e importan la planilla. Cada test corre dentro de una
-transacción que se revierte, así que los que escriben no se pisan.
+The `client` and `athlete_id` fixtures live in conftest.py: they bring up
+Postgres, run the migrations and import the spreadsheet. Every test runs inside
+a transaction that is rolled back, so the writing ones do not collide.
 
-La planilla vive en data/ y no se versiona: tiene datos personales de un atleta
-real. Si no está, estos tests se saltan con un mensaje claro en vez de explotar.
+The spreadsheet lives in data/ and is not versioned: it holds personal data of a
+real athlete. If it is missing, these tests skip with a clear message instead of
+blowing up.
 """
 
 
@@ -24,7 +25,7 @@ NO_EXISTE = "00000000-0000-0000-0000-000000000000"
 
 class TestAgenda:
     def test_lista_las_sesiones_ordenadas(self, client, athlete_id):
-        """Dentro de cada programa, por mesociclo, semana y día."""
+        """Within each program: by mesocycle, week and day."""
         agenda = client.get(f"/api/athletes/{athlete_id}/sessions").json()
         assert len(agenda) > 0
         por_programa: dict[str, list[tuple[int, int, int]]] = {}
@@ -36,12 +37,12 @@ class TestAgenda:
             assert claves == sorted(claves)
 
     def test_la_cuaterna_identifica_una_sesion(self, client, athlete_id):
-        """El motivo de existir del id.
+        """Why the id exists at all.
 
-        `week_number` es relativo al mesociclo y `mesocycle_ordinal` al
-        programa, así que la clave natural mínima es la cuaterna completa. Lo
-        que NO se puede afirmar es que la terna sin `program_id` sea única: un
-        atleta con dos programas tiene dos mesociclos con ordinal 1.
+        `week_number` is relative to the mesocycle and `mesocycle_ordinal` to
+        the program, so the minimum natural key is the full four-part one. What
+        cannot be claimed is that the triple without `program_id` is unique: an
+        athlete with two programs has two mesocycles numbered ordinal 1.
         """
         agenda = client.get(f"/api/athletes/{athlete_id}/sessions").json()
         cuaternas = [
@@ -101,7 +102,7 @@ class TestLogging:
         assert second["reps"] == 9 and float(second["load_kg"]) == 65.0
 
     def test_mas_de_12_reps_no_rompe(self, client, session_detail):
-        """Fuera de la tabla RPE: se registra igual, sin e1RM."""
+        """Off the RPE chart: it is logged anyway, without an e1RM."""
         s = session_detail(week=1, day=1)
         sid = s["blocks"][2]["sets"][0]["id"]
         r = client.put(f"/api/sets/{sid}/log", json={"reps": 20, "load_kg": 40, "rir": 2})
@@ -127,12 +128,12 @@ class TestLogging:
         assert r.status_code == 404
 
     def test_serie_inexistente_y_ajena_responden_igual(self, client, session_detail):
-        """Criterio 2 de la spec 001, en la forma que ya se puede verificar.
+        """Criterion 2 of spec 001, in the form that can be verified today.
 
-        Sin auth no hay serie "ajena" que probar, así que esto sólo fija el
-        contrato: el 404 no dice por qué. Cuando 001 agregue RLS, el caso de la
-        serie de otro atleta tiene que caer en esta misma respuesta, y el test
-        se extiende en vez de reescribirse.
+        Without auth there is no "someone else's" set to try, so this only pins
+        the contract: the 404 does not say why. Once 001 adds RLS, another
+        athlete's set has to land on this same response, and the test gets
+        extended rather than rewritten.
         """
         propia = session_detail(week=1, day=1)["blocks"][0]["sets"][0]["id"]
         cuerpo = {"reps": 5, "load_kg": 50, "rir": 2}
@@ -151,7 +152,7 @@ class TestAnalytics:
 
     def test_adherencia(self, client, athlete_id):
         a = client.get(f"/api/athletes/{athlete_id}/adherence").json()
-        assert len(a) == 4  # 4 semanas por mesociclo
+        assert len(a) == 4  # 4 weeks per mesocycle
         for w in a:
             assert 0 <= w["completion_rate"] <= 1
             assert 0 <= w["in_range_rate"] <= 1

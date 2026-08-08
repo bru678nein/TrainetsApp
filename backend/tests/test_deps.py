@@ -1,12 +1,12 @@
-"""Verifica la composición de dependencias, no el comportamiento.
+"""Verifies dependency composition, not behaviour.
 
-Un test de comportamiento se satisface por accidente: un `400` que salió de una
-validación de Pydantic se parece bastante al `400` de un header que falta. Éste
-mira el árbol de dependencias de cada ruta y comprueba que la protección **esté
-puesta**, que es una afirmación más difícil de cumplir sin querer.
+A behavioural test can be satisfied by accident: a `400` coming out of a
+Pydantic validation looks a lot like the `400` for a missing header. This one
+walks each route's dependency tree and checks the protection **is in place**,
+which is a much harder claim to satisfy unintentionally.
 
-No necesita base de datos: inspecciona la app, no la consulta. Es la capa 4 de
-la sección 3 del plan de la feature 001.
+It needs no database: it inspects the app, it does not query it. This is layer 4
+of section 3 of the feature 001 plan.
 """
 
 from __future__ import annotations
@@ -19,19 +19,19 @@ from fastapi.routing import APIRoute
 from app.api.deps import tenant_session
 from app.main import app
 
-# Rutas que legítimamente no tocan la base ni necesitan tenant. Es una lista
-# blanca explícita a propósito: agregar una ruta nueva rompe estos tests hasta
-# que alguien decida conscientemente de qué lado cae.
+# Routes that legitimately touch neither the database nor a tenant. The
+# allowlist is explicit on purpose: adding a new route breaks these tests until
+# somebody consciously decides which side it falls on.
 SIN_TENANT = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
 
 def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:
-    """Recorre routers anidados, no sólo el primer nivel.
+    """Walk nested routers, not just the top level.
 
-    Según la versión de FastAPI, `app.routes` trae las rutas del router incluido
-    aplanadas, o un envoltorio que las guarda en `original_router`. Recorrer sólo
-    el primer nivel devolvía cero rutas de datos en la segunda forma, y este test
-    habría pasado en verde sin verificar absolutamente nada.
+    Depending on the FastAPI version, `app.routes` carries the included
+    router's routes flattened, or a wrapper holding them in `original_router`.
+    Walking only the top level returned zero data routes in the second shape,
+    and this test would have gone green without verifying anything at all.
     """
     for n in nodos:
         if isinstance(n, APIRoute):
@@ -50,7 +50,7 @@ def _rutas_de_datos() -> list[APIRoute]:
 
 
 def _usa(route: APIRoute, dep: object) -> bool:
-    """Busca `dep` en todo el árbol de dependencias de la ruta, no sólo arriba."""
+    """Look for `dep` anywhere in the route's dependency tree, not just the top."""
     pendientes = list(route.dependant.dependencies)
     while pendientes:
         d = pendientes.pop()
@@ -61,11 +61,11 @@ def _usa(route: APIRoute, dep: object) -> bool:
 
 
 def test_el_recorrido_encuentra_todas_las_rutas():
-    """Sin esto, un recorrido roto deja los tests de abajo pasando en vacío.
+    """Without this, a broken walk leaves the tests below passing on nothing.
 
-    El OpenAPI generado es la fuente de verdad independiente de los internals de
-    FastAPI: si la app expone N rutas bajo `/api`, el recorrido tiene que
-    encontrar esas mismas N.
+    The generated OpenAPI is the source of truth independent of FastAPI's
+    internals: if the app exposes N routes under `/api`, the walk has to find
+    those same N.
     """
     del_openapi = {p for p in app.openapi()["paths"] if p.startswith("/api")}
     del_recorrido = {r.path for r in _rutas_de_datos()}
@@ -74,10 +74,10 @@ def test_el_recorrido_encuentra_todas_las_rutas():
 
 @pytest.mark.parametrize("route", _rutas_de_datos(), ids=lambda r: r.path)
 def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
-    """La única puerta a la base es `tenant_session`.
+    """The only door into the database is `tenant_session`.
 
-    Cuando entre la tarea 6 del plan, esta misma afirmación va a cubrir la
-    resolución de identidad y el `SET LOCAL`, porque van a colgar de acá.
+    Once T-006 lands, this same assertion will cover identity resolution and the
+    `SET LOCAL`, because both will hang off this dependency.
     """
     assert _usa(route, tenant_session), (
         f"{route.path} no depende de tenant_session: o le falta la dependencia, "
@@ -86,5 +86,5 @@ def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
 
 
 def test_la_lista_blanca_no_incluye_rutas_de_la_api():
-    """Nadie silencia un endpoint de datos agregándolo a la lista blanca."""
+    """Nobody silences a data endpoint by adding it to the allowlist."""
     assert not [p for p in SIN_TENANT if p.startswith("/api")]

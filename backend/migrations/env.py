@@ -1,14 +1,15 @@
-"""Entorno de Alembic.
+"""Alembic environment.
 
-La URL no está en alembic.ini —cero credenciales en el repo— y sale, en este
-orden:
+The URL is not in alembic.ini — zero credentials in the repo — and is resolved
+in this order:
 
-1. La que el llamador haya puesto en la config con `set_main_option`. Es como
-   invocan a Alembic los tests, que corren contra `TEST_DATABASE_URL`.
-2. `DATABASE_URL` del entorno, que es el camino del CLI (`alembic upgrade head`).
+1. Whatever the caller placed in the config via `set_main_option`. That is how
+   the tests invoke Alembic, running against `TEST_DATABASE_URL`.
+2. `DATABASE_URL` from the environment, which is the CLI path
+   (`alembic upgrade head`).
 
-El orden importa: si el entorno ganara, un `pytest` con el `.env` de desarrollo
-cargado migraría la base equivocada.
+The order matters: if the environment won, a `pytest` run with the development
+`.env` loaded would migrate the wrong database.
 """
 
 from __future__ import annotations
@@ -30,9 +31,9 @@ target_metadata = Base.metadata
 
 _url = config.get_main_option("sqlalchemy.url", None) or os.getenv("DATABASE_URL")
 if _url:
-    # `%` es un carácter de interpolación en configparser; hay que escaparlo o
-    # una contraseña con % rompe el arranque. Re-escapar es inocuo: al leer,
-    # get_main_option ya des-interpoló el valor guardado.
+    # `%` is an interpolation character in configparser; it has to be escaped
+    # or a password containing % breaks startup. Re-escaping is harmless: on
+    # read, get_main_option has already de-interpolated the stored value.
     config.set_main_option("sqlalchemy.url", _url.replace("%", "%%"))
 elif not context.is_offline_mode():
     raise RuntimeError(

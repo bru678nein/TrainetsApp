@@ -1,14 +1,14 @@
-"""Importa la planilla de entrenamiento al esquema relacional.
+"""Import the training spreadsheet into the relational schema.
 
-Uso:
+Usage:
     python -m importer.from_spreadsheet ../data/planilla.xlsx [--reset]
 
-La base tiene que estar migrada (`alembic upgrade head`). Este script puebla,
-no crea esquema: antes hacía `drop_all` + `create_all`, lo que generaba un
-esquema paralelo al de las migraciones —sin la vista, sin el índice funcional,
-sin las extensiones— y además borraba la base que le pasaran por argumento.
+The database must already be migrated (`alembic upgrade head`). This script
+populates, it does not create schema: it used to run `drop_all` + `create_all`,
+which produced a schema parallel to the migrations — no view, no functional
+index, no extensions — and on top of that wiped whatever database it was handed.
 
-Existe para tener datos reales desde el día 1 en vez de seeds inventados.
+It exists so development runs on real data from day 1 instead of invented seeds.
 """
 
 from __future__ import annotations
@@ -39,8 +39,8 @@ from app.models import (
     Session,
 )
 
-# En orden inverso a las dependencias no hace falta: TRUNCATE ... CASCADE se
-# encarga, pero listarlas explícitas documenta el alcance del borrado.
+# Reverse dependency order is unnecessary: TRUNCATE ... CASCADE handles it,
+# but listing them explicitly documents the blast radius of the delete.
 _SEEDED_TABLES = "coach, movement_pattern, exercise"
 
 
@@ -50,11 +50,11 @@ def slug(raw: str) -> str:
 
 
 def dec(value: Any) -> Decimal | None:
-    """Las columnas `numeric` se mapean a `Decimal`.
+    """`numeric` columns map to `Decimal`.
 
-    openpyxl devuelve `float`, y pasarlo tal cual a psycopg lo manda como
-    float8 para que Postgres lo redondee. Convertir por `str` evita arrastrar
-    el ruido binario del float.
+    openpyxl returns `float`, and handing that straight to psycopg sends it as
+    float8 for Postgres to round. Converting via `str` avoids dragging the
+    float's binary noise along.
     """
     if value is None or value == "":
         return None
@@ -62,9 +62,9 @@ def dec(value: Any) -> Decimal | None:
 
 
 def clean_range(lo: Any, hi: Any, label: str, flags: list[str]) -> tuple[int | None, int | None]:
-    """Un rango invertido significa que el texto original era una prescripción
-    compuesta ("8 a 12 + 2x 3 a 5") que el parser no puede desambiguar.
-    No se inventa un valor: se deja nulo y se marca para revisión."""
+    """An inverted range means the original text was a compound prescription
+    ("8 a 12 + 2x 3 a 5") that the parser cannot disambiguate. No value is
+    invented: it is left null and flagged for review."""
     if lo is not None and hi is not None and hi < lo:
         flags.append(label)
         return None, None
@@ -92,7 +92,7 @@ def read_rows(xlsx: str) -> tuple[list[dict[str, Any]], str, dict[int, str]]:
 
 
 def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[str]]:
-    """Puebla una base ya migrada. Devuelve (conteos, series a revisar a mano)."""
+    """Populate an already-migrated database. Returns (counts, sets needing review)."""
     rows, athlete_name, meso_labels = read_rows(xlsx)
     engine = create_engine(dsn)
     stats: defaultdict[str, int] = defaultdict(int)
@@ -139,7 +139,7 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
         )
         db.add(program)
 
-        # semanas por mesociclo, para week_count y para el número de semana relativo
+        # Weeks per mesocycle, for week_count and for the relative week number
         weeks_by_meso: dict[int, set[int]] = defaultdict(set)
         for r in rows:
             weeks_by_meso[int(r["Meso #"])].add(int(r["Semana"]))
@@ -161,7 +161,7 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
 
         for r in rows:
             meso_n, week_g, day = int(r["Meso #"]), int(r["Semana"]), int(r["Sesión"] or 1)
-            # semana relativa dentro del mesociclo
+            # Week number relative to the mesocycle
             week_rel = sorted(weeks_by_meso[meso_n]).index(week_g) + 1
             skey = (week_g, day)
             if skey not in sessions:

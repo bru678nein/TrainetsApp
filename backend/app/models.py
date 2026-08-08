@@ -1,16 +1,16 @@
-"""Modelos SQLAlchemy 2.0. Fuente única del esquema.
+"""SQLAlchemy 2.0 models. Single source of the schema.
 
-`docs/schema.sql` quedó como documentación de referencia; el esquema real lo
-generan las migraciones de Alembic a partir de este módulo. Lo que el ORM no
-sabe expresar (extensiones, el índice funcional de `exercise`, la vista
-`weekly_volume`, RLS) vive escrito a mano en las migraciones.
+`docs/schema.sql` remains as reference documentation; the real schema is
+produced by the Alembic migrations built from this module. Whatever the ORM
+cannot express — extensions, the functional index on `exercise`, the
+`weekly_volume` view, RLS — is written by hand in the migrations.
 
-El objetivo es PostgreSQL 16+ y sólo PostgreSQL: usamos `citext`, checks y
-tipos nativos sin buscar portabilidad a SQLite.
+The target is PostgreSQL 16+ and nothing else: we use `citext`, checks and
+native types without chasing SQLite portability.
 
-Las columnas `Numeric` se mapean a `Decimal`, no a `float`. Postgres devuelve
-`Decimal` y declararlas `float` era una mentira que mypy no podía detectar.
-La conversión a `float` se hace explícita en el borde que habla con el dominio.
+`Numeric` columns map to `Decimal`, not `float`. Postgres returns `Decimal`,
+and declaring them `float` was a lie mypy could not catch. The conversion to
+`float` is made explicit at the boundary that talks to the domain.
 """
 
 from __future__ import annotations
@@ -40,20 +40,20 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 _UUID_PK = text("gen_random_uuid()")
 
-# Partes del esquema que el ORM no sabe expresar y viven escritas a mano en las
-# migraciones. Alembic las ve como objetos que están en la base pero no en los
-# modelos, así que un `--autogenerate` propondría borrarlas. `env.py` y el test
-# de divergencia las excluyen usando este conjunto.
+# Parts of the schema the ORM cannot express, written by hand in the migrations.
+# Alembic sees them as objects present in the database but absent from the
+# models, so `--autogenerate` would propose dropping them. `env.py` and the
+# divergence test exclude them using this set.
 MANUALLY_MANAGED: frozenset[str] = frozenset(
     {
-        "weekly_volume",  # vista: volumen semanal por patrón
-        "exercise_name_scope_idx",  # índice funcional: COALESCE(coach_id, ...) + lower(name)
+        "weekly_volume",  # view: weekly volume per movement pattern
+        "exercise_name_scope_idx",  # functional index: COALESCE(coach_id, ...) + lower(name)
     }
 )
 
 
 def include_object(obj: object, name: str | None, type_: str, *_: object) -> bool:
-    """Filtro de autogenerate: ignora lo que se mantiene a mano."""
+    """Autogenerate filter: ignore whatever is maintained by hand."""
     return name not in MANUALLY_MANAGED
 
 
@@ -103,8 +103,8 @@ class Athlete(Base):
             "level IS NULL OR level IN ('principiante','intermedio','avanzado')",
             name="athlete_level_ok",
         ),
-        # Parcial: los atletas dados de baja no ensucian el índice que se usa
-        # en todos los listados del entrenador.
+        # Partial: deactivated athletes do not pollute the index used by every
+        # listing the coach opens.
         Index("athlete_coach_idx", "coach_id", postgresql_where=text("is_active")),
     )
 
@@ -120,7 +120,7 @@ class MovementPattern(Base):
 class Exercise(Base):
     __tablename__ = "exercise"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
-    # NULL = catálogo global, visible para todos los entrenadores.
+    # NULL = global catalogue, visible to every coach.
     coach_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("coach.id", ondelete="CASCADE"))
     pattern_code: Mapped[str] = mapped_column(ForeignKey("movement_pattern.code"), index=True)
     name: Mapped[str] = mapped_column(String(160))
@@ -132,10 +132,10 @@ class Exercise(Base):
 
     pattern: Mapped[MovementPattern] = relationship()
     coach: Mapped[Coach | None] = relationship()
-    # La unicidad de (coach_id, name) NO se declara acá: un UNIQUE normal no
-    # sirve porque coach_id es NULL en el catálogo global y en Postgres los
-    # NULL no colisionan entre sí. La migración crea un índice funcional sobre
-    # COALESCE(coach_id, uuid cero) + lower(name).
+    # Uniqueness of (coach_id, name) is NOT declared here: a plain UNIQUE does
+    # not work because coach_id is NULL for the global catalogue, and in
+    # Postgres NULLs do not collide with each other. The migration creates a
+    # functional index over COALESCE(coach_id, zero uuid) + lower(name).
 
 
 class Program(Base):
@@ -191,8 +191,9 @@ class Session(Base):
     mesocycle_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("mesocycle.id", ondelete="CASCADE"), index=True
     )
-    # Relativo al mesociclo, no al programa. La semana 1 del meso 2 y la del
-    # meso 1 son sesiones distintas: agregá siempre por (mesocycle, week).
+    # Relative to the mesocycle, not to the program. Week 1 of mesocycle 2 and
+    # week 1 of mesocycle 1 are different sessions: always aggregate by
+    # (mesocycle, week).
     week_number: Mapped[int] = mapped_column(SmallInteger)
     day_number: Mapped[int] = mapped_column(SmallInteger)
     label: Mapped[str | None] = mapped_column(String(80))
@@ -235,7 +236,7 @@ class Prescription(Base):
 
 
 class PrescribedSet(Base):
-    """El grano del sistema. Ver PLAN.md, sección 4."""
+    """The grain of the system. See PLAN.md, section 4."""
 
     __tablename__ = "prescribed_set"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
@@ -277,8 +278,8 @@ class PrescribedSet(Base):
         CheckConstraint(
             "rir_max IS NULL OR rir_min IS NULL OR rir_max >= rir_min", name="pset_rir_range_ok"
         ),
-        # La carga es polimórfica (absoluta / porcentual / autorregulada) pero
-        # nunca dos cosas a la vez.
+        # Load is polymorphic — absolute, percentage or autoregulated — but
+        # never two of them at once.
         CheckConstraint(
             "NOT (target_load_kg IS NOT NULL AND target_pct_1rm IS NOT NULL)",
             name="pset_load_unambiguous",
@@ -287,7 +288,7 @@ class PrescribedSet(Base):
 
 
 class LoggedSet(Base):
-    """Tabla aparte de la prescripción, a propósito. Ver PLAN.md, sección 4."""
+    """A separate table from the prescription, on purpose. See PLAN.md, section 4."""
 
     __tablename__ = "logged_set"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
@@ -303,8 +304,8 @@ class LoggedSet(Base):
     rir: Mapped[Decimal | None] = mapped_column(Numeric(3, 1))
     was_skipped: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     athlete_note: Mapped[str | None] = mapped_column(Text)
-    # e1RM con la tabla RPE. Se persiste para no recomputarlo en cada consulta
-    # de progreso.
+    # Estimated 1RM from the RPE chart. Persisted so it is not recomputed on
+    # every progress query.
     e1rm_kg: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
 
     prescribed_set: Mapped[PrescribedSet] = relationship(back_populates="log")

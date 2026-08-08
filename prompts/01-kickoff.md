@@ -69,3 +69,19 @@ si un mismo email puede ser entrenador y atleta a la vez. Pasa seguido
 identidad de rol, y eso después es una migración fea.
 
 Empezá corriendo `/clarify` sobre `sdd/specs/001-auth-y-tenancy/spec.md`.
+
+---
+
+> **Nota posterior, agosto 2026.** Este archivo es el registro del arranque y no
+> se reescribe: dice lo que sabíamos entonces. Dos cosas cambiaron desde que se
+> escribió.
+>
+> Las tres definiciones se resolvieron. La del email que puede ser entrenador y
+> atleta se contestó que sí — y el párrafo de arriba se quedó corto: lo que
+> obliga a separar identidad de rol no es ese caso, sino que un atleta cambie de
+> entrenador conservando el historial anterior, que es mucho más frecuente.
+>
+> La feature se partió en dos y la spec se mudó. Hoy está en
+> `sdd/specs/001-identidad-y-aislamiento/spec.md`, con su plan al lado; las
+> invitaciones y el ciclo de vida del vínculo pasaron a
+> `sdd/specs/003-invitaciones-y-vinculos/`.

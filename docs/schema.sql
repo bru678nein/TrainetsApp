@@ -10,7 +10,13 @@
 --  decisiones. Para el DDL vigente: `alembic upgrade head --sql`.
 --
 --  El RLS del final todavía NO está aplicado: entra con la feature 001, junto
---  con la resolución de tenant en la capa HTTP. Ver sdd/specs/001-auth-y-tenancy/.
+--  con la resolución de tenant en la capa HTTP.
+--  Ver sdd/specs/001-identidad-y-aislamiento/.
+--
+--  Ojo con las policies del final: asumen que toda tabla llega a su entrenador
+--  por `coach_id`, y cinco no lo tienen (mesocycle, session, prescription,
+--  prescribed_set, logged_set). El camino real de cada tabla está en la
+--  sección 4 del plan de la 001.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -168,20 +174,30 @@ CREATE TABLE logged_set (
     rir               numeric(3,1) CHECK (rir >= 0),
     was_skipped       boolean NOT NULL DEFAULT false,
     athlete_note      text,
-    -- e1RM con la tabla RPE (Epley como fallback). Se calcula en la app y se
-    -- persiste para no recomputar 1M de filas en cada consulta de progreso.
+    -- e1RM con la tabla RPE. Se calcula en la app y se persiste para no
+    -- recomputar 1M de filas en cada consulta de progreso.
+    -- No hay fallback de Epley: fuera de la tabla (más de 12 reps, RPE < 6)
+    -- queda NULL. Estimar con una fórmula distinta a la que usó el resto de
+    -- las series haría incomparables dos números de la misma columna.
     e1rm_kg           numeric(6,2),
     UNIQUE (prescribed_set_id)
 );
 CREATE INDEX logged_set_athlete_time_idx ON logged_set (athlete_id, performed_at DESC);
 
--- Tabla de coeficientes RPE x reps. Dato de referencia, versionado por si cambia.
-CREATE TABLE rpe_coefficient (
-    rpe           numeric(3,1) NOT NULL CHECK (rpe BETWEEN 6 AND 10),
-    reps          smallint NOT NULL CHECK (reps BETWEEN 1 AND 12),
-    pct_1rm       numeric(4,3) NOT NULL CHECK (pct_1rm > 0 AND pct_1rm <= 1),
-    PRIMARY KEY (rpe, reps)
-);
+-- DESCARTADA. Acá iba una tabla `rpe_coefficient` con los coeficientes
+-- RPE x reps. No existe: los coeficientes viven en backend/app/domain/rpe.py,
+-- como diccionario.
+--
+-- El motivo es el artículo I de la constitución. El dominio calcula e1RM sin
+-- I/O y se testea sin levantar base; leer los coeficientes de una tabla lo
+-- habría obligado a recibir una sesión de SQLAlchemy, que es exactamente lo
+-- que el artículo prohíbe. El argumento a favor era "versionado por si cambia",
+-- pero la tabla RPE de RTS no cambió en quince años, y si cambiara sería un
+-- cambio de dominio que merece pasar por code review, no un UPDATE.
+--
+-- Se deja escrito en vez de borrado porque este archivo es el registro de las
+-- decisiones, y una decisión revertida sin rastro es la que alguien vuelve a
+-- proponer en seis meses.
 
 -- -----------------------------------------------------------------------------
 -- Vista de volumen semanal por patrón: la métrica que la planilla nunca calculó.

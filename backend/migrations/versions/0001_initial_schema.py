@@ -1,13 +1,12 @@
-"""Esquema inicial
+"""Initial schema
 
-Traducción a migración versionada de lo que hasta ahora vivía en
-`docs/schema.sql` (que era documentación, nunca se aplicaba) y en
-`Base.metadata.create_all()` (que ignoraba extensiones, el índice funcional y
-la vista).
+A versioned migration of what until now lived in `docs/schema.sql` (which was
+documentation and never applied) and in `Base.metadata.create_all()` (which
+ignored extensions, the functional index and the view).
 
-RLS no entra acá a propósito: activarlo sin la resolución de tenant en la capa
-HTTP dejaría la app viendo cero filas. Va en la feature 001, junto con el
-`SET LOCAL app.current_coach_id` por request.
+RLS is deliberately left out: enabling it without tenant resolution in the HTTP
+layer would leave the app seeing zero rows. It lands with feature 001, together
+with the per-request `SET LOCAL`.
 
 Revision ID: 0001
 Revises:
@@ -30,7 +29,7 @@ _UUID_PK = sa.text("gen_random_uuid()")
 
 
 def upgrade() -> None:
-    # gen_random_uuid() y el tipo citext. Sin esto no se crea ninguna tabla.
+    # gen_random_uuid() and the citext type. Without these, no table is created.
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
     op.execute("CREATE EXTENSION IF NOT EXISTS citext")
 
@@ -118,10 +117,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_exercise_pattern_code", "exercise", ["pattern_code"])
-    # Un UNIQUE(coach_id, name) no alcanza: coach_id es NULL en el catálogo
-    # global y en Postgres los NULL no colisionan entre sí, así que el catálogo
-    # global admitiría duplicados. De ahí el COALESCE. El lower() evita
-    # "Press banca" y "PRESS BANCA" como ejercicios distintos.
+    # A plain UNIQUE(coach_id, name) is not enough: coach_id is NULL for the
+    # global catalogue and in Postgres two NULLs do not collide, so the global
+    # catalogue would accept duplicates. Hence the COALESCE. The lower() keeps
+    # "Press banca" and "PRESS BANCA" from being two different exercises.
     op.execute(
         """
         CREATE UNIQUE INDEX exercise_name_scope_idx ON exercise (
@@ -279,9 +278,9 @@ def upgrade() -> None:
         ["athlete_id", sa.text("performed_at DESC")],
     )
 
-    # Vista de volumen semanal por patrón. Agrupa por (mesociclo, semana):
-    # week_number es relativo al mesociclo, así que agrupar sólo por semana
-    # sumaría la semana 1 de todos los mesociclos en un mismo punto.
+    # Weekly volume per movement pattern. Grouped by (mesocycle, week):
+    # week_number is relative to the mesocycle, so grouping by week alone would
+    # collapse week 1 of every mesocycle into a single point.
     op.execute(
         """
         CREATE VIEW weekly_volume AS
@@ -319,5 +318,5 @@ def downgrade() -> None:
     op.drop_table("athlete")
     op.drop_table("movement_pattern")
     op.drop_table("coach")
-    # Las extensiones no se borran: las puede estar usando otro esquema en la
-    # misma base.
+    # Extensions are not dropped: another schema in the same database may be
+    # using them.

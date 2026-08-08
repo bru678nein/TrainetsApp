@@ -1,10 +1,10 @@
-"""Lo que sólo se puede verificar contra Postgres real.
+"""What can only be verified against real Postgres.
 
-Estos tests son la razón de haber sacado SQLite de la suite: nada de esto
-—CHECK constraints, `citext`, el índice funcional con COALESCE, la vista— se
-ejercita en un motor que no es el de producción.
+These tests are the reason SQLite was dropped from the suite: none of this —
+CHECK constraints, `citext`, the COALESCE functional index, the view — is
+exercised on an engine other than the production one.
 
-No dependen de la planilla: cada uno arma la cadena mínima que necesita.
+They do not depend on the spreadsheet: each builds the minimum chain it needs.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _tag() -> str:
 
 @pytest.fixture
 def pset(db: OrmSession) -> PrescribedSet:
-    """La cadena mínima coach → ... → prescribed_set, con nombres únicos."""
+    """The minimum chain coach → ... → prescribed_set, with unique names."""
     t = _tag()
     coach = Coach(auth_user_id=f"c-{t}", email=f"c-{t}@example.com", display_name="C")
     athlete = Athlete(coach=coach, full_name="A")
@@ -59,10 +59,10 @@ def pset(db: OrmSession) -> PrescribedSet:
 
 class TestMigrations:
     def test_la_migracion_no_divergio_de_los_modelos(self, engine: Engine) -> None:
-        """El seguro contra la vieja doble fuente de verdad.
+        """The safety catch against the old double source of truth.
 
-        Si alguien toca models.py y se olvida de generar la migración, esto
-        falla acá y no en el deploy.
+        If someone edits models.py and forgets to generate the migration, this
+        fails here and not on deploy.
         """
         with engine.connect() as conn:
             ctx = MigrationContext.configure(
@@ -70,8 +70,8 @@ class TestMigrations:
                 opts={
                     "compare_type": True,
                     "compare_server_default": True,
-                    # El mismo filtro que usa env.py, no una copia: si los dos
-                    # criterios se separan, el test deja de decir la verdad.
+                    # The same filter env.py uses, not a copy: if the two
+                    # criteria drift apart, this test stops telling the truth.
                     "include_object": include_object,
                 },
             )
@@ -79,10 +79,10 @@ class TestMigrations:
         assert diff == [], f"models.py y las migraciones difieren:\n{diff}"
 
     def test_lo_que_se_mantiene_a_mano_existe_de_verdad(self, engine: Engine) -> None:
-        """Contracara del test de arriba.
+        """The flip side of the test above.
 
-        `MANUALLY_MANAGED` silencia a Alembic sobre estos objetos; si además se
-        dejaran de crear, nadie se enteraría.
+        `MANUALLY_MANAGED` silences Alembic about these objects; if they also
+        stopped being created, nobody would notice.
         """
         with engine.connect() as conn:
             names = set(
@@ -98,11 +98,11 @@ class TestMigrations:
         assert {"pgcrypto", "citext"} <= names
 
     def test_la_vista_existe_y_separa_mesociclos(self, engine: Engine) -> None:
-        """La vista agrupa por (mesocycle_ordinal, week_number).
+        """The view groups by (mesocycle_ordinal, week_number).
 
-        Es justo lo que el agregado en Python todavía no hace: como week_number
-        es relativo al mesociclo, agrupar sólo por semana suma la semana 1 de
-        todos los mesociclos en un mismo punto.
+        Which is exactly what the Python aggregation still does not do: since
+        week_number is relative to the mesocycle, grouping by week alone
+        collapses week 1 of every mesocycle into a single point.
         """
         with engine.connect() as conn:
             cols = set(
@@ -118,7 +118,7 @@ class TestMigrations:
 
 
 class TestConstraints:
-    """Los CHECK que en SQLite no se aplicaban."""
+    """The CHECK constraints that SQLite never enforced."""
 
     def test_la_carga_no_puede_ser_absoluta_y_porcentual(
         self, db: OrmSession, pset: PrescribedSet
@@ -144,11 +144,11 @@ class TestConstraints:
             db.execute(sa.update(Athlete).where(Athlete.id == athlete_id).values(level="semidios"))
 
     def test_el_catalogo_global_no_admite_nombres_duplicados(self, db: OrmSession) -> None:
-        """El motivo del índice funcional.
+        """Why the functional index exists.
 
-        Un UNIQUE(coach_id, name) normal no atrapa esto: coach_id es NULL en el
-        catálogo global y en Postgres dos NULL no colisionan. El lower() además
-        evita que "Sentadilla" y "SENTADILLA" convivan.
+        A plain UNIQUE(coach_id, name) does not catch this: coach_id is NULL for
+        the global catalogue and in Postgres two NULLs do not collide. The
+        lower() also stops "Sentadilla" and "SENTADILLA" from coexisting.
         """
         t = _tag()
         db.add(MovementPattern(code=f"p_{t}", label_es="P"))
@@ -160,7 +160,7 @@ class TestConstraints:
             db.flush()
 
     def test_el_email_del_coach_es_case_insensitive(self, db: OrmSession) -> None:
-        """Para eso está citext: en SQLite esto pasaba sin protestar."""
+        """This is what citext is for: in SQLite this passed without complaint."""
         t = _tag()
         db.add(Coach(auth_user_id=f"a-{t}", email=f"Bruno.{t}@Example.com", display_name="B"))
         db.flush()

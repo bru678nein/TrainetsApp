@@ -1,4 +1,4 @@
-"""Métricas que el entrenador mira para decidir la semana siguiente."""
+"""The metrics a coach looks at when deciding the following week."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class SetRecord:
-    """Una serie: lo prescrito y, si existe, lo ejecutado."""
+    """One set: what was prescribed and, if it exists, what was performed."""
 
     week: int
     pattern: str
@@ -35,14 +35,14 @@ class SetRecord:
 
     @property
     def in_rep_range(self) -> bool | None:
-        """None si no hay con qué comparar."""
+        """None when there is nothing to compare against."""
         if self.reps_done is None or self.reps_min is None or self.reps_max is None:
             return None
         return self.reps_min <= self.reps_done <= self.reps_max
 
     @property
     def rir_deviation(self) -> float | None:
-        """Positivo = dejó más reps en el tanque de lo prescrito (fue liviano)."""
+        """Positive = left more reps in the tank than prescribed, i.e. went light."""
         if self.rir_done is None or self.rir_min is None or self.rir_max is None:
             return None
         return self.rir_done - (self.rir_min + self.rir_max) / 2
@@ -62,7 +62,7 @@ class WeeklyVolume:
 
 
 def weekly_volume(records: Iterable[SetRecord]) -> list[WeeklyVolume]:
-    """Series por semana y patrón. El eje central del producto."""
+    """Sets per week and movement pattern. The core axis of the product."""
     acc: dict[tuple[int, str], WeeklyVolume] = {}
     for r in records:
         key = (r.week, r.pattern)
@@ -113,7 +113,7 @@ def adherence_by_week(records: Iterable[SetRecord]) -> list[Adherence]:
 
 
 def load_progression(records: Iterable[SetRecord]) -> dict[str, dict[int, float]]:
-    """Carga máxima por ejercicio y semana."""
+    """Heaviest load per exercise and week."""
     out: dict[str, dict[int, float]] = defaultdict(dict)
     for r in records:
         if r.load_kg is None:

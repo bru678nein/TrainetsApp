@@ -19,12 +19,12 @@ class TestChart:
         assert all(len(v) == 12 for v in COEFFICIENTS.values())
 
     def test_monotonia_en_reps(self):
-        """A igual RPE, más reps => menor porcentaje del 1RM."""
+        """At the same RPE, more reps => a lower percentage of 1RM."""
         for rpe, row in COEFFICIENTS.items():
             assert row == sorted(row, reverse=True), f"RPE {rpe} no es monótona"
 
     def test_monotonia_en_rpe(self):
-        """A iguales reps, menor RPE => menor porcentaje."""
+        """At the same reps, a lower RPE => a lower percentage."""
         for reps in range(1, 13):
             serie = [COEFFICIENTS[r][reps - 1] for r in sorted(COEFFICIENTS)]
             assert serie == sorted(serie), f"{reps} reps no es monótona en RPE"
@@ -41,14 +41,14 @@ class TestChart:
 
 class TestE1RM:
     def test_caso_real_de_la_planilla(self):
-        """80 kg x 8 reps con RIR 2 (RPE 8) => 73.9% => 108.3 kg."""
+        """80 kg x 8 reps at RIR 2 (RPE 8) => 73.9% => 108.3 kg."""
         assert estimate_1rm(80, 8, rir=2) == 108.3
 
     def test_al_fallo_a_una_rep_es_la_carga(self):
         assert estimate_1rm(140, 1, rir=0) == 140.0
 
     def test_mas_rir_implica_mayor_e1rm(self):
-        """Misma carga y reps dejando más en el tanque => 1RM estimado mayor."""
+        """Same load and reps with more left in the tank => a higher estimated 1RM."""
         assert estimate_1rm(100, 5, rir=3) > estimate_1rm(100, 5, rir=0)
 
     def test_carga_invalida(self):
@@ -58,13 +58,13 @@ class TestE1RM:
 
 class TestTargetLoad:
     def test_redondea_a_2_5(self):
-        """110 kg de 1RM, 5 reps @ RPE 8 => 81.1% => 89.2 => 90."""
+        """110 kg 1RM, 5 reps @ RPE 8 => 81.1% => 89.2 => 90."""
         assert target_load(110, 5, 8.0) == 90.0
 
     def test_incremento_configurable(self):
         assert target_load(110, 5, 8.0, increment=1.0) == 89.0
 
     def test_ida_y_vuelta(self):
-        """Estimar el 1RM y volver a la carga objetivo debe cerrar."""
+        """Estimating the 1RM and going back to the target load must round-trip."""
         e1rm = estimate_1rm(100, 5, rir=2)
         assert abs(target_load(e1rm, 5, rir_to_rpe(2), increment=0.1) - 100) < 0.2

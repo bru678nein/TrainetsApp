@@ -37,10 +37,10 @@ router = APIRouter(prefix="/api")
 
 
 def _dec(value: float | None) -> Decimal | None:
-    """Las columnas `numeric` se mapean a `Decimal`.
+    """`numeric` columns map to `Decimal`.
 
-    Pasar el `float` que llega por JSON haría que Postgres redondee un float8;
-    convertir por `str` conserva exactamente lo que mandó el cliente.
+    Passing the `float` that arrives over JSON would make Postgres round a
+    float8; converting via `str` preserves exactly what the client sent.
     """
     return None if value is None else Decimal(str(value))
 
@@ -53,7 +53,7 @@ def _athlete_or_404(db: OrmSession, athlete_id: uuid.UUID) -> Athlete:
 
 
 def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
-    """Aplana el árbol relacional al dataclass que consume el dominio."""
+    """Flatten the relational tree into the dataclass the domain consumes."""
     stmt = (
         select(PrescribedSet, Prescription, Session, LoggedSet)
         .join(Prescription, Prescription.id == PrescribedSet.prescription_id)
@@ -93,16 +93,16 @@ def list_athletes(db: OrmSession = Depends(tenant_session)) -> Sequence[Athlete]
 def list_sessions(
     athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)
 ) -> list[SessionSummary]:
-    """Agenda del atleta: una fila por sesión, sin las series.
+    """The athlete's schedule: one row per session, without the sets.
 
-    Existe para que el `id` de la sesión sea descubrible. Antes el detalle se
-    pedía por `(semana, día)`, pero `week_number` es relativo al mesociclo:
-    esa combinación matchea una sesión por meso y la ruta devolvía la primera
-    según un ORDER BY, en silencio.
+    It exists so the session `id` is discoverable. The detail used to be fetched
+    by `(week, day)`, but `week_number` is relative to the mesocycle: that pair
+    matches one session per mesocycle and the route silently returned the first
+    one by ORDER BY.
 
-    El orden es por programa, después mesociclo, después semana y día. Ordenar
-    sólo por `Mesocycle.ordinal` intercalaría los mesociclos de dos programas
-    distintos, porque el ordinal es único por programa y no por atleta.
+    Ordering is by program, then mesocycle, then week and day. Ordering by
+    `Mesocycle.ordinal` alone would interleave the mesocycles of two different
+    programs, because the ordinal is unique per program and not per athlete.
     """
     _athlete_or_404(db, athlete_id)
     stmt = (
@@ -136,11 +136,11 @@ def list_sessions(
 
 @router.get("/sessions/{session_id}", response_model=SessionOut)
 def get_session(session_id: uuid.UUID, db: OrmSession = Depends(tenant_session)) -> SessionOut:
-    """La vista que abre el atleta en el gimnasio.
+    """The view the athlete opens at the gym.
 
-    No verifica de quién es la sesión: hoy no hay identidad con la cual
-    compararla. Esa verificación es el criterio de aceptación 3 de la spec 001
-    y va con RLS abajo, no como un `if` acá.
+    It does not check who owns the session: there is no identity to compare it
+    against yet. That check is acceptance criterion 3 of spec 001 and belongs
+    with RLS underneath, not as an `if` here.
     """
     stmt = (
         select(Session)
@@ -195,24 +195,24 @@ def get_session(session_id: uuid.UUID, db: OrmSession = Depends(tenant_session))
 def log_set(
     set_id: uuid.UUID, payload: LogSetIn, db: OrmSession = Depends(tenant_session)
 ) -> LoggedSet:
-    """Idempotente: el atleta corrige una serie tantas veces como quiera.
+    """Idempotent: the athlete can correct a set as many times as they want.
 
-    Tampoco verifica que la serie sea del atleta que la registra — no hay
-    identidad todavía. Es el criterio de aceptación 4 de la spec 001.
+    It also does not check that the set belongs to the athlete logging it —
+    there is no identity yet. That is acceptance criterion 4 of spec 001.
     """
     ps = db.get(PrescribedSet, set_id)
     if ps is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "serie inexistente")
 
-    # Hoy esto no puede devolver None: toda la cadena prescribed_set →
-    # prescription → session → mesocycle → program → athlete_id es NOT NULL, así
-    # que si la serie existe su programa existe. Se contempla igual porque bajo
-    # RLS (feature 001) deja de ser cierto: la serie puede ser visible y el
-    # programa no, y el join queda vacío.
+    # Today this cannot return None: the whole chain prescribed_set →
+    # prescription → session → mesocycle → program → athlete_id is NOT NULL, so
+    # if the set exists its program exists. It is handled anyway because under
+    # RLS (feature 001) that stops being true: the set may be visible and the
+    # program not, leaving the join empty.
     #
-    # En ese caso la respuesta correcta es 404 con el mismo mensaje que una
-    # serie inexistente. Es el criterio de aceptación 2 de la spec 001: un
-    # identificador ajeno no se distingue de uno que no existe.
+    # In that case the correct answer is 404 with the same message as a
+    # non-existent set. That is acceptance criterion 2 of spec 001: someone
+    # else's identifier is indistinguishable from one that does not exist.
     athlete_id = db.scalars(
         select(Program.athlete_id)
         .join(Mesocycle)
@@ -224,13 +224,13 @@ def log_set(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "serie inexistente")
 
     e1rm: float | None = None
-    # `is not None` y no truthiness: reps=0 (falló la serie) y load_kg=0 (peso
-    # corporal) son registros válidos y con `and` se salteaban en silencio.
+    # `is not None` rather than truthiness: reps=0 (failed set) and load_kg=0
+    # (bodyweight) are valid records, and `and` skipped them silently.
     if payload.reps is not None and payload.load_kg is not None and payload.rir is not None:
         try:
             e1rm = estimate_1rm(payload.load_kg, payload.reps, payload.rir)
         except (OutOfChartError, ValueError):
-            e1rm = None  # más de 12 reps o carga 0: fuera de tabla, no es un error
+            e1rm = None  # over 12 reps or zero load: off the chart, not an error
 
     log = db.scalars(select(LoggedSet).where(LoggedSet.prescribed_set_id == set_id)).first()
     if log is None:

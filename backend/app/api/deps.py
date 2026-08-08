@@ -1,19 +1,19 @@
-"""Dependencias de la capa HTTP.
+"""HTTP layer dependencies.
 
-Acá vive la única puerta de acceso a la base desde un endpoint. La razón es la
-sección 3 del plan de la feature 001: si el acceso a datos y la resolución de
-tenant se pueden pedir por separado, tarde o temprano alguien pide el primero y
-se olvida del segundo, y el endpoint queda leyendo la base entera.
+This is the single door into the database from an endpoint. The reasoning is in
+section 3 of the 001 plan: if data access and tenant resolution can be asked for
+separately, sooner or later someone asks for the first and forgets the second,
+and the endpoint ends up reading the whole database.
 
-Estado actual: **esto todavía no aísla nada.** No hay identidad, no hay header
-`Active-Role` y no hay `SET LOCAL`. Lo que existe es la forma — una sola
-dependencia que provee la sesión, y `app.db` sin dependencia pública — para que
-cuando entre la tarea 6 del plan el cambio se haga en un solo lugar en vez de en
-la firma de cada endpoint.
+Current state: **this does not isolate anything yet.** There is no identity, no
+`Active-Role` header and no `SET LOCAL`. What exists is the shape — one
+dependency that provides the session, and `app.db` with no public dependency —
+so that when task T-006 lands, the change happens in one place instead of in
+every endpoint signature.
 
-El motivo de separarlo así no es estético: hace que el diff que agrega la
-seguridad se lea como seguridad, en vez de quedar enterrado en un refactor que
-toca seis firmas.
+Splitting it this way is not cosmetic: it makes the diff that adds the security
+read as security, instead of being buried in a refactor that touches six
+signatures.
 """
 
 from __future__ import annotations
@@ -26,16 +26,17 @@ from app.db import open_session
 
 
 def tenant_session() -> Iterator[OrmSession]:
-    """Sesión de base para un endpoint. Única forma de conseguir una.
+    """Database session for an endpoint. The only way to get one.
 
-    Cuando llegue la tarea 6, esta función va a depender de
-    `require_tenant_context` y la transacción va a abrirse con el `SET LOCAL` de
-    la identidad y el rol ya hechos. Hasta entonces cede una sesión sin contexto,
-    que es exactamente lo que había antes con otro nombre.
+    Once T-006 lands, this will depend on `require_tenant_context` and the
+    transaction will open with identity and role already applied via
+    `SET LOCAL`. Until then it yields a session with no context, which is
+    exactly what existed before under a different name.
 
-    Si estás leyendo esto y ya existe RLS en la base, y esta función sigue sin
-    setear el contexto, entonces las policies están devolviendo error en cada
-    request y ese es el síntoma correcto: ver plan de 001, sección 3, capa 3.
+    If you are reading this, RLS is already in the database, and this function
+    still does not set the context, then the policies are erroring on every
+    request — and that is the correct symptom. See the 001 plan, section 3,
+    layer 3.
     """
     with open_session() as db:
         yield db

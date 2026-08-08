@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Genera una app web autocontenida desde la hoja DATOS de una planilla.
+"""Generate a self-contained web app from the DATOS sheet of a spreadsheet.
 
-Produce un único .html que abre en cualquier celular sin instalar nada: muestra
-la sesión del día, permite registrar reps, kilos y RIR, y exporta lo cargado a
-CSV. Es la solución puente hasta que el frontend esté listo.
+Produces a single .html that opens on any phone with nothing to install: it
+shows the day's session, lets the athlete log reps, kilos and RIR, and exports
+what was logged to CSV. It is the bridge until the frontend exists.
 
-Uso:
+Usage:
     python scripts/gen_app.py ../data/planilla.xlsx rutina.html
 """
 
@@ -24,7 +24,7 @@ PLACEHOLDER = "/*__DATA__*/null"
 
 
 def read_workbook(xlsx: Path) -> dict[str, Any]:
-    """Aplana la hoja DATOS a la estructura que consume el template."""
+    """Flatten the DATOS sheet into the structure the template consumes."""
     wb = openpyxl.load_workbook(xlsx, data_only=True)
     ws = wb["DATOS"]
 
@@ -59,8 +59,8 @@ def read_workbook(xlsx: Path) -> dict[str, Any]:
                 "series": [],
             },
         )
-        # El descanso y la observación se cargan a nivel ejercicio en la planilla,
-        # pero sólo en la fila de la primera serie.
+        # Rest and notes are recorded per exercise in the spreadsheet, but only
+        # on the row of its first set.
         if raw[idx["Descanso"]] and not exercise["descanso"]:
             exercise["descanso"] = raw[idx["Descanso"]]
         if raw[idx["Observación"]] and not exercise["obs"]:
@@ -98,7 +98,7 @@ def read_workbook(xlsx: Path) -> dict[str, Any]:
 
 def render(data: dict[str, Any], template: Path) -> str:
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    # Un "</" dentro del JSON cerraría el <script> que lo contiene.
+    # A "</" inside the JSON would close the <script> tag wrapping it.
     payload = payload.replace("</", "<\\/")
     return template.read_text(encoding="utf-8").replace(PLACEHOLDER, payload)
 

@@ -90,13 +90,17 @@ Tu stack, sin discusión: **FastAPI + PostgreSQL + React/TypeScript**. Es el que
 | Decisión | Recomendación | Por qué |
 |---|---|---|
 | ORM | SQLAlchemy 2.0 (estilo declarativo) + Alembic | SQLModel simplifica al principio y estorba en cuanto las queries se ponen serias. Las migraciones versionadas son parte de lo que mostrás. |
-| Auth | Clerk, o `fastapi-users` si querés control total | Con backend FastAPI separado, Clerk se integra verificando el JWT sin SDK. No escribas auth propia: no impresiona y consume dos semanas. |
+| Auth | Clerk — **decidido, ver ADR 0003** | Con backend FastAPI separado se integra verificando el JWT sin SDK. No escribas auth propia: no impresiona y consume dos semanas. |
 | Aislamiento | RLS de Postgres + `coach_id` en toda tabla raíz | Es la parte que más criterio demuestra en una entrevista, y es más difícil de agregar después que de poner ahora. |
 | Mobile | PWA, no React Native | Sin app stores, sin builds. Si el producto arranca, migrás. |
 | Deploy | Railway o Fly.io | Postgres gestionado y deploy desde git. No pierdas tiempo con Kubernetes. |
 | Tests | pytest sobre la lógica de dominio (e1RM, volumen, adherencia) | No busques cobertura total. Testeá los cálculos: son el corazón del producto y donde un bug es invisible. |
 
-Nota de versiones: el ecosistema de auth se movió bastante; verificá el estado de Clerk y `fastapi-users` al momento de arrancar en vez de fiarte de esta tabla.
+Nota de versiones: el ecosistema de auth se movió bastante; verificá el estado al momento de arrancar en vez de fiarte de esta tabla.
+
+Se verificó en agosto de 2026 y el aviso valió la pena: `fastapi-users`, que esta tabla recomendaba como alternativa, había pasado a modo mantenimiento. La comparación completa —Clerk, Supabase Auth, Better Auth— está en el ADR 0003.
+
+**Este archivo es el plan de arranque, no la fuente de verdad de las decisiones técnicas.** Cuando una decisión de acá se revisa, la revisión va a un ADR en `docs/adr/` y esta tabla queda como el razonamiento original. Ante una discrepancia, gana el ADR más reciente.
 
 ---
 

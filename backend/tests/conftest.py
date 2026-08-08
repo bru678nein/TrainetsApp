@@ -1,13 +1,13 @@
-"""Infraestructura de tests.
+"""Test infrastructure.
 
-Los tests de base corren contra PostgreSQL real, nunca contra SQLite. La suite
-existe para verificar lo que se deploya, y la mitad interesante del esquema
-—CHECK constraints, `citext`, el índice funcional de `exercise`, la vista
-`weekly_volume`, más adelante RLS— no existe en SQLite. Testear contra un motor
-distinto al de producción da confianza falsa.
+Database tests run against real PostgreSQL, never SQLite. The suite exists to
+verify what gets deployed, and the interesting half of the schema — CHECK
+constraints, `citext`, the functional index on `exercise`, the `weekly_volume`
+view, and RLS later on — does not exist in SQLite. Testing against a different
+engine than production gives false confidence.
 
-El esquema lo crean las migraciones de Alembic, no `create_all()`: si una
-migración está mal, los tests tienen que enterarse.
+The schema is built by the Alembic migrations, not by `create_all()`: if a
+migration is wrong, the tests have to find out.
 """
 
 from __future__ import annotations
@@ -29,11 +29,11 @@ SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
 
 
 def _test_dsn() -> str:
-    """DSN de la base de test, con un seguro puesto.
+    """DSN of the test database, with a safety catch.
 
-    La suite borra el esquema entero antes de migrar. Exigir que el nombre de
-    la base termine en `_test` es lo único que separa correr `pytest` con el
-    `.env` equivocado de perder la base de desarrollo.
+    The suite drops the whole schema before migrating. Requiring the database
+    name to end in `_test` is the only thing between running `pytest` with the
+    wrong `.env` and losing the development database.
     """
     dsn = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not dsn:
@@ -51,7 +51,7 @@ def _test_dsn() -> str:
 
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
-    """Base migrada desde cero y poblada con la planilla real, una vez."""
+    """Database migrated from scratch and seeded from the real spreadsheet, once."""
     dsn = _test_dsn()
     eng = sa.create_engine(dsn, poolclass=sa.pool.NullPool)
     try:
@@ -66,8 +66,9 @@ def engine() -> Iterator[Engine]:
 
     cfg = Config(str(BACKEND_DIR / "alembic.ini"))
     cfg.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
-    # `%` escapado: set_main_option guarda literal y get_main_option interpola,
-    # así que una contraseña con % explota al leerla si no se escapa acá.
+    # `%` escaped: set_main_option stores the literal and get_main_option
+    # interpolates, so a password containing % blows up on read unless it is
+    # escaped here.
     cfg.set_main_option("sqlalchemy.url", dsn.replace("%", "%%"))
     command.upgrade(cfg, "head")
 
@@ -82,12 +83,12 @@ def engine() -> Iterator[Engine]:
 
 @pytest.fixture
 def db(engine: Engine) -> Iterator[OrmSession]:
-    """Sesión envuelta en una transacción que siempre se revierte.
+    """Session wrapped in a transaction that is always rolled back.
 
-    Los tests que escriben (registrar una serie, corregirla) no se pisan entre
-    sí ni dependen del orden. El `join_transaction_mode` hace que el `commit()`
-    del endpoint libere un SAVEPOINT en vez de cerrar la transacción externa,
-    así que el rollback de acá lo deshace igual.
+    Writing tests — logging a set, correcting it — neither collide with each
+    other nor depend on ordering. `join_transaction_mode` makes the endpoint's
+    `commit()` release a SAVEPOINT instead of closing the outer transaction, so
+    the rollback here undoes it anyway.
     """
     conn = engine.connect()
     trans = conn.begin()
@@ -122,12 +123,12 @@ def athlete_id(client: TestClient) -> str:
 
 @pytest.fixture
 def session_detail(client: TestClient, athlete_id: str):
-    """Trae el detalle de una sesión ubicándola por (meso, semana, día).
+    """Fetch a session's detail by locating it via (mesocycle, week, day).
 
-    La API identifica la sesión por `id`, no por esa terna. Los tests necesitan
-    apuntar a una sesión concreta de la planilla, así que resuelven el id contra
-    el listado — que es exactamente el camino que va a hacer el frontend, y de
-    paso lo deja ejercitado en cada test que lo use.
+    The API identifies a session by `id`, not by that triple. Tests need to
+    point at a specific session from the spreadsheet, so they resolve the id
+    against the listing — which is exactly the path the frontend will take, and
+    exercises it in every test that uses this.
     """
 
     def _get(week: int = 1, day: int = 1, ordinal: int = 1) -> dict:
@@ -139,11 +140,11 @@ def session_detail(client: TestClient, athlete_id: str):
         ]
         if not matches:
             pytest.skip(f"La planilla no tiene meso {ordinal}, semana {week}, día {day}")
-        # Falla ruidosamente en vez de agarrar la primera. El ordinal es único
-        # por programa, no por atleta: si la planilla algún día trae dos
-        # programas, esta terna deja de identificar una sesión y el test tiene
-        # que enterarse en vez de elegir una al azar. Es el mismo error que
-        # tenía la ruta vieja.
+        # Fail loudly instead of grabbing the first match. The ordinal is
+        # unique per program, not per athlete: if the spreadsheet ever carries
+        # two programs, this triple stops identifying a session and the test has
+        # to find out rather than pick one at random. Same mistake the old route
+        # made.
         assert len(matches) == 1, (
             f"meso {ordinal}, semana {week}, día {day} matchea {len(matches)} sesiones "
             f"de programas distintos: {[m['program'] for m in matches]}"

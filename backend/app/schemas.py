@@ -37,17 +37,18 @@ class ExerciseBlock(BaseModel):
 
 
 class SessionSummary(BaseModel):
-    """Fila del listado: lo justo para elegir una sesión, sin traer las series.
+    """One listing row: enough to pick a session, without loading its sets.
 
-    `week_number` es relativo al mesociclo y `mesocycle_ordinal` es relativo al
-    programa (`UniqueConstraint("program_id", "ordinal")`). O sea que ni la
-    semana sola ni el par (ordinal, semana) identifican una sesión: hace falta
-    la cuaterna completa con `program_id`, que es justamente el argumento para
-    pedir el detalle por `id` y no reconstruir la clave en el cliente.
+    `week_number` is relative to the mesocycle and `mesocycle_ordinal` is
+    relative to the program (`UniqueConstraint("program_id", "ordinal")`). So
+    neither the week alone nor the (ordinal, week) pair identifies a session:
+    the full four-part key including `program_id` is needed — which is exactly
+    the argument for fetching the detail by `id` instead of rebuilding the key
+    on the client.
 
-    Un atleta con un programa terminado y uno activo tiene dos mesociclos con
-    `ordinal=1`. No es un caso raro, es el caso normal a partir del segundo
-    mesociclo.
+    An athlete with one finished program and one active program has two
+    mesocycles numbered `ordinal=1`. That is not an edge case, it is the norm
+    from the second mesocycle onwards.
     """
 
     model_config = ConfigDict(from_attributes=True)
