@@ -108,6 +108,49 @@ def test_la_peticion_pasa_por_tenant_session_de_verdad(client, sessions_opened):
     )
 
 
+def test_el_router_de_datos_declara_la_dependencia():
+    """T-010: the protection hangs off the router, not off each endpoint.
+
+    The dependency-tree test above cannot tell the two apart. Every endpoint
+    today asks for a session, and that drags `require_tenant_context` in by
+    itself, so the tree looks identical either way. This looks at the router.
+    """
+    from app.api.deps import require_tenant_context
+    from app.api.routes import router
+
+    assert any(d.dependency is require_tenant_context for d in router.dependencies), (
+        "el router de datos no declara require_tenant_context: un endpoint que "
+        "no pida sesión quedaría sin protección."
+    )
+
+
+def test_una_ruta_que_no_toca_la_base_igual_pide_credenciales():
+    """The case the router-level dependency exists for, exercised.
+
+    Every endpoint that exists today happens to need a session, so the
+    protection arrives as a side effect of asking for one. The day somebody adds
+    a route that needs no database, that side effect is gone — and this is what
+    covers it.
+
+    Built on the real router's dependency list rather than a copy, so reverting
+    T-010 fails here too.
+    """
+    from fastapi import APIRouter, FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.api.routes import router as real
+
+    aparte = APIRouter(prefix="/api", dependencies=real.dependencies)
+
+    @aparte.get("/sin-base")
+    def _sin_base() -> dict[str, bool]:
+        return {"ok": True}
+
+    app_aparte = FastAPI()
+    app_aparte.include_router(aparte)
+    assert TestClient(app_aparte).get("/api/sin-base").status_code == 401
+
+
 def test_ninguna_dependencia_esta_pisada(client):
     """No test fakes a dependency of the app; the fixture fakes the connection.
 

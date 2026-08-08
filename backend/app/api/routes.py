@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import tenant_session
+from app.api.deps import require_tenant_context, tenant_session
 from app.domain.analytics import SetRecord, adherence_by_week, weekly_volume
 from app.domain.rpe import OutOfChartError, estimate_1rm
 from app.models import (
@@ -33,7 +33,20 @@ from app.schemas import (
     VolumeOut,
 )
 
-router = APIRouter(prefix="/api")
+# The dependency goes on the router, not on each endpoint. Task T-010.
+#
+# Every route hanging off this one resolves identity and role before its handler
+# runs, including the ones that never touch the database — and those are exactly
+# the ones that would otherwise ship unprotected, because the protection used to
+# arrive as a side effect of asking for a session.
+#
+# Declared here rather than repeated per endpoint, forgetting stops being an
+# omitted line and becomes creating a second router and mounting it: an act
+# that is visible in any review.
+#
+# FastAPI caches dependencies per request, so an endpoint that also declares
+# `Depends(tenant_session)` resolves the context once, not twice.
+router = APIRouter(prefix="/api", dependencies=[Depends(require_tenant_context)])
 
 
 def _dec(value: float | None) -> Decimal | None:

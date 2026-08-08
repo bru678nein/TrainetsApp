@@ -23,6 +23,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
+| T-010 | Router de datos montado con `dependencies=[Depends(require_tenant_context)]` | 2 tests; sacándole la dependencia al router fallan los dos |
 | T-006 | `require_tenant_context` y `tenant_session`: token → identidad → rol → `set_config` → sesión | 34 tests con claves RSA reales; sacando el chequeo de rol caen 2, poniendo un default caen 2, interpolando el `sub` en vez de bindearlo cae la de inyección |
 | T-007 | Rol de aplicación que no es dueño de las tablas (migración 0003) | 6 tests; sacando `ALTER DEFAULT PRIVILEGES` cae el de la tabla futura, y dándole `BYPASSRLS` al rol cae el de privilegios |
 | T-008 | RLS: 18 policies, dos por tabla, con `ENABLE` + `FORCE` (migración 0004) | 8 tests como rol de aplicación; sacando el gate por rol caen 2, con `missing_ok` cae 1 |
@@ -166,7 +167,7 @@ propio: un `sub` con comillas termina en `403` y no en SQL ejecutado.
 **T-010 — Montar el router con la dependencia.** `dependencies=[Depends(
 require_tenant_context)]` y los endpoints actuales usando la sesión que provee.
 
-*Hecha cuando:* la suite existente sigue pasando entera y T-016a sigue verde.
+*Hecha cuando:* la suite existente sigue pasando entera, T-016a sigue verde, y una ruta que no pide sesión igual responde `401`. Ese último es el que distingue T-010 de lo que ya había: el test de composición no puede, porque hoy todo endpoint pide sesión y eso arrastra la dependencia solo.
 Sin número: cuando esta tarea se escribió eran 68 y hoy son más, y un criterio
 que envejece deja de poder cumplirse tal como está escrito.
 
