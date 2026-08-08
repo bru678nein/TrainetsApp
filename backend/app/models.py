@@ -61,16 +61,44 @@ class Base(DeclarativeBase):
     pass
 
 
-class Coach(Base):
-    __tablename__ = "coach"
+class AppUser(Base):
+    """A person. Identity, kept apart from the roles that person holds.
+
+    Roles used to carry their own identity: `coach.auth_user_id` and
+    `athlete.auth_user_id`, each with its own UNIQUE. That made it impossible
+    for one person to hold both roles, and — the part that actually forced this
+    table — impossible to be an athlete of more than one coach, because a single
+    global UNIQUE allowed exactly one athlete row per person, ever.
+
+    Which matters not for the coach who trains himself, but for anyone who
+    switches coaches: archiving the previous relationship (feature 003) means
+    the new one needs a second athlete row while the old one survives.
+    """
+
+    __tablename__ = "app_user"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
+    # The `sub` claim of the JWT, as issued by the auth provider. See ADR 0003.
     auth_user_id: Mapped[str] = mapped_column(String(255), unique=True)
     email: Mapped[str] = mapped_column(CITEXT(), unique=True)
     display_name: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Coach(Base):
+    __tablename__ = "coach"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
+    # UNIQUE encodes the rule from spec 001: at most one coach profile per
+    # person. What a person can hold several of is the athlete role.
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("app_user.id", ondelete="CASCADE"), unique=True
+    )
+    # `locale` and `unit_system` stay here and not on app_user: they are
+    # preferences of the coaching workspace, not of the person.
     locale: Mapped[str] = mapped_column(String(10), server_default="es-AR")
     unit_system: Mapped[str] = mapped_column(String(10), server_default="metric")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    user: Mapped[AppUser] = relationship()
     athletes: Mapped[list[Athlete]] = relationship(
         back_populates="coach", cascade="all, delete-orphan"
     )
@@ -83,7 +111,17 @@ class Athlete(Base):
     __tablename__ = "athlete"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
     coach_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("coach.id", ondelete="CASCADE"))
-    auth_user_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    # NULL = a record with no account yet. That is the central case, not an edge
+    # one: the coach builds the whole program before the athlete signs up.
+    #
+    # ondelete SET NULL and not CASCADE: deleting the identity must not delete
+    # the training history, which is also the coach's work. The record reverts
+    # to having no account.
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    # Stays on the record and not on app_user: this is what the coach types by
+    # hand when the person does not exist as an identity yet.
     full_name: Mapped[str] = mapped_column(String(160))
     email: Mapped[str | None] = mapped_column(CITEXT())
     birth_date: Mapped[date | None] = mapped_column(Date)
@@ -95,6 +133,7 @@ class Athlete(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     coach: Mapped[Coach] = relationship(back_populates="athletes")
+    user: Mapped[AppUser | None] = relationship()
     programs: Mapped[list[Program]] = relationship(
         back_populates="athlete", cascade="all, delete-orphan"
     )
@@ -106,6 +145,20 @@ class Athlete(Base):
         # Partial: deactivated athletes do not pollute the index used by every
         # listing the coach opens.
         Index("athlete_coach_idx", "coach_id", postgresql_where=text("is_active")),
+        # One person is at most one athlete of a given coach — but may be an
+        # athlete of several coaches, and a coach may hold many records with no
+        # account at all.
+        #
+        # Partial, not a plain UNIQUE: user_id is NULL for every record without
+        # an account, and in Postgres NULLs do not collide with each other, so a
+        # plain UNIQUE would look like it covers this and would not.
+        Index(
+            "athlete_coach_user_uq",
+            "coach_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text("user_id IS NOT NULL"),
+        ),
     )
 
 

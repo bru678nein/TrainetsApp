@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from app.models import (
     MANUALLY_MANAGED,
+    AppUser,
     Athlete,
     Base,
     Coach,
@@ -43,7 +44,8 @@ def _tag() -> str:
 def pset(db: OrmSession) -> PrescribedSet:
     """The minimum chain coach → ... → prescribed_set, with unique names."""
     t = _tag()
-    coach = Coach(auth_user_id=f"c-{t}", email=f"c-{t}@example.com", display_name="C")
+    user = AppUser(auth_user_id=f"c-{t}", email=f"c-{t}@example.com", display_name="C")
+    coach = Coach(user=user)
     athlete = Athlete(coach=coach, full_name="A")
     pattern = MovementPattern(code=f"p_{t}", label_es="P")
     exercise = Exercise(coach=coach, pattern=pattern, name=f"Ej {t}")
@@ -52,7 +54,7 @@ def pset(db: OrmSession) -> PrescribedSet:
     session = Session(mesocycle=meso, week_number=1, day_number=1)
     pr = Prescription(session=session, exercise=exercise, position=1)
     ps = PrescribedSet(prescription=pr, set_number=1, reps_min=8, reps_max=12)
-    db.add_all([coach, athlete, pattern, exercise, program, meso, session, pr, ps])
+    db.add_all([user, coach, athlete, pattern, exercise, program, meso, session, pr, ps])
     db.flush()
     return ps
 
@@ -159,11 +161,45 @@ class TestConstraints:
         with pytest.raises(IntegrityError, match="exercise_name_scope_idx"):
             db.flush()
 
-    def test_el_email_del_coach_es_case_insensitive(self, db: OrmSession) -> None:
+    def test_el_email_de_la_identidad_es_case_insensitive(self, db: OrmSession) -> None:
         """This is what citext is for: in SQLite this passed without complaint."""
         t = _tag()
-        db.add(Coach(auth_user_id=f"a-{t}", email=f"Bruno.{t}@Example.com", display_name="B"))
+        db.add(AppUser(auth_user_id=f"a-{t}", email=f"Bruno.{t}@Example.com", display_name="B"))
         db.flush()
-        db.add(Coach(auth_user_id=f"b-{t}", email=f"bruno.{t}@example.com", display_name="B2"))
+        db.add(AppUser(auth_user_id=f"b-{t}", email=f"bruno.{t}@example.com", display_name="B2"))
         with pytest.raises(IntegrityError):
             db.flush()
+
+    def test_una_persona_es_atleta_de_varios_coaches(self, db: OrmSession) -> None:
+        """The whole point of T-001: one identity, several athlete records.
+
+        The pre-0002 model made this impossible — athlete.auth_user_id carried a
+        global UNIQUE — and it is the ordinary case of switching coaches, not an
+        exotic one.
+        """
+        t = _tag()
+        person = AppUser(auth_user_id=f"p-{t}", email=f"p-{t}@example.com", display_name="P")
+        for i in (1, 2):
+            u = AppUser(auth_user_id=f"c{i}-{t}", email=f"c{i}-{t}@example.com", display_name="C")
+            db.add(Athlete(coach=Coach(user=u), user=person, full_name="A"))
+        db.flush()
+
+    def test_una_persona_no_se_repite_con_el_mismo_coach(self, db: OrmSession) -> None:
+        """The partial index. A plain UNIQUE would not catch it."""
+        t = _tag()
+        person = AppUser(auth_user_id=f"p-{t}", email=f"p-{t}@example.com", display_name="P")
+        cu = AppUser(auth_user_id=f"c-{t}", email=f"c-{t}@example.com", display_name="C")
+        coach = Coach(user=cu)
+        db.add_all([Athlete(coach=coach, user=person, full_name="A")])
+        db.flush()
+        db.add(Athlete(coach=coach, user=person, full_name="A otra vez"))
+        with pytest.raises(IntegrityError, match="athlete_coach_user_uq"):
+            db.flush()
+
+    def test_las_fichas_sin_cuenta_no_colisionan(self, db: OrmSession) -> None:
+        """user_id NULL repeats freely: that is why the index is partial."""
+        t = _tag()
+        cu = AppUser(auth_user_id=f"c-{t}", email=f"c-{t}@example.com", display_name="C")
+        coach = Coach(user=cu)
+        db.add_all([Athlete(coach=coach, full_name=f"Sin cuenta {i}") for i in range(3)])
+        db.flush()

@@ -17,6 +17,8 @@ Estado: `pendiente` · `en curso` · `hecha`
 |---|---|---|
 | T-006a | `tenant_session` como única puerta a la base; `get_db` deja de ser dependencia pública | hecha |
 | T-016a | Test de composición: toda ruta `/api` depende de `tenant_session` | hecha |
+| T-001 | Migración de identidad: `app_user`, `user_id` en `coach` y `athlete`, índice parcial | hecha |
+| T-002 | Modelos al día | hecha |
 
 Se hicieron antes que el resto a propósito, para que el commit que agregue la
 seguridad no venga mezclado con un refactor de seis firmas. Lo que falta de

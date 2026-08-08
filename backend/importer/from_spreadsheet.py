@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session as OrmSession
 
 from app.domain.rpe import OutOfChartError, estimate_1rm
 from app.models import (
+    AppUser,
     Athlete,
     Coach,
     Exercise,
@@ -41,7 +42,11 @@ from app.models import (
 
 # Reverse dependency order is unnecessary: TRUNCATE ... CASCADE handles it,
 # but listing them explicitly documents the blast radius of the delete.
-_SEEDED_TABLES = "coach, movement_pattern, exercise"
+#
+# app_user has to be here even though CASCADE from coach does not reach it: the
+# foreign key points the other way, coach -> app_user. Leaving it out let the
+# identity survive a --reset, and the next seed hit the UNIQUE on auth_user_id.
+_SEEDED_TABLES = "app_user, coach, movement_pattern, exercise"
 
 
 def slug(raw: str) -> str:
@@ -99,7 +104,12 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
     review: list[str] = []
 
     with OrmSession(engine) as db:
-        if db.scalar(select(func.count()).select_from(Coach)):
+        # Both, not just Coach: an identity can outlive its coach row, and then
+        # the check would pass and the insert would fail on the UNIQUE instead
+        # of on this message.
+        if db.scalar(select(func.count()).select_from(Coach)) or db.scalar(
+            select(func.count()).select_from(AppUser)
+        ):
             if not reset:
                 raise SystemExit(
                     "La base ya tiene datos. Pasá --reset para borrarlos, o apuntá a "
@@ -108,9 +118,12 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
             db.execute(text(f"TRUNCATE {_SEEDED_TABLES} RESTART IDENTITY CASCADE"))
             db.commit()
 
-        coach = Coach(auth_user_id="seed-coach", email="coach@example.com", display_name="Coach")
+        user = AppUser(auth_user_id="seed-coach", email="coach@example.com", display_name="Coach")
+        coach = Coach(user=user)
+        # user_id stays NULL: the seeded athlete has no account. That is the
+        # normal state until feature 003 provides the invitation flow.
         athlete = Athlete(coach=coach, full_name=athlete_name, level="intermedio")
-        db.add_all([coach, athlete])
+        db.add_all([user, coach, athlete])
 
         patterns: dict[str, MovementPattern] = {}
         for i, label in enumerate(sorted({r["Patrón"] for r in rows if r["Patrón"]})):

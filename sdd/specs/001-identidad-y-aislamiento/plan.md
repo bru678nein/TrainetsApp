@@ -45,9 +45,14 @@ CREATE UNIQUE INDEX athlete_coach_user_uq
 
 Parcial porque un entrenador puede tener varias fichas sin cuenta y en Postgres
 los `NULL` no colisionan entre sí — un `UNIQUE` normal daría una falsa sensación
-de estar cubierto. Es el mismo problema que ya resolvió el índice funcional de
-`exercise`, y va escrito a mano en la migración por el mismo motivo: agregar su
-nombre a `MANUALLY_MANAGED` en `models.py`.
+de estar cubierto. Es el mismo problema que resolvió el índice funcional de
+`exercise`.
+
+A diferencia de aquél, **este no va a `MANUALLY_MANAGED`**: SQLAlchemy expresa
+índices parciales con `postgresql_where`, así que se declara en `models.py` y
+autogenerate lo maneja. `athlete_coach_idx` ya funcionaba así. Lo que obliga a
+`MANUALLY_MANAGED` no es ser parcial sino ser funcional —`COALESCE(...)` sobre
+columnas— que el ORM no sabe expresar.
 
 ### Migración
 
