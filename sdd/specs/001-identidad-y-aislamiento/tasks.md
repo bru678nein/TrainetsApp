@@ -21,6 +21,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-002 | Modelos al día | `test_la_migracion_no_divergio_de_los_modelos` |
 | T-003 | `docs/schema.sql` al día | tablas y columnas comparadas contra `models.py` |
 | T-014a | La fixture deja de saltear la cadena de seguridad | con una subdependencia que falla siempre, la suite falla — antes pasaba entera |
+| T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 
 Las de letra se hicieron antes que el resto a propósito, para que el commit que
 agregue la seguridad no venga mezclado con un refactor de seis firmas ni con un
