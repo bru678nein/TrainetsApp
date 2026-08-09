@@ -30,6 +30,8 @@ from app.models import (
 )
 from app.schemas import (
     AdherenceOut,
+    AthleteCreated,
+    AthleteIn,
     AthleteOut,
     CoachOut,
     ExerciseBlock,
@@ -103,6 +105,65 @@ def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
             )
         )
     return out
+
+
+def _coach_del_contexto(db: OrmSession, ctx: TenantContext) -> Coach:
+    """The caller's own coaching space.
+
+    Resolved from the identity rather than taken from the request, which is what
+    keeps an athlete from being filed into somebody else's space. Under RLS the
+    policy would refuse that write anyway — `athlete_as_coach`'s WITH CHECK
+    requires the `coach_id` to be one the caller owns — so this is the readable
+    half of a rule the database also enforces.
+    """
+    coach = db.scalars(
+        select(Coach)
+        .join(AppUser, AppUser.id == Coach.user_id)
+        .where(AppUser.auth_user_id == ctx.identity.auth_user_id)
+    ).first()
+    if coach is None:
+        # Reachable only if the role check passed and the profile vanished
+        # in between, which means somebody deleted it mid-request.
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "no tenés un espacio de entrenador")
+    return coach
+
+
+@router.post("/athletes", response_model=AthleteCreated, status_code=status.HTTP_201_CREATED)
+def crear_atleta(
+    payload: AthleteIn,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> AthleteCreated:
+    """A record for somebody who has no account yet. Task T-012.
+
+    The central case of spec 001, not an edge one: the coach builds the whole
+    programme before the athlete signs up, which is how they work today with a
+    spreadsheet they share afterwards. So `user_id` stays NULL, and how the
+    person later claims the record is feature 003.
+    """
+    if ctx.role != "coach":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador crea fichas")
+    db = ctx.db
+    coach = _coach_del_contexto(db, ctx)
+
+    atleta = Athlete(
+        coach_id=coach.id,
+        user_id=None,
+        full_name=payload.full_name.strip(),
+        email=payload.email,
+        birth_date=payload.birth_date,
+        bodyweight_kg=_dec(payload.bodyweight_kg),
+        level=payload.level,
+        goal=payload.goal,
+        notes=payload.notes,
+    )
+    db.add(atleta)
+    db.commit()
+    return AthleteCreated(
+        id=atleta.id,
+        full_name=atleta.full_name,
+        level=atleta.level,
+        has_account=atleta.user_id is not None,
+    )
 
 
 @router.get("/athletes", response_model=list[AthleteOut])

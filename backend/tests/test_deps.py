@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 from fastapi.routing import APIRoute
 
-from app.api.deps import tenant_session
+from app.api.deps import require_tenant_context
 from app.main import app
 from tests.conftest import SIN_ROL, SIN_TENANT, rutas_de_datos
 
@@ -46,15 +46,36 @@ def test_el_recorrido_encuentra_todas_las_rutas():
     "route", [r for r in rutas_de_datos() if r.path not in SIN_ROL], ids=lambda r: r.path
 )
 def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
-    """The only door into the database is `tenant_session`.
+    """No route reaches the database without resolving a tenant first.
 
-    Once T-006 lands, this same assertion will cover identity resolution and the
-    `SET LOCAL`, because both will hang off this dependency.
+    Written against `require_tenant_context` rather than `tenant_session`, which
+    is the stronger claim now that T-006 landed: `tenant_session` hangs off it,
+    so an endpoint that asks for a session passes through here anyway, and one
+    that needs the identity as well — the creating endpoints do — asks for the
+    context directly and is just as covered.
+
+    Checking only `tenant_session` would have flagged that second shape as a
+    violation when it is not, and the tempting fix would have been widening the
+    test until it stopped noticing anything.
     """
-    assert _usa(route, tenant_session), (
-        f"{route.path} no depende de tenant_session: o le falta la dependencia, "
-        f"o va en SIN_TENANT y hay que justificarlo."
+    assert _usa(route, require_tenant_context), (
+        f"{route.path} no depende de require_tenant_context: o le falta la "
+        f"dependencia, o va en SIN_TENANT y hay que justificarlo."
     )
+
+
+def test_open_session_no_es_una_dependencia_de_nadie():
+    """The other half: the raw session must stay unreachable from a route.
+
+    `app.db.open_session` is a context manager and not a dependency precisely so
+    `Depends(open_session)` yields nothing usable. If a route ever managed to
+    depend on it, it would have a session with no tenant context — which now
+    errors at the database, but would be a route that got there at all.
+    """
+    from app.db import open_session
+
+    culpables = [r.path for r in rutas_de_datos() if _usa(r, open_session)]
+    assert culpables == [], f"estas rutas piden la sesión cruda: {culpables}"
 
 
 def test_la_lista_blanca_no_incluye_rutas_de_la_api():

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -11,6 +12,39 @@ class AthleteOut(BaseModel):
     id: uuid.UUID
     full_name: str
     level: str | None = None
+
+
+class AthleteIn(BaseModel):
+    """What the coach types when the person does not exist as an identity yet.
+
+    No `coach_id` and no `user_id`, on purpose. The space is the caller's own —
+    taking it from the body would let somebody file an athlete into another
+    coach's space, and `user_id` is what feature 003 fills in when the person
+    claims the record, not something the coach asserts.
+    """
+
+    full_name: str = Field(min_length=1, max_length=160)
+    email: str | None = Field(default=None, max_length=160)
+    birth_date: date | None = None
+    bodyweight_kg: float | None = Field(default=None, gt=0, le=400)
+    level: Literal["principiante", "intermedio", "avanzado"] | None = None
+    goal: str | None = None
+    notes: str | None = None
+
+
+class AthleteCreated(BaseModel):
+    """The record as it exists the moment it is created.
+
+    `has_account` rather than the raw `user_id`: what the coach needs to know is
+    whether this person can log in yet, and exposing the identity key would leak
+    which records belong to the same person across coaches.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    full_name: str
+    level: str | None = None
+    has_account: bool
 
 
 class SetOut(BaseModel):

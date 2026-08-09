@@ -13,13 +13,12 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Tres. Las dos primeras son las escrituras que faltan: hasta que
+Dos. La primera es la única escritura que falta: hasta que
 existan, la API sólo lee —salvo registrar una serie ya prescrita— y no hay forma
 de crear un entrenador ni un atleta salvo por el importador.
 
 | ID | Tarea |
 |---|---|
-| T-012 | Crear atleta sin cuenta |
 | T-013 | Cierre de sesión |
 | T-018 | Documentación y tabla de cumplimiento |
 
@@ -36,6 +35,7 @@ de crear un entrenador ni un atleta salvo por el importador.
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-014 | Fixtures compartidas: dos entrenadores y la persona con los dos roles | las usan T-016 y T-017 sin duplicar armado; no dependen de la planilla |
+| T-012 | Crear atleta sin cuenta (`POST /api/athletes`) | 10 tests; poniendo `user_id` no nulo cae 1, sacando el chequeo de rol cae 1, y RLS rechaza una ficha en el espacio ajeno |
 | T-011 | Alta de entrenador en el primer login (`POST /api/me/coach`) | 9 tests; poniendo el rol equivocado en el contexto caen 4, pisando la identidad guardada cae 1, salteando la verificación del token cae 1 |
 | T-017 | Criterios 9 a 11: coach que se entrena, dos vínculos, rol que no se mezcla | 7 tests; quitando el gate por rol a las policies de coach, caen 2 |
 | T-015 | Recorrido de rutas: sin credenciales, `401` en todas | parametrizado sobre las rutas de la app, no sobre una lista |
