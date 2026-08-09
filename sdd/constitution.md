@@ -120,15 +120,15 @@ verifica hoy y con qué.
 
 | Artículo | Cómo se verifica hoy |
 |---|---|
-| I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`. Automático. |
+| I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`, y `test_el_dominio_no_importa_infraestructura`, que lee los `import` con AST en vez del texto — el grep marcaría un módulo que apenas nombre una librería en un comentario. Automático. |
 | II — la base rechaza lo imposible | `tests/test_schema.py`: CHECKs, `citext`, índice funcional, vista. Automático. |
 | III — aislamiento por tenant | **Cumplido.** RLS en las migraciones 0004 y 0005: 18 policies, dos por tabla, con `FORCE`, y un rol de aplicación que no es dueño ni superusuario. La capa HTTP resuelve el tenant en el router. Tres recorridos sobre *todas* las rutas de la app —sin credenciales, sin `Active-Role`, recurso ajeno— parametrizados sobre las rutas descubiertas y no sobre una lista, así que un endpoint nuevo rompe la suite hasta que alguien decida cómo se prueba. Automático. |
 | IV — tests del dominio primero | Revisión humana. No es automatizable. |
 | V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
 | VI — simplicidad por default | Revisión humana. |
 | VII — velocidad del entrenador | Nada todavía: no existe el editor. Llega con la feature 002. |
-| VIII — nada de auth propia | Proveedor en el ADR 0003, librería en el 0004. La firma la verifica PyJWT; lo nuestro es decidir con los claims ya decodificados (T-004 a T-006). Automático: `tests/test_tokens.py` firma con claves reales y prueba las falsificaciones. |
-| IX — datos de desarrollo reales | `make seed` importa la planilla; los tests de API dependen de ella. |
+| VIII — nada de auth propia | Proveedor en el ADR 0003, librería en el 0004, cierre de sesión en el 0005 — delegado, sin estado de sesión propio. La firma la verifica PyJWT; lo nuestro es decidir con los claims ya decodificados (T-004 a T-006). Automático: `tests/test_tokens.py` firma con claves reales y prueba las falsificaciones. |
+| IX — datos de desarrollo reales | `make seed` importa la planilla, y 7 de los 16 archivos de test la usan por la fixture `seeded`, que los saltea cuando falta. Los otros 9 construyen su propio escenario: los criterios 9 a 11 y los recorridos de rutas tienen que correr en CI, donde la planilla no existe. |
 | X — cada artefacto es rastreable | Revisión humana. Desde la feature 001 los commits referencian su `T-NNN`; los anteriores no, y hay código en `main` sin spec previa. **La deuda vieja queda**, lo que cambió es que dejó de crecer. |
 
 Lo que queda en deuda son los artículos VII —no existe el editor todavía— y X,
@@ -142,13 +142,15 @@ Se modifica con un commit que toque sólo este archivo, con el motivo en el
 mensaje. Las specs anteriores no se reescriben retroactivamente: quedan como
 registro de qué reglas regían cuando se decidieron.
 
-Nota: hoy este archivo está duplicado en `sdd/constitution.md` y
-`.specify/memory/constitution.md`, así que la regla de "un commit que toque sólo
-este archivo" es literalmente incumplible. Unificar las dos copias es deuda
-conocida.
+Este archivo vive en `sdd/constitution.md`, y `.specify/memory/constitution.md`
+es un symlink a él. Antes eran dos copias, y la regla de "un commit que toque
+sólo este archivo" era literalmente incumplible; peor, se separaron de verdad —
+la copia de `.specify/` llegó a decir que no había RLS ni tests de aislamiento
+mucho después de que los hubiera. Un symlink no puede divergir.
 
 | Versión | Fecha | Cambio |
 |---|---|---|
 | 1.0 | (inicial) | Artículos I a X |
+| 1.3 | 2026-08-09 | Se unifican las dos copias con un symlink, después de que divergieran de verdad. Se precisan los artículos I, VIII y IX: el primero tenía dos verificaciones y declaraba una, el segundo no mencionaba el cierre de sesión, y el tercero decía que los tests de API dependen de la planilla cuando la mayoría ya construye su escenario. |
 | 1.2 | 2026-08-08 | Artículo III pasa de declarado a cumplido: RLS aplicado, y los recorridos de rutas se descubren en vez de listarse. Artículo VIII deja de decir "sin auth implementada". |
 | 1.1 | 2026-08-07 | Artículo III: se corrigen dos afirmaciones falsas —no todas las tablas llevan `coach_id`, y los tests de aislamiento no existían— y se reformula como condición de merge. Se agrega la sección "Cumplimiento". |

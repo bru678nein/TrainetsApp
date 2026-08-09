@@ -34,6 +34,7 @@ de crear un entrenador ni un atleta salvo por el importador.
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-014 | Fixtures compartidas: dos entrenadores y la persona con los dos roles | las usan T-016 y T-017 sin duplicar armado; no dependen de la planilla |
+| T-018 | Documentación y tabla de cumplimiento | auditada fila por fila contra la realidad; se encontró que las dos copias de la constitución habían divergido |
 | T-013 | Cierre de sesión delegado en el proveedor (ADR 0005) | 8 tests; sacando el chequeo de `exp` caen 4, incluido el que espera a que el token venza contra el reloj real |
 | T-012 | Crear atleta sin cuenta (`POST /api/athletes`) | 10 tests; poniendo `user_id` no nulo cae 1, sacando el chequeo de rol cae 1, y RLS rechaza una ficha en el espacio ajeno |
 | T-011 | Alta de entrenador en el primer login (`POST /api/me/coach`) | 9 tests; poniendo el rol equivocado en el contexto caen 4, pisando la identidad guardada cae 1, salteando la verificación del token cae 1 |
