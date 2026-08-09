@@ -19,7 +19,6 @@ de crear un entrenador ni un atleta salvo por el importador.
 
 | ID | Tarea |
 |---|---|
-| T-013 | Cierre de sesión |
 | T-018 | Documentación y tabla de cumplimiento |
 
 ## Hechas
@@ -35,6 +34,7 @@ de crear un entrenador ni un atleta salvo por el importador.
 | T-004 | Dominio: claims a identidad o motivo de rechazo | 16 tests escritos antes; sacando el chequeo de `azp` fallan 3, invirtiendo el orden de los chequeos fallan 3 |
 | T-005 | Adaptador JWKS con caché por `kid` y cooldown de refresco | 12 tests con proveedor y reloj falsos; sacando el cooldown, mil `kid` inventados pasan de 2 peticiones a 1001 |
 | T-014 | Fixtures compartidas: dos entrenadores y la persona con los dos roles | las usan T-016 y T-017 sin duplicar armado; no dependen de la planilla |
+| T-013 | Cierre de sesión delegado en el proveedor (ADR 0005) | 8 tests; sacando el chequeo de `exp` caen 4, incluido el que espera a que el token venza contra el reloj real |
 | T-012 | Crear atleta sin cuenta (`POST /api/athletes`) | 10 tests; poniendo `user_id` no nulo cae 1, sacando el chequeo de rol cae 1, y RLS rechaza una ficha en el espacio ajeno |
 | T-011 | Alta de entrenador en el primer login (`POST /api/me/coach`) | 9 tests; poniendo el rol equivocado en el contexto caen 4, pisando la identidad guardada cae 1, salteando la verificación del token cae 1 |
 | T-017 | Criterios 9 a 11: coach que se entrena, dos vínculos, rol que no se mezcla | 7 tests; quitando el gate por rol a las policies de coach, caen 2 |
@@ -175,9 +175,19 @@ el `sub` viene de afuera. Se usa `set_config(nombre, valor, true)`, que es lo
 mismo —el tercer argumento es `is_local`— pero con el valor bindeado. Tiene test
 propio: un `sub` con comillas termina en `403` y no en SQL ejecutado.
 
-**T-013 — Cierre de sesión.** El token anterior deja de servir.
+**T-013 — Cierre de sesión.** Decidir de quién es, dejarlo escrito, y probar la
+garantía sobre la que se apoya.
 
-*Hecha cuando:* criterio 8 de la spec, automatizado.
+Al implementarla apareció que el criterio 8 y el artículo VIII se contradicen:
+"el token anterior deja de servir" exige estado de revocación, y el artículo
+prohíbe manejar sesiones a mano. Gana el artículo, por la propia regla de la
+constitución. Decisión y alternativa descartada en el ADR 0005; el criterio 8
+quedó enmendado para decir lo que el sistema hace en vez de prometer inmediatez.
+
+*Hecha cuando:* un token vencido se rechaza **contra el reloj real** —no contra
+un `now` congelado por el test—, porque toda la garantía se apoya en que `exp` se
+respeta de verdad. Y no existe en el backend ningún estado de sesión que
+mantener.
 
 ## Endpoints
 

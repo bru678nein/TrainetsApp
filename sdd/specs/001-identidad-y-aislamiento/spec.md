@@ -81,6 +81,11 @@ La sesión sobrevive al cierre del navegador: el atleta no debería tener que
 loguearse cada vez que entra al gimnasio. La sesión se puede cerrar
 explícitamente desde cualquier dispositivo.
 
+Cerrarla es una operación contra el proveedor de identidad, no contra esta API:
+el backend no guarda sesiones (artículo VIII). "Desde cualquier dispositivo"
+significa que podés desloguearte estés donde estés, no que puedas cerrar la
+sesión de otro. Ver el ADR 0005.
+
 ## Criterios de aceptación
 
 Se escriben como pruebas. Si alguno no se puede automatizar, la spec está
@@ -99,7 +104,13 @@ incompleta.
 6. Una petición con un token vencido es rechazada, y el mensaje distingue
    "vencido" de "inválido" para que el cliente sepa si conviene renovar.
 7. Un token emitido para otro origen es rechazado.
-8. Cerrada la sesión, el token anterior deja de servir.
+8. Cerrada la sesión, el proveedor deja de emitir tokens para esa persona, y
+   el que estaba en curso deja de servir en cuanto vence — a lo sumo 60
+   segundos después. **Enmendado**: la versión anterior prometía que dejaba de
+   servir en el acto, y eso exige que el backend lleve estado de revocación, que
+   es lo que prohíbe el artículo VIII. La constitución resuelve el empate a
+   favor del artículo. El razonamiento y la alternativa descartada están en el
+   ADR 0005.
 9. Una cuenta de entrenador se crea una ficha de atleta en su propio espacio y
    se prescribe un programa. Lo ve como entrenador y lo registra como atleta,
    sin salir de la sesión.
