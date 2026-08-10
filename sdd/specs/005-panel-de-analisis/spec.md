@@ -16,12 +16,14 @@ que los produce.
 
 Pero hay una razón más específica, y salió de mirar los datos reales.
 
-Sobre las 17 semanas importadas, la adherencia global es **90%**. Es un número
-que tranquiliza. Adentro de ese número, el atleta cumple al 99-100% en rodilla
-dominante, empuje horizontal y tracción horizontal, y al **74%** en bisagra de
-cadera. Va a entrenar —sólo 2 de 68 sesiones quedaron enteras sin registrar—,
-hace todo lo demás completo, y se saltea sistemáticamente un cuarto del trabajo
-de isquios.
+Sobre las 17 semanas importadas, la adherencia global es **90%** —1.199 de 1.326
+series—. Es un número que tranquiliza. Adentro de ese número, el atleta cumple al
+99% en rodilla dominante, al 98% en empuje horizontal, al 96% en tracción
+horizontal, y al **72%** en bisagra de cadera: 163 de 226 series.
+
+No es que falte a entrenar. Sólo 2 de 68 sesiones quedaron enteras sin registrar.
+Va, hace todo lo demás completo, y se saltea sistemáticamente un cuarto del
+trabajo de isquios.
 
 Eso es exactamente lo que un entrenador necesita saber y exactamente lo que un
 número solo esconde. El panel existe para que esa pregunta se conteste sin
@@ -55,16 +57,32 @@ Un atleta que cumple el 100% de las series pero sistemáticamente dos puntos de
 RIR por debajo del esfuerzo pedido está entrenando liviano y se ve perfecto. Es
 el caso que un promedio único vuelve invisible.
 
-### No entrenar y saltear no son lo mismo
+### Toda serie prescrita cuenta
 
-Una sesión a la que el atleta no fue no puede contarse igual que una serie que
-decidió no hacer. Sin esa distinción, una sesión perdida reparte culpa sobre
-todos los patrones por igual y fabrica conclusiones falsas.
+Si una serie estaba prescrita y no se registró, no se hizo. No hay umbral, no hay
+sesión que se descarte, no hay heurística.
 
-No es hipotético: al preparar esta spec, no separarlas produjo el hallazgo
-"pliometría 0%, nunca la hace". Era falso. Eran 15 series en el último bloque,
-la mitad de ellas en una sesión entera sin registrar, o sea el punto donde los
-datos se terminan.
+La razón no es la simplicidad: es que con los datos solos, **"no fue a entrenar"
+y "fue y no registró nada" son indistinguibles**. Cualquier regla que las separe
+está inventando información que no existe. Medido sobre las 17 semanas reales,
+descartar las sesiones sin nada registrado mueve la adherencia de bisagra de
+cadera de 72% a 74% — dos puntos, a cambio de una definición que no se puede
+sostener con evidencia.
+
+La consecuencia hay que decirla: **un atleta lesionado dos semanas se ve igual
+que uno que abandonó.** El entrenador sabe cuál es; el panel no. Distinguirlos
+necesitaría poder marcar una sesión como no esperada, y eso está fuera de alcance.
+
+### Un porcentaje sin su denominador miente
+
+Todo porcentaje se muestra con la cantidad de series sobre la que se calculó.
+
+No es prolijidad. Al preparar esta spec, "pliometría 0%" apareció como el titular
+más fuerte del panel. El número era correcto: cero de quince. Pero quince series
+concentradas en la última semana del programa no alcanzan para concluir nada
+sobre una persona, y presentado como titular parecía una conducta.
+
+Los patrones con pocas series se muestran; no encabezan.
 
 ### Lo que hay que poder mirar
 
@@ -95,8 +113,9 @@ Se escriben como pruebas.
    que no hay registros, en vez de un panel vacío o un cero.
 2. Un patrón donde el atleta cumplió todas las series y otro donde cumplió la
    mitad se distinguen a simple vista, sin leer números.
-3. Una sesión entera sin registrar no baja la adherencia de ningún patrón: cuenta
-   como "no entrenó", no como "salteó".
+3. Una sesión entera sin registrar baja la adherencia igual que una serie
+   salteada: no hay sesión que se descarte. Y un patrón con pocas series muestra
+   su denominador y no encabeza la pantalla, aunque su porcentaje sea el peor.
 4. Un atleta que registró todas sus series dos puntos de RIR por debajo de lo
    prescrito aparece señalado, aunque su completitud sea 100%.
 5. El entrenador no puede ver el panel de un atleta de otro entrenador. Lo
@@ -118,14 +137,13 @@ Se escriben como pruebas.
   Este producto le da criterio al entrenador, no lo reemplaza.
 - **Rangos de fechas arbitrarios.** La unidad es el mesociclo.
 
-## Definiciones pendientes
+## Definiciones resueltas
 
-`[NECESITA DEFINICIÓN]` **Cuándo se considera que el atleta fue a entrenar.**
-Una sesión con cero series registradas es claramente "no fue". Una con todas es
-claramente "fue". ¿Y una con tres de veintisiete? Puede ser que empezó y se
-lesionó, o que registró las primeras y abandonó la app. La respuesta cambia el
-criterio 3 y cambió el análisis que dio origen a esta spec, así que no se puede
-suponer. Sale de preguntarle al entrenador.
+| Pregunta | Decisión |
+|---|---|
+| ¿Cuándo cuenta que el atleta fue a entrenar? | Siempre. Toda serie prescrita cuenta, y no registrada es no hecha. Separar "no fue" de "fue y no registró" exigiría información que los datos no tienen. |
+
+## Definiciones pendientes
 
 `[NECESITA DEFINICIÓN]` **Si el atleta ve su propio panel, y cuánto.** El
 volumen y la progresión son suyos. La adherencia es un juicio sobre él, y
@@ -139,8 +157,9 @@ dos. Es una decisión de producto, no de permisos.
   pasar por una enmienda.
 - **Artículo III**: el panel no agrega superficie de datos nueva; lee la que la
   001 ya aísla. El criterio 5 existe para que eso se verifique y no se asuma.
-- **Artículo V**: las dos definiciones pendientes **no habilitan implementación**
-  de los criterios 3 y de la vista del atleta. El resto sí.
+- **Artículo V**: queda una definición pendiente y **no habilita implementación**
+  de la vista del atleta. El resto de la spec sí, incluidos los siete criterios de
+  aceptación, que son todos del lado del entrenador.
 - **Artículo IX**: se diseña contra los datos reales importados, no contra series
   inventadas. Los casos borde que importan —bloques sin registrar, un solo
   atleta, un patrón con 15 series en total— sólo aparecen ahí.
@@ -151,6 +170,11 @@ dos. Es una decisión de producto, no de permisos.
 feature no es un error, es una pantalla llena de gráficos correctos que no
 contestan si el plan se está cumpliendo. La prueba es el criterio 2: si hay que
 leer números para ver dónde está el problema, está mal.
+
+**El hallazgo que motiva la feature es de una sola persona.** El 72% de isquios
+es real y está medido, pero es un atleta. Que sea un patrón del producto y no una
+particularidad suya es una hipótesis, no un dato, y esta spec no la necesita: el
+panel tiene que contestar la pregunta, no tener razón sobre la respuesta.
 
 **Los datos hoy son de una sola persona.** Todo lo que se vea bien con un atleta
 y 17 semanas puede romperse con veinte atletas y dos años. La analítica se
