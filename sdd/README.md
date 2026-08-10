@@ -58,7 +58,7 @@ En orden. Cada una depende de la anterior.
 |---|---|---|---|
 | — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
 | 001 | Identidad y aislamiento por tenant | **hecha**, 22 de 22 | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
-| 002 | Editor de rutinas | spec escrita, **bloqueada** | El riesgo real del producto. Ver artículo VII. Tiene tres `[NECESITA DEFINICIÓN]`, y la que manda es el presupuesto de interacción: sale de cronometrar al entrenador en Excel, o sea la Fase 0. |
+| 002 | Editor de rutinas | spec escrita, **bloqueada** | El riesgo real del producto. Ver artículo VII. Le quedan **dos** `[NECESITA DEFINICIÓN]` —la regla de progresión al duplicar y qué pasa al editar una semana ya registrada—, las dos para `/clarify` con el entrenador. El presupuesto de interacción lo cerró la Fase 0 el 2026-08-10. |
 | 003 | Invitaciones y ciclo de vida del vínculo | borrador | Salió de partir la 001. Recién hace falta cuando el atleta entre por su cuenta, o sea junto con la 004. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
 | 005 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |

@@ -39,6 +39,33 @@ Sentarte con el entrenador y cronometrar cuánto tarda hoy en armar una semana d
 
 No escribas una línea hasta tener eso. Es la fase que más gente se saltea y la que más proyectos mata.
 
+**Hecha el 2026-08-10.** El entrenador arma una semana completa en la planilla en
+**unos 7 minutos**. Cruzado con la composición real de una semana en
+`data/planilla.xlsx` —4 sesiones, ~27 prescripciones, **78 series prescritas**,
+constante a lo largo de 17 semanas— eso da 15,5 segundos por ejercicio y **5,4
+segundos por serie**.
+
+Ese ritmo no se consigue escribiendo. Se consigue copiando el bloque de la semana
+anterior y ajustando la carga, y por eso duplicar-y-ajustar no es una capacidad
+más del editor: es la única operación que hace que el presupuesto cierre.
+
+Las tres irritaciones, en orden de lo que aportan:
+
+1. **"Escribir 20 veces el mismo ejercicio."** Copia dentro de la semana y
+   reescribe entre semanas; en 17 semanas el mismo ejercicio aparece unas 20
+   veces. El ejercicio no existe como entidad, es un texto retipeado. Lo resuelve
+   la tabla `exercise`, que ya está en el esquema.
+2. **"El cliente no usa la planilla por incomodidad."** Excel en el celular es
+   inusable — confirmado con el entrenador, no es falta de señal. Es la más
+   importante de las tres y **no habla del editor**: hoy nadie registra nada, así
+   que no hay datos de adherencia y el panel de análisis no tendría qué mostrar.
+   Contra armar rutinas la planilla compite bien; contra registrar no compite.
+3. **"La interfaz poco intuitiva."** Queda anotada y no se diseña contra ella: no
+   nombra ninguna tarea concreta, y un enunciado así justifica cualquier cosa.
+
+Sin verificar: si en el gimnasio hay señal. La 006 lo da por hecho y nadie lo
+midió; es una pregunta de un minuto al entrenador.
+
 ### Fase 1 — MVP usable por un entrenador · 5 semanas / 100 h
 
 - Auth (coach y atleta) y CRUD de atletas.

@@ -96,18 +96,33 @@ inutiliza la métrica que el entrenador usa para decidir. Se resuelve en
 
 ### La velocidad
 
-`[NECESITA DEFINICIÓN]` **El presupuesto de interacción.** El artículo VII exige
-que toda feature del editor declare cuántos clics y cuántas teclas cuesta cada
-tarea frecuente, y que si supera lo que cuesta en una planilla, la feature no
-está terminada.
+**Definido por la Fase 0, el 2026-08-10.** El entrenador arma una semana completa
+en la planilla en **unos 7 minutos**. Una semana real, medida sobre los datos
+importados, son 4 sesiones, ~27 prescripciones y **78 series prescritas**.
 
-Ese umbral **no existe todavía**: nadie cronometró al entrenador armando una
-semana en Excel. Es la Fase 0 de `docs/PLAN.md`, sección 3, y es lo que bloquea
-esta spec.
+El presupuesto es ese: **armar una semana equivalente acá tiene que costar menos
+de 7 minutos, cronometrados de punta a punta.**
 
-Sin ese número, cualquier presupuesto que escribamos es una opinión, y la única
-forma de saber si el editor está terminado sería preguntarle al entrenador
-después de gastar sesenta horas.
+Está escrito en tiempo y no en clics a propósito, y conviene ser explícito sobre
+por qué, porque el artículo VII pide clics y teclas. Lo que se midió fue el total,
+no el costo por tarea dentro de la planilla; declarar un presupuesto de clics por
+tarea exigiría un número que nadie tomó. Cronometrar la misma semana de punta a
+punta compara exactamente lo que le importa al entrenador, es falsable con un
+cronómetro y no depende de ponerse de acuerdo en qué cuenta como un clic.
+
+De ahí salen dos consecuencias estructurales, que son la parte útil:
+
+- **15,5 segundos por ejercicio y 5,4 segundos por serie**, incluyendo pensar la
+  carga. Ninguna interacción por serie puede estar en el camino crítico: 78
+  series a un clic cada una ya se comen buena parte del presupuesto sin haber
+  leído ni decidido nada.
+- **Duplicar-y-ajustar es la operación que hace cerrar el presupuesto**, no una
+  comodidad. Ese ritmo en la planilla se logra copiando el bloque de la semana
+  anterior; escribiéndolo es aritméticamente imposible. Un editor que lo trate
+  como una función más entre otras pierde contra la planilla.
+
+Contraste que ordena el resto: diez clics por ejercicio son 270 clics por semana,
+cuatro minutos y medio de puro clic. Queda perdida antes de escribir código.
 
 ## Criterios de aceptación
 
