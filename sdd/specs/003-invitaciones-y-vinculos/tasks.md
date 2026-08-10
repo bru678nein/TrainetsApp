@@ -18,6 +18,8 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 | ID | Tarea | Verificado con |
 |---|---|---|
+| T-024 | Migración: tabla `invitation` | 5 tests; volviendo el índice parcial en total cae 1, sacándole la unicidad cae otro, y quitándosela al hash cae un tercero |
+| T-025 | RLS de `invitation` | 4 tests como rol de aplicación; sacando el gate por rol activo cae el de la persona con los dos roles, y sacando el chequeo de dueño caen 2 |
 | T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
 | T-019 | Migración: `athlete.estado` | ida y vuelta sobre la base sembrada; forzando `is_active = false` el backfill mapea a `pausado` y no a `archivado`; un estado inventado lo rechaza el `CHECK` de la base |
 | T-020 | Modelos y `docs/schema.sql` al día | `test_la_migracion_no_divergio_de_los_modelos`; el `CHECK` de la base se compara contra el enum del dominio |
@@ -26,12 +28,10 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Doce.
+Diez.
 
 | ID | Tarea |
 |---|---|
-| T-024 | Migración: tabla `invitation` |
-| T-025 | RLS de `invitation` |
 | T-026 | Helpers `app_vinculo_escribible_<tabla>` |
 | T-027 | Migración: 18 policies `RESTRICTIVE` |
 | T-028 | `app_aceptar_invitacion` |

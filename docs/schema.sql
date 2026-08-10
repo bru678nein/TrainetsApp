@@ -78,12 +78,37 @@ CREATE TABLE athlete (
 );
 CREATE INDEX athlete_coach_idx ON athlete (coach_id) WHERE estado = 'activo';
 
+
 -- Una persona es a lo sumo un atleta de un entrenador dado, pero puede serlo de
 -- varios entrenadores. Parcial y no UNIQUE normal: `user_id` es NULL en toda
 -- ficha sin cuenta y en Postgres los NULL no colisionan entre sí, así que un
 -- UNIQUE común parecería cubrir esto y no cubriría nada.
 CREATE UNIQUE INDEX athlete_coach_user_uq
     ON athlete (coach_id, user_id) WHERE user_id IS NOT NULL;
+
+-- Invitación para que el atleta reclame una ficha que ya existe. Es nuestra y no
+-- del proveedor de auth: la ficha existe antes que la cuenta, y las invitaciones
+-- del proveedor obligan al orden inverso (ADR 0003).
+CREATE TABLE invitation (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    athlete_id  uuid NOT NULL REFERENCES athlete(id) ON DELETE CASCADE,
+    -- El SHA-256, nunca el token. Una filtración de esta tabla no entrega links
+    -- vivos, y buscar por índice no filtra información por tiempo de respuesta.
+    token_hash  bytea NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    -- Guardado y no calculado: derivado al leer, cambiar los siete días movería
+    -- el vencimiento de links que ya están en manos de alguien.
+    expires_at  timestamptz NOT NULL,
+    accepted_at timestamptz,
+    accepted_by uuid REFERENCES app_user(id) ON DELETE SET NULL,
+    revoked_at  timestamptz
+);
+CREATE UNIQUE INDEX invitation_token_uq ON invitation (token_hash);
+-- A lo sumo una invitación usable por ficha. Emitir una nueva obliga a revocar
+-- la anterior en la misma transacción, así que el criterio 3 lo garantiza el
+-- esquema y no la memoria de quien programa.
+CREATE UNIQUE INDEX invitation_pendiente_uq ON invitation (athlete_id)
+    WHERE accepted_at IS NULL AND revoked_at IS NULL;
 
 -- -----------------------------------------------------------------------------
 -- Catálogo de ejercicios.

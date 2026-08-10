@@ -26,6 +26,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    LargeBinary,
     Numeric,
     SmallInteger,
     String,
@@ -167,6 +168,44 @@ class Athlete(Base):
             "user_id",
             unique=True,
             postgresql_where=text("user_id IS NOT NULL"),
+        ),
+    )
+
+
+class Invitation(Base):
+    """A link the coach sends so the athlete can claim an existing record.
+
+    Ours and not the auth provider's. The record exists before the account —
+    that is the central case, the coach builds the whole programme first — and
+    the provider's own invitations force the opposite order. See ADR 0003.
+    """
+
+    __tablename__ = "invitation"
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
+    athlete_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("athlete.id", ondelete="CASCADE"))
+    # The SHA-256, never the token. A leak of this table hands over nothing that
+    # works, and lookup by index means no comparison leaks timing.
+    token_hash: Mapped[bytes] = mapped_column(LargeBinary)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # Stored and not derived: computed on read, changing the seven days would
+    # move the expiry of links already in somebody's hands.
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    accepted_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index("invitation_token_uq", "token_hash", unique=True),
+        # At most one usable invitation per record, which is what makes issuing
+        # a new link invalidate the previous one: the index rejects the second
+        # pending row, so revoking is not optional.
+        Index(
+            "invitation_pendiente_uq",
+            "athlete_id",
+            unique=True,
+            postgresql_where=text("accepted_at IS NULL AND revoked_at IS NULL"),
         ),
     )
 

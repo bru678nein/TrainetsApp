@@ -14,91 +14,13 @@ which is the case the second risk in the spec is about.
 from __future__ import annotations
 
 import uuid
-from collections.abc import Iterator
 
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import Session as OrmSession
 
-from app.models import (
-    AppUser,
-    Athlete,
-    Coach,
-    Exercise,
-    LoggedSet,
-    Mesocycle,
-    MovementPattern,
-    PrescribedSet,
-    Prescription,
-    Program,
-    Session,
-)
-
-
-class Espacio:
-    """A coach, an athlete of theirs, and a full chain down to a prescribed set."""
-
-    def __init__(self, db: OrmSession, tag: str, atleta_de: AppUser | None = None) -> None:
-        self.persona = AppUser(
-            auth_user_id=f"sub-{tag}", email=f"{tag}@example.com", display_name=tag
-        )
-        self.coach = Coach(user=self.persona)
-        self.athlete = Athlete(coach=self.coach, user=atleta_de, full_name=f"atleta de {tag}")
-        patron = MovementPattern(code=f"p_{tag}", label_es="P")
-        ejercicio = Exercise(coach=self.coach, pattern=patron, name=f"Ej {tag}")
-        programa = Program(coach=self.coach, athlete=self.athlete, name=f"Prog {tag}")
-        meso = Mesocycle(program=programa, ordinal=1, label="M", week_count=4)
-        sesion = Session(mesocycle=meso, week_number=1, day_number=1)
-        pres = Prescription(session=sesion, exercise=ejercicio, position=1)
-        self.pset = PrescribedSet(prescription=pres, set_number=1, reps_min=8, reps_max=12)
-        self.log = LoggedSet(prescribed_set=self.pset, athlete=self.athlete, reps=10)
-        db.add_all(
-            [
-                self.persona,
-                self.coach,
-                self.athlete,
-                patron,
-                ejercicio,
-                programa,
-                meso,
-                sesion,
-                pres,
-                self.pset,
-                self.log,
-            ]
-        )
-        db.flush()
-
-
-@pytest.fixture
-def mundo(db: OrmSession) -> dict[str, Espacio]:
-    """Two unrelated coaches, and a third who is also an athlete of the first."""
-    tag = uuid.uuid4().hex[:6]
-    a = Espacio(db, f"a{tag}")
-    b = Espacio(db, f"b{tag}")
-    c = Espacio(db, f"c{tag}")
-    # C, who has their own coaching space, is also an athlete of A.
-    db.add(Athlete(coach=a.coach, user=c.persona, full_name="C entrenado por A"))
-    db.flush()
-    return {"a": a, "b": b, "c": c}
-
-
-def como(db: OrmSession, sub: str, rol: str) -> None:
-    """Puts the session into the tenant context the app would set."""
-    db.execute(sa.text("SET LOCAL ROLE coachapp_app"))
-    db.execute(sa.text("SELECT set_config('app.current_auth_user_id', :s, true)"), {"s": sub})
-    db.execute(sa.text("SELECT set_config('app.active_role', :r, true)"), {"r": rol})
-
-
-@pytest.fixture
-def volver(db: OrmSession) -> Iterator[None]:
-    """Back to the owner afterwards, so the rollback and other fixtures still work."""
-    yield
-    try:
-        db.execute(sa.text("RESET ROLE"))
-    except sa.exc.SQLAlchemyError:
-        db.rollback()
-        db.execute(sa.text("RESET ROLE"))
+from app.models import Exercise, MovementPattern
+from tests.conftest import contexto_de
 
 
 @pytest.mark.usefixtures("volver")
@@ -118,20 +40,20 @@ class TestSinContexto:
 @pytest.mark.usefixtures("volver")
 class TestElCoachVeLoSuyo:
     def test_no_ve_los_atletas_de_otro(self, db: OrmSession, mundo) -> None:
-        como(db, mundo["a"].persona.auth_user_id, "coach")
+        contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
         nombres = set(db.scalars(sa.text("SELECT full_name FROM athlete")).all())
         assert nombres == {"atleta de " + mundo["a"].persona.display_name, "C entrenado por A"}
 
     def test_la_tabla_mas_profunda_tampoco(self, db: OrmSession, mundo) -> None:
         """`logged_set` is five levels from its tenant. The acceptance criterion."""
-        como(db, mundo["a"].persona.auth_user_id, "coach")
+        contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
         visibles = db.scalars(sa.text("SELECT id FROM logged_set")).all()
         assert mundo["a"].log.id in visibles
         assert mundo["b"].log.id not in visibles
 
     def test_por_id_directo_tampoco(self, db: OrmSession, mundo) -> None:
         """Criterion 2: someone else's identifier answers like a missing one."""
-        como(db, mundo["a"].persona.auth_user_id, "coach")
+        contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
         fila = db.execute(
             sa.text("SELECT 1 FROM logged_set WHERE id = :i"), {"i": mundo["b"].log.id}
         ).first()
@@ -143,14 +65,14 @@ class TestElRiesgoDosDeLaSpec:
     """The person who is a coach and also an athlete of another coach."""
 
     def test_como_atleta_no_alcanza_su_propio_espacio_de_coach(self, db: OrmSession, mundo) -> None:
-        como(db, mundo["c"].persona.auth_user_id, "athlete")
+        contexto_de(db, mundo["c"].persona.auth_user_id, "athlete")
         nombres = set(db.scalars(sa.text("SELECT full_name FROM athlete")).all())
         assert nombres == {"C entrenado por A"}, (
             f"con rol atleta alcanzó su espacio de entrenador: {nombres}"
         )
 
     def test_como_coach_ve_su_espacio_y_no_su_ficha_ajena(self, db: OrmSession, mundo) -> None:
-        como(db, mundo["c"].persona.auth_user_id, "coach")
+        contexto_de(db, mundo["c"].persona.auth_user_id, "coach")
         nombres = set(db.scalars(sa.text("SELECT full_name FROM athlete")).all())
         assert nombres == {"atleta de " + mundo["c"].persona.display_name}
 
@@ -171,7 +93,7 @@ class TestCriterioCuatro:
             sa.text("SELECT id FROM athlete WHERE full_name = 'C entrenado por A'")
         ).scalar()
 
-        como(db, mundo["c"].persona.auth_user_id, "athlete")
+        contexto_de(db, mundo["c"].persona.auth_user_id, "athlete")
         with pytest.raises(sa.exc.ProgrammingError, match="row-level security"):
             db.execute(
                 sa.text(
@@ -192,7 +114,7 @@ class TestElCatalogoGlobal:
         db.add(Exercise(coach_id=None, pattern_code=f"g_{tag}", name=f"Global {tag}"))
         db.flush()
 
-        como(db, mundo["b"].persona.auth_user_id, "coach")
+        contexto_de(db, mundo["b"].persona.auth_user_id, "coach")
         nombres = set(db.scalars(sa.text("SELECT name FROM exercise")).all())
         assert f"Global {tag}" in nombres
         # Against A's actual exercise, not a prefix: `startswith("Ej a")` looked
@@ -235,3 +157,36 @@ class TestElContextoOlvidadoNoEsSilencioso:
             )
         finally:
             conn.close()
+
+
+class TestEnableSinForceNoAlcanza:
+    """Toda tabla con RLS tiene que tener además `FORCE`.
+
+    Existía un agujero acá y lo encontró una mutación: sacarle
+    `FORCE ROW LEVEL SECURITY` a una tabla no hacía fallar nada. El resto de la
+    suite corre como `coachapp_app`, que no es dueño de ninguna tabla, así que
+    para ella las dos formas se comportan igual.
+
+    Para el dueño no. El dueño está exento de sus propias policies salvo que se
+    fuerce, y las migraciones corren como dueño — que en producción es el rol que
+    entrega el proveedor. Una tabla con `ENABLE` y sin `FORCE` es una tabla cuyas
+    policies no aplican a quien más permisos tiene.
+
+    Parametrizado sobre lo que la base tiene, no sobre una lista: una tabla nueva
+    con RLS entra sola.
+    """
+
+    def test_ninguna_tabla_quedo_con_enable_solo(self, db: OrmSession) -> None:
+        flojas = (
+            db.execute(
+                sa.text(
+                    "SELECT relname FROM pg_class "
+                    "WHERE relnamespace = 'public'::regnamespace AND relkind = 'r' "
+                    "AND relrowsecurity AND NOT relforcerowsecurity "
+                    "ORDER BY relname"
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert flojas == [], f"con ENABLE y sin FORCE: {flojas}"

@@ -27,6 +27,8 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
     from sqlalchemy.orm import Session as OrmSession
 
+    from app.models import AppUser
+
 # SQLAlchemy, Alembic y FastAPI se importan adentro de las funciones que los
 # usan, no acá. El ADR 0002 dice que los tests de dominio corren "en
 # milisegundos sin dependencias", y con estos imports a nivel de módulo eso era
@@ -543,3 +545,102 @@ def como(raw_client, mint):
         return _pedir
 
     return _con
+
+
+# --- Espacios de tenant, compartidos por los tests de RLS -----------------------
+#
+# Viven acá y no en `test_rls.py` porque los usa más de un módulo, y una fixture
+# importada entre archivos de test sombrea el parámetro homónimo de cada firma:
+# ruff lo marca como redefinición, y tiene razón. `conftest.py` es el lugar donde
+# pytest las resuelve por nombre sin que nadie importe nada.
+
+
+class Espacio:
+    """A coach, an athlete of theirs, and a full chain down to a prescribed set."""
+
+    def __init__(self, db: OrmSession, tag: str, atleta_de: AppUser | None = None) -> None:
+        from app.models import (
+            AppUser,
+            Athlete,
+            Coach,
+            Exercise,
+            LoggedSet,
+            Mesocycle,
+            MovementPattern,
+            PrescribedSet,
+            Prescription,
+            Program,
+            Session,
+        )
+
+        self.persona = AppUser(
+            auth_user_id=f"sub-{tag}", email=f"{tag}@example.com", display_name=tag
+        )
+        self.coach = Coach(user=self.persona)
+        self.athlete = Athlete(coach=self.coach, user=atleta_de, full_name=f"atleta de {tag}")
+        patron = MovementPattern(code=f"p_{tag}", label_es="P")
+        ejercicio = Exercise(coach=self.coach, pattern=patron, name=f"Ej {tag}")
+        programa = Program(coach=self.coach, athlete=self.athlete, name=f"Prog {tag}")
+        meso = Mesocycle(program=programa, ordinal=1, label="M", week_count=4)
+        sesion = Session(mesocycle=meso, week_number=1, day_number=1)
+        pres = Prescription(session=sesion, exercise=ejercicio, position=1)
+        self.pset = PrescribedSet(prescription=pres, set_number=1, reps_min=8, reps_max=12)
+        self.log = LoggedSet(prescribed_set=self.pset, athlete=self.athlete, reps=10)
+        db.add_all(
+            [
+                self.persona,
+                self.coach,
+                self.athlete,
+                patron,
+                ejercicio,
+                programa,
+                meso,
+                sesion,
+                pres,
+                self.pset,
+                self.log,
+            ]
+        )
+        db.flush()
+
+
+@pytest.fixture
+def mundo(db: OrmSession) -> dict[str, Espacio]:
+    """Two unrelated coaches, and a third who is also an athlete of the first."""
+    from app.models import Athlete
+
+    tag = uuid.uuid4().hex[:6]
+    a = Espacio(db, f"a{tag}")
+    b = Espacio(db, f"b{tag}")
+    c = Espacio(db, f"c{tag}")
+    # C, who has their own coaching space, is also an athlete of A.
+    db.add(Athlete(coach=a.coach, user=c.persona, full_name="C entrenado por A"))
+    db.flush()
+    return {"a": a, "b": b, "c": c}
+
+
+def contexto_de(db: OrmSession, sub: str, rol: str) -> None:
+    """Puts the session into the tenant context the app would set.
+
+    Not named `como`: that is already a fixture in this file, and it hands back
+    an HTTP client. This one moves the database session, which is the layer
+    below.
+    """
+    import sqlalchemy as sa
+
+    db.execute(sa.text("SET LOCAL ROLE coachapp_app"))
+    db.execute(sa.text("SELECT set_config('app.current_auth_user_id', :s, true)"), {"s": sub})
+    db.execute(sa.text("SELECT set_config('app.active_role', :r, true)"), {"r": rol})
+
+
+@pytest.fixture
+def volver(db: OrmSession) -> Iterator[None]:
+    """Back to the owner afterwards, so the rollback and other fixtures still work."""
+    import sqlalchemy as sa
+
+    yield
+    try:
+        db.execute(sa.text("RESET ROLE"))
+    except sa.exc.SQLAlchemyError:
+        db.rollback()
+        db.execute(sa.text("RESET ROLE"))
