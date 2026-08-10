@@ -20,6 +20,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from app.db import _con_driver
 from app.models import Base, include_object
 
 config = context.config
@@ -29,7 +30,14 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# El mismo normalizador que usa la app. Los proveedores gestionados entregan
+# `postgresql://…`, que SQLAlchemy resuelve a psycopg2 — no instalado acá. Sin
+# esto, `alembic upgrade head` contra el DSN de Railway muere con un
+# ModuleNotFoundError que no menciona ni el DSN ni Alembic, y es el primer
+# comando de todo deploy.
 _url = config.get_main_option("sqlalchemy.url", None) or os.getenv("DATABASE_URL")
+if _url:
+    _url = _con_driver(_url)
 if _url:
     # `%` is an interpolation character in configparser; it has to be escaped
     # or a password containing % breaks startup. Re-escaping is harmless: on
