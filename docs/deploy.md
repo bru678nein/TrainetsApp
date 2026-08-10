@@ -40,7 +40,7 @@ a propósito: una contraseña versionada está en cada clon y en el historial pa
 siempre. Se la pone la infraestructura, una vez:
 
 ```bash
-DATABASE_URL="<admin>" python scripts/set_app_password.py "<contraseña>"
+DATABASE_URL="<admin>" python -m scripts.set_app_password "<contraseña>"
 ```
 
 Hasta que corras esto, el rol existe y no puede autenticarse. Es el estado

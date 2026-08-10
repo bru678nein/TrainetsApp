@@ -13,7 +13,11 @@ either changed.
 Run with the DSN of a role that can ALTER the application role — the owner, not
 the application role itself.
 
-    DATABASE_URL=... python scripts/set_app_password.py <password>
+Invoked with `-m`, not by path: running it as `python scripts/set_app_password.py`
+puts `scripts/` on sys.path instead of `backend/`, and `from app.db import …`
+fails with a ModuleNotFoundError that has nothing to do with the database.
+
+    DATABASE_URL=... python -m scripts.set_app_password <password>
 """
 
 from __future__ import annotations
@@ -23,12 +27,14 @@ import sys
 
 import sqlalchemy as sa
 
+from app.db import _con_driver
+
 ROLE = "coachapp_app"
 
 
 def main() -> int:
     if len(sys.argv) != 2 or not sys.argv[1]:
-        print("uso: set_app_password.py <contraseña>", file=sys.stderr)
+        print("uso: python -m scripts.set_app_password <contraseña>", file=sys.stderr)
         return 2
     password = sys.argv[1]
 
@@ -37,7 +43,10 @@ def main() -> int:
         print("Falta DATABASE_URL (el DSN del dueño, no el de la app).", file=sys.stderr)
         return 2
 
-    engine = sa.create_engine(dsn, isolation_level="AUTOCOMMIT")
+    # Mismo normalizador que la app y las migraciones. Este script fue la
+    # tercera puerta al mismo problema: los proveedores gestionados entregan
+    # `postgresql://` y SQLAlchemy resuelve psycopg2, que no está instalado.
+    engine = sa.create_engine(_con_driver(dsn), isolation_level="AUTOCOMMIT")
     with engine.connect() as conn:
         existe = conn.execute(
             sa.text("SELECT 1 FROM pg_roles WHERE rolname = :r"), {"r": ROLE}

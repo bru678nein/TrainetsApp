@@ -63,7 +63,7 @@ ADMIN_DSN ?= $(DEV_DSN)
 # directo y tiene que ponerse en rojo. Quien degrada es `db-up`, que puede correr
 # antes de la primera migración y ahí el rol legítimamente no existe todavía.
 db-app-password:  ## Le pone contraseña al rol de aplicación (T-007)
-	@cd backend && DATABASE_URL="$(ADMIN_DSN)" $(PY_RUN) scripts/set_app_password.py \
+	@cd backend && DATABASE_URL="$(ADMIN_DSN)" $(PY_RUN) -m scripts.set_app_password \
 	  "$(APP_PASSWORD)"
 
 db-check:  ## Verifica que se llega a Postgres desde el host (no desde el contenedor)
