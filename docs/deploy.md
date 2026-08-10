@@ -74,7 +74,9 @@ verificando tokens contra nada es peor que uno que no levanta.
 migraciones (DSN admin)  →  desplegar la imagen nueva
 ```
 
-En ese orden, y son dos pasos separados.
+En ese orden, y son dos pasos separados. Invertirlos ya no es silencioso:
+`/health/ready` compara la revisión de la base contra la que trae la imagen y
+devuelve `503` mientras no coincidan.
 
 **Las migraciones no corren al arrancar el contenedor.** Con dos réplicas,
 arrancar es dos procesos migrando la misma base al mismo tiempo. Alembic toma un
@@ -82,6 +84,21 @@ lock y una de las dos espera, pero el arranque pasa a depender de una carrera qu
 nadie quiso. Es un paso de release.
 
 ## Lo que sale mal, y cómo se ve
+
+**`/health/ready` devuelve `503` con `"status": "sin migrar"`.** La base está
+en una revisión distinta de la que necesita la imagen desplegada, y la respuesta
+trae las dos para que se sepa en qué dirección: `migracion` es lo que la base
+tiene, `esperada` lo que el código pide.
+
+Casi siempre es el orden: se desplegó la imagen sin correr las migraciones. Lo
+contrario —una imagen vieja contra una base ya migrada— pasa cuando un rollback
+del contenedor no vino con el `downgrade`.
+
+Esta comparación existe porque su ausencia costó un deploy roto que se veía sano.
+La ruta devolvía `ok` con el número de revisión y nada más, así que había que
+saber de memoria cuál esperar; mientras tanto la base se quedó en `0005`, el
+código siguió desplegándose hasta `0007`, y cada endpoint de datos devolvía 500
+consultando una columna que todavía no existía.
 
 **`current_setting("app.current_auth_user_id") no existe`** en cada request. La
 app se está conectando como dueño o como superusuario y las variables de sesión
