@@ -59,7 +59,7 @@ a `'activo'`, `false` a `'pausado'`. Reconstruir `athlete_coach_idx` como
 la planilla importada, y ninguna ficha queda en `'archivado'` — el backfill no
 puede inventar un cierre que nadie pidió. Un `INSERT` con un estado inventado es
 rechazado por la base, no por la aplicación.
-*Bloquea a:* T-020, T-021, T-022, T-026.
+*Bloquea a:* T-020, T-021, T-026.
 
 **T-024 — Tabla `invitation`.** Columnas del plan §2. Índice parcial único
 `(athlete_id) WHERE accepted_at IS NULL AND revoked_at IS NULL`.
