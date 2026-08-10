@@ -61,7 +61,7 @@ En orden. Cada una depende de la anterior.
 | 002 | Editor de rutinas | spec escrita, **bloqueada** | El riesgo real del producto. Ver artículo VII. Le quedan **dos** `[NECESITA DEFINICIÓN]` —la regla de progresión al duplicar y qué pasa al editar una semana ya registrada—, las dos para `/clarify` con el entrenador. El presupuesto de interacción lo cerró la Fase 0 el 2026-08-10. |
 | 003 | Invitaciones y ciclo de vida del vínculo | **en curso**, 7 de 17 (T-019 a T-025 hechas) | Salió de partir la 001. Habilita la 004, que es donde la Fase 0 puso el riesgo real del producto. El bloqueo de escritura sobre lo archivado está medido en `spike/restrictive.py`. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
-| 005 | Panel de análisis | | El dominio ya está hecho y testeado; es casi todo presentación. |
+| 005 | Panel de análisis | spec escrita, **bloqueada** | Dos `[NECESITA DEFINICIÓN]`, las dos para `/clarify` con el entrenador. El dominio y los endpoints de volumen y adherencia ya existen; falta exponer `load_progression`. Es la primera feature con interfaz. |
 | 006 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, la 004 no se usa. |
 
 La 001 nació cubriendo también las invitaciones y el archivado. El plan daba
