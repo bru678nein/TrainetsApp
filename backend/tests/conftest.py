@@ -43,7 +43,14 @@ SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
 # Routes that legitimately touch neither the database nor a tenant. Explicit on
 # purpose: adding a route breaks every walk below until somebody consciously
 # decides which side it falls on.
-SIN_TENANT = {"/health", "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+SIN_TENANT = {
+    "/health",
+    "/health/ready",
+    "/openapi.json",
+    "/docs",
+    "/docs/oauth2-redirect",
+    "/redoc",
+}
 
 # Routes that need a verified identity but cannot need a role: the signup path,
 # where the whole point is that the caller does not hold one yet (T-011).
