@@ -129,7 +129,12 @@ class Athlete(Base):
     level: Mapped[str | None] = mapped_column(String(20))
     goal: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
+    # Three states, not a boolean. `pausado` hides the athlete from the coach's
+    # listing and leaves everything editable; `archivado` ends the link, and from
+    # T-027 on nothing can be written under it. The values are what the domain's
+    # `vinculo.Estado` carries — the enum is not used as the column type so that
+    # the ORM does not have to import the domain to describe a row.
+    estado: Mapped[str] = mapped_column(Text, server_default=text("'activo'"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     coach: Mapped[Coach] = relationship(back_populates="athletes")
@@ -142,9 +147,13 @@ class Athlete(Base):
             "level IS NULL OR level IN ('principiante','intermedio','avanzado')",
             name="athlete_level_ok",
         ),
-        # Partial: deactivated athletes do not pollute the index used by every
-        # listing the coach opens.
-        Index("athlete_coach_idx", "coach_id", postgresql_where=text("is_active")),
+        CheckConstraint(
+            "estado IN ('activo','pausado','archivado')",
+            name="athlete_estado_ok",
+        ),
+        # Partial: paused and archived athletes do not pollute the index used by
+        # every listing the coach opens.
+        Index("athlete_coach_idx", "coach_id", postgresql_where=text("estado = 'activo'")),
         # One person is at most one athlete of a given coach — but may be an
         # athlete of several coaches, and a coach may hold many records with no
         # account at all.

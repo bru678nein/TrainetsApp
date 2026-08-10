@@ -168,7 +168,7 @@ def crear_atleta(
 
 @router.get("/athletes", response_model=list[AthleteOut])
 def list_athletes(db: OrmSession = Depends(tenant_session)) -> Sequence[Athlete]:
-    return db.scalars(select(Athlete).where(Athlete.is_active)).all()
+    return db.scalars(select(Athlete).where(Athlete.estado == "activo")).all()
 
 
 @router.get("/athletes/{athlete_id}/sessions", response_model=list[SessionSummary])

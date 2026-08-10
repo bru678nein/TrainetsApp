@@ -19,17 +19,17 @@ Estado: `pendiente` · `en curso` · `hecha`
 | ID | Tarea | Verificado con |
 |---|---|---|
 | T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
+| T-019 | Migración: `athlete.estado` | ida y vuelta sobre la base sembrada; forzando `is_active = false` el backfill mapea a `pausado` y no a `archivado`; un estado inventado lo rechaza el `CHECK` de la base |
+| T-020 | Modelos y `docs/schema.sql` al día | `test_la_migracion_no_divergio_de_los_modelos`; el `CHECK` de la base se compara contra el enum del dominio |
+| T-021 | Consumidores de `is_active` | 5 tests nuevos; sacándole el filtro al listado caen 2, cambiándolo por `!= archivado` cae 1, y quitando un valor del `CHECK` caen 3 |
 | T-023 | Dominio: token de invitación | 9 tests escritos antes; 4 mutaciones —guardar el token en claro, estirar la vigencia, bajar la entropía, correr el borde del vencimiento— caen todas, y la del token en claro la caza el guardián de fuga |
 
 ## Pendientes
 
-Quince.
+Doce.
 
 | ID | Tarea |
 |---|---|
-| T-019 | Migración: `athlete.estado` |
-| T-020 | Modelos y `docs/schema.sql` al día |
-| T-021 | Consumidores de `is_active` |
 | T-024 | Migración: tabla `invitation` |
 | T-025 | RLS de `invitation` |
 | T-026 | Helpers `app_vinculo_escribible_<tabla>` |

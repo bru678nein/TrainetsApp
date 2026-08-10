@@ -69,10 +69,14 @@ CREATE TABLE athlete (
     level         text CHECK (level IN ('principiante','intermedio','avanzado')),
     goal          text,
     notes         text,
-    is_active     boolean NOT NULL DEFAULT true,
+    -- Tres estados y no un booleano. `pausado` esconde al atleta del listado y
+    -- deja todo editable; `archivado` cierra el vínculo y desde T-027 nadie
+    -- escribe debajo de él.
+    estado        text NOT NULL DEFAULT 'activo'
+                  CHECK (estado IN ('activo','pausado','archivado')),
     created_at    timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX athlete_coach_idx ON athlete (coach_id) WHERE is_active;
+CREATE INDEX athlete_coach_idx ON athlete (coach_id) WHERE estado = 'activo';
 
 -- Una persona es a lo sumo un atleta de un entrenador dado, pero puede serlo de
 -- varios entrenadores. Parcial y no UNIQUE normal: `user_id` es NULL en toda
