@@ -180,7 +180,8 @@ marcados.
   existe. Los recorridos de rutas de la 001 se parametrizan sobre las rutas que
   la app expone, así que cada endpoint que agregue esta feature rompe la suite
   hasta que alguien declare cómo se prueba. Eso es a propósito.
-- **Artículo V**: esta spec tiene tres `[NECESITA DEFINICIÓN]`, y por lo tanto
+- **Artículo V**: esta spec tiene dos `[NECESITA DEFINICIÓN]` —el presupuesto de
+  interacción lo cerró la Fase 0—, y por lo tanto
   **no habilita implementación**. Suponer para no frenar está prohibido.
 
 ## Riesgos
