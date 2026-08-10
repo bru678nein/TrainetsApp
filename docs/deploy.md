@@ -100,6 +100,18 @@ contenedor tiene salida a internet.
 **Arranca y no responde.** Uvicorn escuchando en `127.0.0.1` en vez de `0.0.0.0`.
 El `CMD` del Dockerfile ya lo resuelve; si lo sobreescribís, acordate.
 
+**El healthcheck pasa y el dominio público devuelve "Application failed to
+respond".** El puerto de destino del dominio no es el que el proceso escucha. El
+`CMD` usa `$PORT`, que la plataforma inyecta, mientras que el `EXPOSE 8000` del
+Dockerfile es lo que la plataforma mira para adivinar el destino cuando nadie se
+lo dice. Los dos números salen de lugares distintos y no tienen por qué coincidir.
+
+Distinguirlo de una app caída no requiere adivinar: si es el puerto, abrir el
+dominio **no deja ninguna línea** en el log del contenedor, porque el request
+nunca llega. El healthcheck no lo detecta porque va por dentro y no por el
+dominio — es el único caso donde estar en verde no significa nada para un
+visitante.
+
 **`permission denied for table ...` sobre una tabla nueva.** Falta el `GRANT`.
 No debería pasar: la migración 0003 dejó `ALTER DEFAULT PRIVILEGES`, así que toda
 tabla que cree una migración posterior queda accesible sola. Si pasa, es que
@@ -107,8 +119,12 @@ alguien creó la tabla con otro rol.
 
 ## Qué falta decidir
 
-**La plataforma.** `docs/PLAN.md` sugiere Railway o Fly.io, las dos con Postgres
-gestionado y deploy desde git. No está elegida.
+**La plataforma.** Railway, desplegada. `railway.json` fija el builder y el
+healthcheck; el resto es configuración del panel y no está versionada.
+
+Lo que había que averiguar antes de comprometerse era si permitía `CREATE ROLE`,
+porque sin eso la migración `0003` no corre y el aislamiento de T-007 no se puede
+desplegar tal cual. **Lo permite**, verificado contra la instancia real.
 
 **Backups.** Ninguno configurado. Con datos reales de entrenamiento adentro,
 perderlos es perder meses de trabajo del entrenador, no un inconveniente.
