@@ -1,5 +1,13 @@
 # Imagen de producción. Python 3.11, el mismo que corre CI.
 #
+# OJO CON EL CONTEXTO: las rutas son relativas a la RAÍZ del repositorio, no a
+# `backend/`. Railway —y cualquier plataforma que reciba `dockerfilePath`—
+# construye con el contexto en la raíz: esa opción dice dónde está el Dockerfile,
+# no desde dónde copia. Con rutas relativas a `backend/` el build muere en
+# `COPY requirements.txt` con un "not found" que no explica nada.
+#
+#   docker build -f backend/Dockerfile -t coachapp .      <- desde la raíz
+#
 # Dos etapas para que la imagen final no cargue con el compilador: psycopg y
 # cryptography traen wheels, pero si alguna vez falta una, el build necesita
 # herramientas que no tienen por qué viajar a producción.
@@ -13,7 +21,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN python -m venv /venv && /venv/bin/pip install -q -U pip && \
     /venv/bin/pip install -q -r requirements.txt
 
@@ -31,7 +39,7 @@ RUN useradd --create-home --uid 10001 app
 
 COPY --from=build /venv /venv
 WORKDIR /app
-COPY --chown=app:app . .
+COPY --chown=app:app backend/ .
 
 USER app
 EXPOSE 8000

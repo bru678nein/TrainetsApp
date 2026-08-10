@@ -1,0 +1,22 @@
+# Docker lo lee desde la raíz del contexto de build, que para esta imagen es la
+# raíz del repositorio. Uno en `backend/` no lo mira nadie.
+
+# Datos personales de un atleta real. Está en .gitignore, así que no viaja en el
+# snapshot de una plataforma que despliega desde git — pero un `docker build`
+# local sí lo metería en el contexto sin esto.
+data/
+
+.git/
+.github/
+sdd/
+docs/
+prompts/
+frontend/
+backend/.venv/
+backend/tests/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.env
