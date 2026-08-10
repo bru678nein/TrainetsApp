@@ -12,7 +12,7 @@ Nada de acá se versiona, ni siquiera un archivo que parezca inofensivo.
 |---|---|
 | `planilla.xlsx` | La que usa `make seed` y los tests de API. Es el único nombre que el código busca. |
 | `PLANTILLA_entrenamiento.xlsx` | La plantilla en blanco del entrenador, sin datos de nadie. Referencia para entender el formato de origen. |
-| `rutina_Nico_D.html` | Salida de `gen_app.py`, generada para un atleta real. Es un artefacto, se regenera cuando haga falta. |
+| `rutina_<atleta>.html` | Salida de `gen_app.py`, generada para un atleta real. Es un artefacto, se regenera cuando haga falta. El nombre del archivo lleva el del atleta, así que no se nombra acá: `data/` está en `.gitignore` justamente para que esos datos no entren al repo, y escribirlos en el README los mete igual por la puerta de al lado. |
 
 Los tres están ignorados por git. El tercero además lleva el nombre de una
 persona en el nombre del archivo, que es exactamente el motivo por el que la

@@ -17,15 +17,25 @@ import uuid
 from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
-import sqlalchemy as sa
-from alembic import command
-from alembic.config import Config
-from fastapi.routing import APIRoute
-from fastapi.testclient import TestClient
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as OrmSession
+
+if TYPE_CHECKING:
+    from fastapi.routing import APIRoute
+    from fastapi.testclient import TestClient
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session as OrmSession
+
+# SQLAlchemy, Alembic y FastAPI se importan adentro de las funciones que los
+# usan, no acá. El ADR 0002 dice que los tests de dominio corren "en
+# milisegundos sin dependencias", y con estos imports a nivel de módulo eso era
+# falso: pytest carga este archivo antes que cualquier test, así que un clon
+# limpio no podía correr ni la tabla de RPE sin instalar Postgres entero.
+#
+# Las anotaciones no cuentan: con `from __future__ import annotations` son
+# cadenas y no se evalúan, así que van bajo TYPE_CHECKING y no cuestan nada en
+# tiempo de ejecución.
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
@@ -54,6 +64,8 @@ def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:
     Walking only the top level returned zero data routes in the second shape,
     and the tests would have gone green without verifying anything at all.
     """
+    from fastapi.routing import APIRoute
+
     for n in nodos:
         if isinstance(n, APIRoute):
             yield n
@@ -86,6 +98,8 @@ def _test_dsn() -> str:
     name to end in `_test` is the only thing between running `pytest` with the
     wrong `.env` and losing the development database.
     """
+    import sqlalchemy as sa
+
     dsn = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not dsn:
         pytest.skip(
@@ -103,6 +117,10 @@ def _test_dsn() -> str:
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
     """Database migrated from scratch and seeded from the real spreadsheet, once."""
+    import sqlalchemy as sa
+    from alembic import command
+    from alembic.config import Config
+
     dsn = _test_dsn()
     eng = sa.create_engine(dsn, poolclass=sa.pool.NullPool)
     try:
@@ -141,6 +159,8 @@ def db(engine: Engine) -> Iterator[OrmSession]:
     `commit()` release a SAVEPOINT instead of closing the outer transaction, so
     the rollback here undoes it anyway.
     """
+    from sqlalchemy.orm import Session as OrmSession
+
     conn = engine.connect()
     trans = conn.begin()
     session = OrmSession(bind=conn, join_transaction_mode="create_savepoint")
@@ -283,6 +303,8 @@ def app_de_prueba(
     you are trying to verify.** When T-006 lands, what gets faked is the identity
     provider, not tenant resolution.
     """
+    import sqlalchemy as sa
+
     from app.api import deps
     from app.main import app
 
@@ -322,6 +344,8 @@ def app_de_prueba(
 @pytest.fixture
 def client(app_de_prueba, mint) -> Iterator[TestClient]:
     """Authenticated by default, so tests about something else stay about it."""
+    from fastapi.testclient import TestClient
+
     yield TestClient(
         app_de_prueba,
         headers={"Authorization": f"Bearer {mint()}", "Active-Role": "coach"},
@@ -331,6 +355,8 @@ def client(app_de_prueba, mint) -> Iterator[TestClient]:
 @pytest.fixture
 def raw_client(app_de_prueba) -> Iterator[TestClient]:
     """No default headers. For the tests that are about the headers."""
+    from fastapi.testclient import TestClient
+
     yield TestClient(app_de_prueba)
 
 

@@ -52,6 +52,26 @@ divergieron.
 Los tests del dominio (`app/domain/`) no tocan nada de esto y siguen corriendo
 en milisegundos sin dependencias, que es justamente el punto del artículo I.
 
+Esa afirmación fue falsa durante un tiempo y nadie se enteró: `conftest.py`
+importaba SQLAlchemy, Alembic y FastAPI a nivel de módulo, y pytest carga ese
+archivo antes que cualquier test, así que un clon limpio no podía correr ni la
+tabla de RPE. Los imports viven ahora adentro de las funciones que los usan.
+
+Se comprueba corriendo los tests de dominio en un intérprete donde importar esas
+tres librerías falla:
+
+```python
+import builtins
+real = builtins.__import__
+def bloqueado(nombre, *a, **k):
+    if nombre.split(".")[0] in {"sqlalchemy", "alembic", "fastapi"}:
+        raise ModuleNotFoundError(nombre)
+    return real(nombre, *a, **k)
+builtins.__import__ = bloqueado
+import pytest
+pytest.main(["tests/test_rpe.py", "tests/test_analytics.py", "tests/test_identity.py"])
+```
+
 Dos seguros:
 
 - La suite exige que el nombre de la base termine en `_test` antes de borrar

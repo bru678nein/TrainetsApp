@@ -20,7 +20,7 @@ Corolario práctico: cada decisión técnica que sirva para *demostrar criterio*
 
 El mercado en español ya tiene TotalGains, Feast Fit y TrainerStudio: generalistas, entrenador de gimnasio comercial, rutinas + dietas + IA, desde ~€30/mes. No entrás por idioma ni por precio.
 
-Entrás por **profundidad en fuerza**. Lo que ninguna de ellas modela en serio y la planilla de Nico sí:
+Entrás por **profundidad en fuerza**. Lo que ninguna de ellas modela en serio y la planilla que originó este proyecto sí:
 
 - Autorregulación por RPE/RIR, no sólo series × reps × kg.
 - Periodización real en mesociclos, con volumen por patrón de movimiento controlado semana a semana.
