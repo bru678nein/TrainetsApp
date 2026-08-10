@@ -1,6 +1,6 @@
 # 003 — Invitaciones y ciclo de vida del vínculo
 
-Estado: borrador · Rama: `003-invitaciones-y-vinculos`
+Estado: clarificada, lista para `/plan` · Rama: `003-invitaciones-y-vinculos`
 
 Depende de la 001, que define la identidad y el aislamiento. Esta feature es la
 que hace que el atleta pueda entrar por su cuenta y que la relación con un
@@ -52,10 +52,30 @@ El link es nuestro, no del proveedor de auth. La ficha del atleta existe antes
 que la cuenta, y las invitaciones del proveedor obligan al orden inverso. Ver
 ADR 0003.
 
+### Pausar no es archivar
+
+Son dos estados distintos y la diferencia es quién puede escribir.
+
+**Pausado** es lo que hoy hace `is_active = false`: el atleta desaparece del
+listado y nada más. El entrenador lo sigue editando. Existe para el caso más
+común de todos —alguien se lesiona, o para tres meses— donde el entrenador
+justamente necesita prepararle el programa de vuelta antes de que vuelva.
+
+**Archivado** es el fin del vínculo, y es el que define el resto de esta sección.
+
+Tenerlos separados es la diferencia entre esconder a alguien de una lista y
+declarar que la relación terminó. Colapsarlos le sacaría al entrenador una
+capacidad que hoy tiene: desactivar a un atleta en pausa y no poder tocarle el
+programa hasta reactivarlo.
+
 ### Fin del vínculo
 
-Cuando el entrenador da de baja a un atleta, o el atleta deja de entrenar con
-él, el vínculo se archiva. **No se borra nada.**
+Cuando el entrenador da de baja a un atleta, el vínculo se archiva. **No se borra
+nada.**
+
+Lo archiva el entrenador, siempre. Que el atleta se vaya por su cuenta es una
+relación que terminó en la vida real, pero no una acción del atleta en la app:
+está fuera de alcance más abajo, y por eso acá no aparece como disparador.
 
 Archivado: los dos siguen leyendo el historial completo, y ninguno de los dos
 puede modificarlo. No se prescriben sesiones nuevas ni se registran series sobre
@@ -94,6 +114,17 @@ conecta los dos espacios.
    A, ni que la persona haya entrenado antes con alguien.
 8. La misma persona acumula vínculos archivados con tres entrenadores distintos
    y uno activo con un cuarto. Ninguno de los cuatro ve a los otros tres.
+9. **Pausado no bloquea la escritura.** El entrenador pausa a un atleta, le
+   modifica el programa, y el cambio se guarda. Es lo que separa pausar de
+   archivar, y si este criterio pasa contra una implementación que los trata
+   igual, el criterio está mal escrito.
+10. Un atleta pausado no aparece en el listado del entrenador, y aparece de nuevo
+    al reanudarlo.
+11. Una invitación pendiente sobre una ficha que se archiva deja de servir. Sobre
+    una ficha que se pausa, sigue sirviendo.
+12. El entrenador invita a una persona que ya es atleta suyo y la invitación es
+    rechazada con un motivo propio, distinguible de un link vencido y de uno
+    inválido.
 
 ## Fuera de alcance
 
@@ -113,6 +144,9 @@ conecta los dos espacios.
 |---|---|
 | ¿El link de invitación vence? | Sí, a los 7 días. Regenerable, y regenerar invalida el anterior. |
 | ¿Qué pasa con el historial cuando termina el vínculo? | Se archiva. Ambos leen, ninguno edita. No se borra ni se transfiere. |
+| ¿Dar de baja y archivar son lo mismo? | No. **Pausado** esconde del listado y el entrenador sigue escribiendo; **archivado** cierra el vínculo y nadie escribe. Lo que hoy hace `is_active` es pausar. |
+| ¿Qué pasa si alguien acepta una invitación a un entrenador del que ya es atleta? | Se rechaza con un motivo propio. El índice `athlete_coach_user_uq` lo impide en la base de todos modos, y un error de unicidad no le explica nada a quien está del otro lado. Pasa cuando el entrenador crea la ficha dos veces. |
+| ¿Sobrevive una invitación pendiente al cambio de estado? | Archivar la invalida —el vínculo terminó—. Pausar no, porque la ficha sigue viva. |
 
 ## Cómo se relaciona con la constitución
 
