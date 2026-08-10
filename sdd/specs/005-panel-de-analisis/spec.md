@@ -76,18 +76,28 @@ información sólo existe en la cabeza del entrenador. Va a poder marcar una ses
 como **no esperada** — pero marcarla es escribir sobre el plan, no mirar el
 análisis, así que no vive acá: ver más abajo, en Depende de.
 
-Lo que sí decide esta spec es qué hace el panel con esas marcas, y es la parte que
-importa: **nunca reemplazan el número, lo acompañan.**
+Lo que sí decide esta spec es qué hace el panel con esas marcas: **nunca
+reemplazan el número, lo acompañan.**
 
 > **72%** sobre todo lo prescrito · **81%** excluyendo 4 sesiones no esperadas
 
-Los dos, siempre, y cuántas se excluyeron. Un denominador que el entrenador puede
-mover es un número que deja de compararse contra sí mismo, y el modo de falla no
-es la mala fe: es excluir una semana mala porque la persona venía con un momento
-difícil. Eso es exactamente cómo una métrica se vuelve decorativa. Con los dos
-números a la vista, ajustar sigue siendo posible y deja de ser invisible —y
-cuánto se excluyó dice algo por sí solo: quince sesiones de sesenta y ocho es un
-dato sobre el plan, no sobre el atleta.
+Y el motivo no es desconfiar del entrenador. Este producto es una herramienta para
+que alguien maneje a sus clientes; no hay nadie arriba evaluándolo por este
+número, así que ajustarlo no le sirve para engañar a nadie. Un marco de auditoría
+acá estaría de más y no es el que rige.
+
+El motivo es que son **dos preguntas distintas y un entrenador necesita las dos**:
+
+- *¿Cuánto de lo que planifiqué efectivamente pasó?* — el número crudo.
+- *¿Cumple cuando puede?* — el ajustado.
+
+Un atleta lesionado dos semanas acumuló menos volumen de verdad. El estímulo no
+ocurrió, y el mesociclo siguiente hay que armarlo sabiendo que le faltaron veinte
+series de isquios, sin importar de quién fue la culpa. La lesión explica el
+porqué; no devuelve el entrenamiento.
+
+El ajustado dice algo sobre la persona. El crudo dice algo sobre el cuerpo. Por
+eso van juntos.
 
 ### Un porcentaje sin su denominador miente
 
