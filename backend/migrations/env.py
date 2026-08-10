@@ -45,7 +45,11 @@ if _url:
     config.set_main_option("sqlalchemy.url", _url.replace("%", "%%"))
 elif not context.is_offline_mode():
     raise RuntimeError(
-        "Falta DATABASE_URL (o una url en la config de Alembic). Ver backend/.env.example"
+        "Falta DATABASE_URL en el entorno del proceso.\n"
+        "Esto lee os.getenv, así que un `.env` no alcanza y la variable tiene "
+        "que ir en la MISMA línea del comando, o exportada:\n"
+        "  DATABASE_URL=... python -m alembic upgrade head\n"
+        "  export DATABASE_URL=...   # y después el comando"
     )
 
 
