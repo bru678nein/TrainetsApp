@@ -14,17 +14,22 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ---
 
+## Hechas
+
+| ID | Tarea | Verificado con |
+|---|---|---|
+| T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
+| T-023 | Dominio: token de invitación | 9 tests escritos antes; 4 mutaciones —guardar el token en claro, estirar la vigencia, bajar la entropía, correr el borde del vencimiento— caen todas, y la del token en claro la caza el guardián de fuga |
+
 ## Pendientes
 
-Diecisiete, todas. La feature no empezó.
+Quince.
 
 | ID | Tarea |
 |---|---|
 | T-019 | Migración: `athlete.estado` |
 | T-020 | Modelos y `docs/schema.sql` al día |
 | T-021 | Consumidores de `is_active` |
-| T-022 | Dominio: transiciones de estado |
-| T-023 | Dominio: token de invitación |
 | T-024 | Migración: tabla `invitation` |
 | T-025 | RLS de `invitation` |
 | T-026 | Helpers `app_vinculo_escribible_<tabla>` |
@@ -40,8 +45,8 @@ Diecisiete, todas. La feature no empezó.
 
 El orden no es libre. T-026 necesita la columna de T-019, T-027 necesita los
 helpers de T-026, y T-031 no se puede escribir antes de que exista el bloqueo que
-traduce. T-022 y T-023 son de dominio puro y se pueden hacer en cualquier momento
-—no dependen de la base—, así que son el mejor punto de entrada.
+traduce. T-022 y T-023 eran de dominio puro y ya están; fueron el punto de entrada por
+no depender de la base.
 
 ## Base de datos
 
