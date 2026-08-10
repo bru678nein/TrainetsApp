@@ -1,118 +1,205 @@
 # AppWeb Lean
 
-Plataforma de entrenamiento para coaches de fuerza. El entrenador prescribe
-periodización por mesociclos, el atleta registra sus series desde el celular, y
-el entrenador ve volumen por patrón, progresión de carga y adherencia.
+A strength-coaching platform. The coach prescribes periodisation in mesocycles,
+the athlete logs sets from their phone, and the coach sees volume by movement
+pattern, load progression and adherence.
 
-## Arranque
+Built for a real coach, against a real training spreadsheet — 1,326 prescribed
+sets across 17 weeks. Development data is imported from it, never invented.
+
+**Status.** Backend done and deployed: identity, tenant isolation, and the first
+half of the invitation lifecycle. No frontend yet — until it exists, the athlete
+uses a self-contained HTML page generated from the spreadsheet. The tour below is
+therefore of code and a database, not of screens.
+
+---
+
+## What is worth looking at
+
+Three things, each with the evidence beside it.
+
+### 1. Tenant isolation lives in the database
+
+Not in a `WHERE coach_id = ?` that every endpoint has to remember. Nineteen Row
+Level Security policies, two per table — one per active role — and an application
+role that owns no table and is not a superuser, which are the two ways to end up
+exempt from RLS.
+
+Four details fail silently if missed, and each one is verified by breaking it:
+
+- **`FORCE`, not just `ENABLE`.** The owner is exempt from its own policies by
+  default, and migrations run as owner. A test walks what the database actually
+  has, so a table that gets one without the other is named out loud.
+- **`USING` does not apply to `INSERT`.** An athlete logging a set prescribed to
+  somebody else is rejected by `WITH CHECK`; with `USING` alone that acceptance
+  criterion is unmet while every read test stays green.
+- **And `WITH CHECK` does not apply to `DELETE`** — the same lesson mirrored,
+  found later. Measured in
+  [`spike/restrictive.py`](sdd/specs/003-invitaciones-y-vinculos/spike/restrictive.py):
+  under a policy that only checks writes, an archived row cannot be updated and
+  can still be deleted.
+- **A missing tenant context raises instead of returning zero rows.** A custom
+  setting can never go back to undefined once set, so a pooled connection that
+  lost its context read as "this user has no data" — for months, quietly. Now it
+  is a loud error on the first request.
+
+The cost of doing it this way was measured rather than assumed, and the
+measurement overturned a decision already argued for in the plan:
+
+| Table | Levels from its tenant | Execution |
+|---|---|---|
+| `athlete` | 0 | 0.14 ms |
+| `session` | 3 | 2 ms |
+| `prescription` | 4 | 1,143 ms |
+| `prescribed_set` | 5 | **timeout at 20 s** |
+
+RLS applies inside a policy's own subqueries, so the cost compounds at every
+level. Running the traversal inside a `SECURITY DEFINER` function cuts the
+recursion: the same query goes from timeout to **60 ms**. Shortening the chains
+was tried too and did not help — 892 ms — because what costs is the depth of the
+recursion, not the length of each hop.
+
+Design and negative controls:
+[`sdd/specs/001-identidad-y-aislamiento/plan.md`](sdd/specs/001-identidad-y-aislamiento/plan.md), section 4.
+
+### 2. "It passed" is not the standard
+
+271 tests, and the ones that matter are verified by **breaking the code and
+requiring a named test to fall**. A few that earned their keep:
+
+- Removing any one of the eighteen isolation policies makes a test name which one
+  is missing. Eighteen checks, not one.
+- The test harness itself was the largest hole: `dependency_overrides` replaces a
+  dependency *and its whole subtree*, so hanging an always-failing dependency off
+  the security chain left all 71 tests green. The seam moved down a level. The
+  rule it left written: **fake the outermost thing you have to, never the thing
+  you are trying to verify.**
+- `/health/ready` reported the applied migration without comparing it to the one
+  the code needs. It answered `ok` while the deployed database sat two revisions
+  behind and every data endpoint returned 500 — the route written so a deployment
+  could not look healthy while broken was the one saying it was fine.
+
+Two traps that silently invalidate mutation testing are documented rather than
+forgotten: bytecode that survives a same-length, same-second revert, and `fd` not
+seeing `__pycache__` because it honours `.gitignore`.
+
+### 3. The decisions are recorded, including the wrong ones
+
+Every feature carries a spec (what and why), a plan (how), and tasks that each
+declare **how you know it is done**. Commits reference their task and say what
+was learned, not only what changed.
+
+The interesting entries are the reversals: the isolation predicate that looked
+safe and leaked only once a neighbouring policy stopped gating on role; the
+migration backfill that maps a deactivated athlete to *paused* and never to
+*archived*, because the second is irreversible in practice; the interaction
+budget derived from timing the coach in Excel — 7 minutes for a week, 78
+prescribed sets, therefore 5.4 seconds per set — which proved that duplicate-and-
+adjust is not a convenience but the only operation that makes the budget close.
+
+Start here: [`sdd/README.md`](sdd/README.md) ·
+[`sdd/constitution.md`](sdd/constitution.md) · [`docs/adr/`](docs/adr/)
+
+The constitution has a compliance table stating which of its articles are
+actually enforced today and which are declared debt. That table being honest is
+worth more than it being green.
+
+---
+
+## Architecture
+
+**`app/domain/` imports no infrastructure.** No SQLAlchemy, no FastAPI, no
+database drivers. It takes and returns dataclasses or primitives and is tested
+with no database. CI enforces it.
+
+**`tenant_session` is the only way to reach the database from an endpoint.**
+`app.db` exposes a context manager and not a FastAPI dependency, precisely so
+that `Depends(open_session)` yields nothing usable. Data access and tenant
+resolution cannot be requested separately.
+
+**Identity is separate from role.** `app_user` holds the person; `coach.user_id`
+and `athlete.user_id` hold the roles. One person can be a coach and an athlete of
+several coaches — the case that turns a careless policy into a way out of the
+isolation. `athlete.user_id` being NULL is the central case, not an edge one: the
+coach builds the whole programme before the athlete signs up.
+
+**Migrations are the source of the schema.** `models.py` defines it, Alembic
+applies it, and a test fails if they diverge.
+
+**Authentication is delegated.** The provider issues the token and the backend
+verifies it against the JWKS, with no vendor SDK. Who you are comes from the JWT;
+**which role you are looking from** comes from a mandatory header with no
+default, because guessing it is what turns holding two roles into an escape
+hatch.
+
+Stack: FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Alembic. Frontend: React +
+TypeScript, not started.
+
+## Running it
 
 ```bash
-make setup            # venv + dependencias + hooks
-make db-up            # Postgres en Docker (crea coachapp y coachapp_test)
-make migrate          # aplica las migraciones a coachapp
-make db-app-password  # le pone contraseña al rol de aplicación (lo crea la 0003)
-make seed             # importa data/planilla.xlsx
-make api              # servidor en :8000, docs en /docs
-make test             # tests (contra coachapp_test)
+make setup            # venv, dependencies, hooks
+make db-up            # Postgres in Docker (creates coachapp and coachapp_test)
+make migrate
+make db-app-password  # the application role is created without one, on purpose
+make seed             # imports data/planilla.xlsx
+make api              # :8000, docs at /docs
+make check            # lint and tests — the same targets CI runs
 ```
 
-`make api` **no arranca sin configuración de auth**, y eso es a propósito: una
-app que levanta contenta verificando tokens contra nada es peor que una que se
-niega. Necesita un `backend/.env` con tres variables:
+`make api` **refuses to start without auth configuration**, deliberately: an app
+that boots happily verifying tokens against nothing is worse than one that does
+not boot. It needs a `backend/.env` with three variables:
 
 ```
-AUTH_ISSUER=...              # el `iss` que emite el proveedor
-AUTH_AUTHORIZED_PARTY=...    # se compara contra `azp`, NO contra `aud`
+AUTH_ISSUER=...              # the `iss` the provider issues
+AUTH_AUTHORIZED_PARTY=...    # compared against `azp`, NOT against `aud`
 AUTH_JWKS_URL=...            # <Frontend API URL>/.well-known/jwks.json
 ```
 
-Son las únicas que la app lee de ese archivo: `DATABASE_URL` y las demás las pasa
-el Makefile por línea de comando. Ver `docs/adr/0003` y `docs/adr/0004`.
+Those three are the only ones read from that file. See
+[`docs/adr/0003`](docs/adr/) and [`docs/deploy.md`](docs/deploy.md).
 
-## Estructura
+Tests run against real PostgreSQL, never SQLite: CHECK constraints, `citext` and
+the views do not exist there, so testing on it bought false confidence. Without
+Postgres at hand the database tests skip with a clear message and the domain
+tests still run.
 
-| Carpeta | Qué hay |
+The development spreadsheet is **not versioned** — it holds a real athlete's
+personal data — so it is absent from a clean clone, and the tests that depend on
+it skip rather than fail.
+
+## Layout
+
+| Path | What is there |
 |---|---|
-| `backend/app/domain/` | Lógica pura: RPE, e1RM, volumen, adherencia. Sin I/O. |
-| `backend/app/` | Modelos, esquemas, endpoints |
-| `backend/migrations/` | Migraciones de Alembic. Fuente del esquema real. |
-| `backend/importer/` | Carga planillas reales al esquema |
-| `backend/scripts/` | Herramientas sueltas. Ver abajo. |
-| `backend/tests/` | Dominio puro, esquema contra Postgres real, API, autenticación y composición de dependencias |
-| `frontend/` | React + TypeScript (PWA). Vacío hasta la feature 004. |
-| `data/` | Planillas reales. Ignorada por git salvo su README. |
-| `sdd/` | Constitución, specs y flujo de trabajo |
-| `.specify/` | Memoria de Spec Kit |
-| `docs/` | `PLAN.md`, `schema.sql` de referencia y ADRs |
-| `prompts/` | Prompts de arranque y de contexto para el proyecto |
+| `backend/app/domain/` | Pure logic: RPE, e1RM, volume, adherence, identity, link states. No I/O. |
+| `backend/app/` | Models, schemas, endpoints, dependencies |
+| `backend/migrations/` | Alembic. The source of the real schema. |
+| `backend/importer/` | Loads real spreadsheets into the schema |
+| `backend/tests/` | Domain, schema against real Postgres, API, auth, dependency composition |
+| `frontend/` | React + TypeScript (PWA). Empty until feature 004. |
+| `sdd/` | Constitution, specs, workflow |
+| `docs/` | `PLAN.md`, reference `schema.sql`, ADRs, deployment runbook |
 
-### Herramientas
+`backend/scripts/gen_app.py` generates a self-contained HTML app from a
+spreadsheet. The athlete opens it on their phone, logs sets and exports CSV. It
+is the bridge until the frontend exists.
 
-`backend/scripts/gen_app.py` genera una app web autocontenida —un solo `.html`—
-desde una planilla. El atleta la abre en el celular sin instalar nada, registra
-sus series y exporta lo cargado a CSV. Es el puente hasta que exista el frontend.
+## How it is developed
 
-```bash
-cd backend && .venv/bin/python scripts/gen_app.py ../data/planilla.xlsx rutina.html
-```
+Spec-Driven Development. No code without an approved spec, and a spec with an
+open `[NECESITA DEFINICIÓN]` marker does not authorise implementation — guessing
+to keep moving is forbidden.
 
-Necesita `scripts/template.html`, que vive al lado.
+| Feature | State |
+|---|---|
+| 001 Identity and tenant isolation | **done**, 22 of 22 tasks |
+| 002 Routine editor | spec written, **blocked** on two definitions |
+| 003 Invitations and link lifecycle | **in progress**, 7 of 17 |
+| 004 Session view and phone logging | not started |
+| 005 Analytics panel | not started; the domain is done and tested |
+| 006 Offline PWA | not started |
 
-## Base de datos
-
-PostgreSQL 16+ y sólo PostgreSQL. El esquema lo definen los modelos de
-SQLAlchemy en `backend/app/models.py`, y las migraciones de Alembic lo aplican.
-Lo que el ORM no expresa —las extensiones `pgcrypto` y `citext`, el índice
-funcional de `exercise`, la vista `weekly_volume`— está escrito a mano en la
-migración correspondiente.
-
-`docs/schema.sql` es documentación de referencia, no se aplica: quedó como el
-registro de por qué el esquema es como es. Si tocás `models.py`, generá la
-migración con `make migration m="..."`; hay un test que falla si divergen.
-
-Los tests corren contra Postgres real, nunca contra SQLite. Los CHECK
-constraints, `citext` y la vista no existen en SQLite, así que testear ahí daba
-confianza falsa. Sin Postgres a mano, los tests de base se saltan con un mensaje
-claro y los del dominio corren igual.
-
-## Datos de desarrollo
-
-El entorno se siembra con planillas reales de entrenamiento, no con datos
-inventados (constitución, artículo IX). Los datos reales traen los casos borde
-que los seeds sintéticos esconden: prescripciones compuestas en texto libre,
-series de más de 12 repeticiones fuera de la tabla RPE, cargas que cambian entre
-series del mismo ejercicio.
-
-La planilla va en `data/planilla.xlsx` y **no se versiona**: contiene datos
-personales de un atleta real (nombre, peso corporal, lesiones anotadas en los
-comentarios). Está en `.gitignore` junto con el resto de `data/`.
-
-```bash
-make seed      # importa data/planilla.xlsx a la base
-```
-
-Sin ese archivo, los tests de API se saltan con un mensaje explicativo y los del
-dominio corren igual — no hacen falta datos.
-
-## Autenticación y aislamiento
-
-El proveedor de identidad es externo y el backend sólo verifica el token
-(constitución, artículo VIII). Quién sos sale del JWT; **desde qué rol estás
-mirando** sale de un header `Active-Role`, obligatorio y sin default: una persona
-puede ser entrenadora y, a la vez, atleta de otro, y adivinar el rol cuando falta
-es lo que convierte eso en una vía de escape.
-
-El aislamiento no depende de que cada endpoint se acuerde de filtrar. Está en la
-base, con Row Level Security: dos policies por tabla, una por rol, y un rol de
-aplicación que no es dueño de las tablas ni superusuario —las dos formas de
-quedar exento de RLS—. Olvidarse del contexto no devuelve datos de más: da error.
-
-Ver `sdd/specs/001-identidad-y-aislamiento/` para el diseño y el spike que lo
-prueba rompiéndolo.
-
-## Cómo se desarrolla
-
-Spec-Driven Development. Nada de código sin spec aprobada. Ver `sdd/README.md`.
-
-La regla de arquitectura que no se rompe: **`app/domain/` no importa
-SQLAlchemy, FastAPI ni drivers de base de datos.** Lo verifica CI.
+Most documentation is still in Spanish; translating it is declared debt, and this
+file is the first instalment.
