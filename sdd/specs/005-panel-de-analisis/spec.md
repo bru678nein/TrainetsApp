@@ -69,9 +69,25 @@ descartar las sesiones sin nada registrado mueve la adherencia de bisagra de
 cadera de 72% a 74% — dos puntos, a cambio de una definición que no se puede
 sostener con evidencia.
 
-La consecuencia hay que decirla: **un atleta lesionado dos semanas se ve igual
-que uno que abandonó.** El entrenador sabe cuál es; el panel no. Distinguirlos
-necesitaría poder marcar una sesión como no esperada, y eso está fuera de alcance.
+### Lo excluido se muestra, nunca se descuenta
+
+Un atleta lesionado dos semanas se ve igual que uno que abandonó, y esa
+información sólo existe en la cabeza del entrenador. Va a poder marcar una sesión
+como **no esperada** — pero marcarla es escribir sobre el plan, no mirar el
+análisis, así que no vive acá: ver más abajo, en Depende de.
+
+Lo que sí decide esta spec es qué hace el panel con esas marcas, y es la parte que
+importa: **nunca reemplazan el número, lo acompañan.**
+
+> **72%** sobre todo lo prescrito · **81%** excluyendo 4 sesiones no esperadas
+
+Los dos, siempre, y cuántas se excluyeron. Un denominador que el entrenador puede
+mover es un número que deja de compararse contra sí mismo, y el modo de falla no
+es la mala fe: es excluir una semana mala porque la persona venía con un momento
+difícil. Eso es exactamente cómo una métrica se vuelve decorativa. Con los dos
+números a la vista, ajustar sigue siendo posible y deja de ser invisible —y
+cuánto se excluyó dice algo por sí solo: quince sesiones de sesenta y ocho es un
+dato sobre el plan, no sobre el atleta.
 
 ### Un porcentaje sin su denominador miente
 
@@ -124,11 +140,16 @@ Se escriben como pruebas.
    nada. Depende de la 003.
 7. La progresión de carga de un ejercicio muestra las semanas en las que se
    prescribió, incluidas aquellas en las que no se registró nada.
+8. Con sesiones marcadas como no esperadas, el panel muestra **las dos**
+   adherencias y cuántas sesiones se excluyeron. Nunca sólo la ajustada.
+9. Sin ninguna sesión marcada, el panel no muestra un segundo número vacío ni un
+   "0 excluidas": la fila no existe hasta que exista una marca.
 
 ## Fuera de alcance
 
-- **Editar cualquier cosa.** Este panel se lee. Prescribir es la 002 y registrar
-  es la 004.
+- **Editar cualquier cosa, incluido marcar una sesión como no esperada.** Este
+  panel se lee. Prescribir es la 002, registrar es la 004, y marcar es una
+  escritura sobre el plan — el panel consume esas marcas y no las produce.
 - **Exportar.** Ni CSV ni PDF. Si el entrenador necesita sacar los datos para
   responder su pregunta, el panel no la respondió.
 - **Comparar atletas entre sí.** El plan de cada uno es distinto y la comparación
@@ -136,6 +157,17 @@ Se escriben como pruebas.
 - **Predicciones, proyecciones de 1RM a futuro o recomendaciones automáticas.**
   Este producto le da criterio al entrenador, no lo reemplaza.
 - **Rangos de fechas arbitrarios.** La unidad es el mesociclo.
+
+## Depende de
+
+**Poder marcar una sesión como no esperada.** No existe todavía. Es una escritura
+sobre el plan —una sesión que el entrenador declara que no correspondía— y por
+eso no entra en una feature de sólo lectura. Es chica e independiente de la 002,
+así que puede salir antes que el editor.
+
+El panel funciona sin eso: muestra la adherencia cruda, que es la única que hay.
+El criterio 9 existe para que la ausencia de marcas no deje una fila vacía
+prometiendo una función que no está.
 
 ## Definiciones resueltas
 
