@@ -43,4 +43,8 @@ EXPOSE 8000
 # El host es 0.0.0.0 porque adentro de un contenedor el default de uvicorn
 # —127.0.0.1— sólo escucha desde adentro, y el balanceador no llega. Es la causa
 # más común de "deployó bien y no responde".
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# `sh -c` y no la forma exec, porque hace falta expandir $PORT: las plataformas
+# gestionadas inyectan el puerto que quieren que escuches y enrutan hacia ahí.
+# Con un puerto fijo, el deploy sale bien y el balanceador no encuentra a nadie.
+# El 8000 queda de default para correrlo a mano.
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -38,7 +38,29 @@ def get_engine() -> Engine:
             "Falta DATABASE_URL en el entorno. `make api` la pasa sola; "
             "a mano: DATABASE_URL=... python -m uvicorn app.main:app"
         )
-    return create_engine(dsn, pool_pre_ping=True)
+    return create_engine(_con_driver(dsn), pool_pre_ping=True)
+
+
+def _con_driver(dsn: str) -> str:
+    """Pin the driver when the DSN does not name one.
+
+    Every managed provider hands out `postgresql://…`, which is correct URL
+    syntax and which SQLAlchemy resolves to psycopg2 — a driver this project
+    does not install, because it uses psycopg 3. The failure is
+    `ModuleNotFoundError: No module named 'psycopg2'`, which mentions neither
+    the DSN nor the provider, and sends whoever reads it looking in the wrong
+    place entirely.
+
+    Normalising is not magic: `postgresql://` says "PostgreSQL" and says nothing
+    about the driver, so choosing the one we ship is answering a question the
+    DSN left open. A DSN that *does* name a driver is left alone, including one
+    that names another — that is a decision somebody made, and overriding it
+    silently would be the magic worth avoiding.
+    """
+    for prefijo in ("postgresql://", "postgres://"):
+        if dsn.startswith(prefijo):
+            return "postgresql+psycopg://" + dsn[len(prefijo) :]
+    return dsn
 
 
 @contextmanager
