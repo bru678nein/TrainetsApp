@@ -13,13 +13,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Dos. La primera es la única escritura que falta: hasta que
-existan, la API sólo lee —salvo registrar una serie ya prescrita— y no hay forma
-de crear un entrenador ni un atleta salvo por el importador.
-
-| ID | Tarea |
-|---|---|
-| T-018 | Documentación y tabla de cumplimiento |
+Ninguna. Las veintidós están hechas.
 
 ## Hechas
 
