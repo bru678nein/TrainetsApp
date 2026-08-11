@@ -122,17 +122,19 @@ verifica hoy y con qué.
 |---|---|
 | I — dominio sin infraestructura | `grep` en CI sobre `app/domain/`, y `test_el_dominio_no_importa_infraestructura`, que lee los `import` con AST en vez del texto — el grep marcaría un módulo que apenas nombre una librería en un comentario. Automático. |
 | II — la base rechaza lo imposible | `tests/test_schema.py`: CHECKs, `citext`, índice funcional, vista. Automático. |
-| III — aislamiento por tenant | **Cumplido.** RLS en las migraciones 0004 y 0005: 18 policies, dos por tabla, con `FORCE`, y un rol de aplicación que no es dueño ni superusuario. La capa HTTP resuelve el tenant en el router. Tres recorridos sobre *todas* las rutas de la app —sin credenciales, sin `Active-Role`, recurso ajeno— parametrizados sobre las rutas descubiertas y no sobre una lista, así que un endpoint nuevo rompe la suite hasta que alguien decida cómo se prueba. Automático. |
+| III — aislamiento por tenant | **Cumplido.** RLS en las migraciones 0004, 0005 y 0007: 19 policies, dos por tabla —una sola en `invitation`, que el atleta no lee—, con `FORCE`, y un rol de aplicación que no es dueño ni superusuario. La capa HTTP resuelve el tenant en el router. Tres recorridos sobre *todas* las rutas de la app —sin credenciales, sin `Active-Role`, recurso ajeno— parametrizados sobre las rutas descubiertas y no sobre una lista, así que un endpoint nuevo rompe la suite hasta que alguien decida cómo se prueba. Automático. |
 | IV — tests del dominio primero | Revisión humana. No es automatizable. |
 | V — toda spec declara lo que no hace | Revisión humana al aprobar la spec. |
 | VI — simplicidad por default | Revisión humana. |
-| VII — velocidad del entrenador | Nada todavía: no existe el editor. Llega con la feature 002. |
+| VII — velocidad del entrenador | **El umbral existe desde el 2026-08-10** y antes no: la Fase 0 cronometró al entrenador armando una semana en la planilla en unos 7 minutos, que cruzado con la composición real —4 sesiones, 27 prescripciones, 78 series— da 5,4 segundos por serie. Está escrito en la spec de la 002 como criterio falsable con cronómetro. Lo que falta es contra qué medirlo: no existe el editor. Revisión humana cuando exista. |
 | VIII — nada de auth propia | Proveedor en el ADR 0003, librería en el 0004, cierre de sesión en el 0005 — delegado, sin estado de sesión propio. La firma la verifica PyJWT; lo nuestro es decidir con los claims ya decodificados (T-004 a T-006). Automático: `tests/test_tokens.py` firma con claves reales y prueba las falsificaciones. |
 | IX — datos de desarrollo reales | `make seed` importa la planilla, y 7 de los 16 archivos de test la usan por la fixture `seeded`, que los saltea cuando falta. Los otros 9 construyen su propio escenario: los criterios 9 a 11 y los recorridos de rutas tienen que correr en CI, donde la planilla no existe. |
 | X — cada artefacto es rastreable | Revisión humana. Desde la feature 001 los commits referencian su `T-NNN`; los anteriores no, y hay código en `main` sin spec previa. **La deuda vieja queda**, lo que cambió es que dejó de crecer. |
 
-Lo que queda en deuda son los artículos VII —no existe el editor todavía— y X,
-donde la trazabilidad vieja no se recupera y sólo dejó de crecer. Las filas que
+Lo que queda en deuda es el artículo X, donde la trazabilidad vieja no se
+recupera y sólo dejó de crecer. El VII dejó de ser deuda a medias: el umbral ya
+está medido y escrito, y lo que falta no es la definición sino el editor contra
+el cual aplicarla. Las filas que
 dicen "revisión humana" no son deuda: son cosas que no se automatizan, y decirlo
 vale más que fingir un chequeo.
 
