@@ -17,6 +17,7 @@ from app.api.deps import (
 )
 from app.domain.analytics import (
     SetRecord,
+    adherence_by_pattern,
     adherence_by_week,
     load_progression,
     weekly_volume,
@@ -44,6 +45,7 @@ from app.schemas import (
     LoadProgressionOut,
     LogSetIn,
     LogSetOut,
+    PatternAdherenceOut,
     SessionOut,
     SessionSummary,
     SetOut,
@@ -364,6 +366,36 @@ def adherence(
             else None,
         )
         for a in adherence_by_week(_records(db, athlete_id))
+    ]
+
+
+@router.get("/athletes/{athlete_id}/adherence/by-pattern", response_model=list[PatternAdherenceOut])
+def adherence_por_patron(
+    athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)
+) -> list[PatternAdherenceOut]:
+    """Adherence grouped where the answer is, worst first.
+
+    By week, an athlete who does everything except hamstrings reads as 90% and
+    says nothing. By pattern, the hamstrings sit at 72% against 99% for the rest,
+    and that is something a coach can act on.
+
+    The ordering is part of the answer and is decided here rather than in the
+    browser: sorting by worst compliance puts the problem at the top without
+    anybody looking for it, and alphabetical hides it among the ones that comply.
+    """
+    _athlete_or_404(db, athlete_id)
+    return [
+        PatternAdherenceOut(
+            pattern=a.pattern,
+            sets_planned=a.sets_planned,
+            sets_done=a.sets_done,
+            completion_rate=round(a.completion_rate, 4),
+            in_range_rate=round(a.in_range_rate, 4),
+            avg_rir_deviation=round(a.avg_rir_deviation, 3)
+            if a.avg_rir_deviation is not None
+            else None,
+        )
+        for a in adherence_by_pattern(_records(db, athlete_id))
     ]
 
 

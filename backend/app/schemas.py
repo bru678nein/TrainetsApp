@@ -138,6 +138,22 @@ class VolumeOut(BaseModel):
     tonnage_kg: float
 
 
+class PatternAdherenceOut(BaseModel):
+    """Las tres preguntas de la spec, por patrón de movimiento.
+
+    Viaja con `sets_planned` y no sólo con los porcentajes: un porcentaje sin su
+    denominador miente. Cero de una serie y cero de doscientas se dibujan igual y
+    significan cosas opuestas.
+    """
+
+    pattern: str
+    sets_planned: int
+    sets_done: int
+    completion_rate: float
+    in_range_rate: float
+    avg_rir_deviation: float | None
+
+
 class LoadPointOut(BaseModel):
     """One week of an exercise. `load_kg` is null when nothing was logged.
 

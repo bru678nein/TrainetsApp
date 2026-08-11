@@ -43,3 +43,34 @@ h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
   font-size: 0.875rem;
 }
 .estado--falla { border-style: solid; border-color: var(--alerta); color: var(--alerta); }
+
+/* Adherencia. Barras proporcionales y nada más: es la vista que contesta la
+   pregunta del panel, y lo que la hace legible es el orden y el contraste, no
+   una librería de gráficos. */
+.adherencia { list-style: none; margin: 0; padding: 0; }
+.adherencia__fila {
+  display: grid;
+  grid-template-columns: 190px 1fr 3rem 4rem;
+  align-items: center;
+  gap: var(--paso);
+  margin-bottom: calc(var(--paso) * 0.75);
+  font-size: 0.8125rem;
+}
+.adherencia__nombre { text-align: right; color: var(--tinta-suave); }
+.adherencia__nombre--flojo { color: var(--tinta); font-weight: 600; }
+.adherencia__pista {
+  position: relative;
+  height: 18px;
+  background: var(--prescrito);
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+.adherencia__hecho {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--hecho);
+  border-radius: var(--radio);
+}
+.adherencia__hecho--flojo { background: var(--alerta); }
+.adherencia__cifra { font-variant-numeric: tabular-nums; }
+.adherencia__base { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }

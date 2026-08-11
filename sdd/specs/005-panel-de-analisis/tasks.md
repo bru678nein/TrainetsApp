@@ -26,15 +26,15 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-041 | Rutas y carcasa | 6 tests; 3 mutaciones cazadas —montar las rutas fuera de la puerta de sesión, cambiar el nombre del parámetro de la URL, sacar la ruta de página inexistente—. En el navegador: entrar directo a `/atletas/abc-123` conserva la dirección y la app arranca ahí |
 | T-042 | Listado de atletas | 6 tests; 5 mutaciones cazadas —filtrar en el navegador, sacar el estado vacío, el de error o el de carga, y enlazar siempre al mismo atleta— |
 | T-043 | Estados vacío, de carga y de error | 6 tests propios más los del listado; 4 mutaciones cazadas —ignorar el vacío, no anunciar carga o error, reemplazar el motivo por un "sin datos" genérico—. La quinta, invertir carga y error, es **equivalente**: nunca son verdaderas a la vez |
+| T-044 | Vista de adherencia desagregada | El plan daba por hecho que `/adherence` desagregaba y devuelve **por semana**: hubo que agregar `adherence_by_pattern` al dominio y su endpoint, con los dos cortes compartiendo un solo acumulador. 5 tests de dominio, 7 de vista, 5 mutaciones cazadas. Contra la planilla real reproduce el 72% de bisagra sobre 226 series, arriba de todo |
 | T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
 
 ## Pendientes
 
-Cinco.
+Cuatro.
 
 | ID | Tarea |
 |---|---|
-| T-044 | Vista de adherencia desagregada |
 | T-045 | Vista de volumen por patrón |
 | T-046 | Vista de progresión de carga |
 | T-047 | CI corre la suite del frontend |

@@ -1,6 +1,17 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+
+import { Adherencia } from "./Adherencia";
 
 export function PanelDelAtleta() {
   const { atletaId } = useParams();
-  return <h2>Panel de {atletaId}</h2>;
+  if (!atletaId) return null;
+
+  return (
+    <>
+      <p>
+        <Link to="/">← Atletas</Link>
+      </p>
+      <Adherencia atletaId={atletaId} />
+    </>
+  );
 }

@@ -20,3 +20,30 @@ export function useAtletas() {
     queryFn: ({ signal }) => pedir("/api/athletes", signal) as Promise<Atleta[]>,
   });
 }
+
+export type AdherenciaDePatron = {
+  pattern: string;
+  sets_planned: number;
+  sets_done: number;
+  completion_rate: number;
+  in_range_rate: number;
+  avg_rir_deviation: number | null;
+};
+
+/**
+ * Adherence by movement pattern, already sorted worst-first by the API.
+ *
+ * The order is not re-derived here on purpose. It is part of the answer — it puts
+ * the pattern being skipped at the top without anybody looking for it — and a
+ * second sort in the browser is a second place for it to change.
+ */
+export function useAdherenciaPorPatron(atletaId: string) {
+  const pedir = useApi();
+  return useQuery({
+    queryKey: ["adherencia", atletaId],
+    queryFn: ({ signal }) =>
+      pedir(`/api/athletes/${atletaId}/adherence/by-pattern`, signal) as Promise<
+        AdherenciaDePatron[]
+      >,
+  });
+}

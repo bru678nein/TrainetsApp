@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 
@@ -76,12 +76,27 @@ def weekly_volume(records: Iterable[SetRecord]) -> list[WeeklyVolume]:
 
 @dataclass
 class Adherence:
-    week: int
+    """Las tres preguntas, para un grupo de series.
+
+    `clave` es la semana o el patrón según cómo se haya agrupado. Son la misma
+    aritmética contestada sobre dos cortes distintos, y escribirla dos veces es
+    garantizar que un arreglo entre en uno solo.
+    """
+
+    clave: object
     sets_planned: int = 0
     sets_done: int = 0
     sets_in_range: int = 0
     tonnage_kg: float = 0.0
     _rir_devs: list[float] = field(default_factory=list, repr=False)
+
+    @property
+    def week(self) -> int:
+        return int(self.clave)  # type: ignore[call-overload]
+
+    @property
+    def pattern(self) -> str:
+        return str(self.clave)
 
     @property
     def completion_rate(self) -> float:
@@ -96,10 +111,13 @@ class Adherence:
         return sum(self._rir_devs) / len(self._rir_devs) if self._rir_devs else None
 
 
-def adherence_by_week(records: Iterable[SetRecord]) -> list[Adherence]:
-    acc: dict[int, Adherence] = {}
+def _acumular(
+    records: Iterable[SetRecord], clave: Callable[[SetRecord], object]
+) -> list[Adherence]:
+    """La aritmética, una sola vez. Lo que cambia entre cortes es cómo se agrupa."""
+    acc: dict[object, Adherence] = {}
     for r in records:
-        a = acc.setdefault(r.week, Adherence(week=r.week))
+        a = acc.setdefault(clave(r), Adherence(clave=clave(r)))
         a.sets_planned += 1
         if r.was_performed:
             a.sets_done += 1
@@ -109,7 +127,23 @@ def adherence_by_week(records: Iterable[SetRecord]) -> list[Adherence]:
             dev = r.rir_deviation
             if dev is not None:
                 a._rir_devs.append(dev)
-    return sorted(acc.values(), key=lambda a: a.week)
+    return list(acc.values())
+
+
+def adherence_by_week(records: Iterable[SetRecord]) -> list[Adherence]:
+    return sorted(_acumular(records, lambda r: r.week), key=lambda a: a.week)
+
+
+def adherence_by_pattern(records: Iterable[SetRecord]) -> list[Adherence]:
+    """Ordenado por el que peor cumple, no alfabéticamente.
+
+    El orden es la mitad del diseño de esta vista: pone arriba el patrón que se
+    saltea sin que nadie tenga que buscarlo. Alfabético lo esconde entre los que
+    cumplen.
+    """
+    return sorted(
+        _acumular(records, lambda r: r.pattern), key=lambda a: (a.completion_rate, a.pattern)
+    )
 
 
 def load_progression(records: Iterable[SetRecord]) -> dict[str, dict[int, float | None]]:

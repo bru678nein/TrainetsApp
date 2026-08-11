@@ -1,5 +1,6 @@
 from app.domain.analytics import (
     SetRecord,
+    adherence_by_pattern,
     adherence_by_week,
     load_progression,
     weekly_volume,
@@ -115,3 +116,57 @@ class TestProgression:
         """En la misma semana conviven una registrada y una que no."""
         recs = [s(week=1, load_kg=100, reps_done=5), s(week=1)]
         assert load_progression(recs)["PRESS BANCA"] == {1: 100}
+
+
+class TestAdherenciaPorPatron:
+    """Lo mismo que por semana, pero agrupado donde está la respuesta.
+
+    Por semana, un atleta que cumple todo salvo isquios se ve al 90% y no dice
+    nada. Por patrón, los isquios quedan al 72% contra el 99% del resto, y eso sí
+    es accionable. Es la razón por la que existe esta feature.
+    """
+
+    def test_agrupa_por_patron_y_no_por_semana(self):
+        recs = [
+            s(week=1, pattern="isquios", reps_done=None),
+            s(week=2, pattern="isquios", reps_done=8),
+            s(week=1, pattern="cuadriceps", reps_done=8),
+            s(week=2, pattern="cuadriceps", reps_done=8),
+        ]
+        por_patron = {a.pattern: a for a in adherence_by_pattern(recs)}
+        assert por_patron["isquios"].sets_planned == 2
+        assert por_patron["isquios"].sets_done == 1
+        assert por_patron["cuadriceps"].sets_done == 2
+
+    def test_viene_ordenado_por_el_que_peor_cumple(self):
+        """El orden es la mitad del diseño: pone el problema arriba sin buscarlo."""
+        recs = [
+            s(pattern="bien", reps_done=8),
+            s(pattern="mal", reps_done=None),
+            s(pattern="mal", reps_done=None),
+            s(pattern="regular", reps_done=8),
+            s(pattern="regular", reps_done=None),
+        ]
+        assert [a.pattern for a in adherence_by_pattern(recs)] == ["mal", "regular", "bien"]
+
+    def test_trae_el_denominador_y_no_solo_el_porcentaje(self):
+        """Un porcentaje sin su denominador miente: 0 de 1 y 0 de 200 no son lo mismo."""
+        recs = [s(pattern="p", reps_done=None)]
+        a = adherence_by_pattern(recs)[0]
+        assert a.sets_planned == 1
+        assert a.completion_rate == 0.0
+
+    def test_contesta_las_tres_preguntas(self):
+        """Hacer la serie, pegarle al rango, y entrenar a la intensidad pedida."""
+        recs = [
+            s(pattern="p", reps_min=8, reps_max=10, rir_min=2, rir_max=2, reps_done=9, rir_done=4),
+        ]
+        a = adherence_by_pattern(recs)[0]
+        assert a.completion_rate == 1.0
+        assert a.in_range_rate == 1.0
+        assert a.avg_rir_deviation == 2.0
+
+    def test_un_patron_sin_nada_registrado_no_divide_por_cero(self):
+        a = adherence_by_pattern([s(pattern="p", reps_done=None)])[0]
+        assert a.in_range_rate == 0.0
+        assert a.avg_rir_deviation is None
