@@ -47,3 +47,20 @@ export function useAdherenciaPorPatron(atletaId: string) {
       >,
   });
 }
+
+export type VolumenSemanal = {
+  week: number;
+  pattern: string;
+  sets_planned: number;
+  sets_done: number;
+  tonnage_kg: number;
+};
+
+export function useVolumen(atletaId: string) {
+  const pedir = useApi();
+  return useQuery({
+    queryKey: ["volumen", atletaId],
+    queryFn: ({ signal }) =>
+      pedir(`/api/athletes/${atletaId}/volume`, signal) as Promise<VolumenSemanal[]>,
+  });
+}

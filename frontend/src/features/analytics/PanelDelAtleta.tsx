@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { Adherencia } from "./Adherencia";
+import { Volumen } from "./Volumen";
 
 export function PanelDelAtleta() {
   const { atletaId } = useParams();
@@ -12,6 +13,7 @@ export function PanelDelAtleta() {
         <Link to="/">← Atletas</Link>
       </p>
       <Adherencia atletaId={atletaId} />
+      <Volumen atletaId={atletaId} />
     </>
   );
 }
