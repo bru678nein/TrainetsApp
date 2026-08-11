@@ -61,7 +61,7 @@ En orden. Cada una depende de la anterior.
 | 002 | Editor de rutinas | **desbloqueada**, lista para `/plan` | El riesgo real del producto. Las tres definiciones se cerraron con evidencia: el presupuesto de interacción cronometrando la planilla, y la regla de progresión midiéndola — resultó que lo que progresa es el RIR y no la carga. |
 | 003 | Invitaciones y ciclo de vida del vínculo | **en curso**, 7 de 17 (T-019 a T-025 hechas) | Salió de partir la 001. Habilita la 004, que es donde la Fase 0 puso el riesgo real del producto. El bloqueo de escritura sobre lo archivado está medido en `spike/restrictive.py`. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
-| 005 | Panel de análisis | **en curso**, 3 de 13 | El backend está y el frontend arranca: Vite, TypeScript y Vitest dentro de `make check`. Lo que queda es Clerk, el envoltorio del API y las tres vistas. |
+| 005 | Panel de análisis | **en curso**, 4 de 13 | Backend listo y el frontend entra con sesión de Clerk. Falta el envoltorio del API y las tres vistas. |
 | 006 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, la 004 no se usa. |
 
 La 001 nació cubriendo también las invitaciones y el archivado. El plan daba
