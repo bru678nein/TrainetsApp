@@ -31,10 +31,15 @@ def _preflight(client, origen: str, header: str = "active-role"):
 
 @pytest.fixture
 def origen(app_de_prueba) -> str:
-    """El origen que la app acepta, leído de la configuración y no inventado."""
-    from app.core.config import get_settings
+    """El origen que la app acepta, leído de la configuración falsa de la suite.
 
-    return get_settings().auth_authorized_party
+    Depende de `app_de_prueba` para que la fixture `auth` ya haya parcheado
+    `main.get_settings`. Sin esa dependencia esto leía el `.env` de la máquina, y
+    los tests pasaban por un archivo que no está versionado.
+    """
+    from app import main
+
+    return main.get_settings().auth_authorized_party
 
 
 class TestElPreflightPasa:
@@ -54,14 +59,14 @@ class TestElPreflightPasa:
 
 
 class TestUnOrigenAjenoNoPasa:
-    def test_no_se_le_responde_con_permiso(self, client) -> None:
+    def test_no_se_le_responde_con_permiso(self, client, origen) -> None:
         """El control. Sin esto, `allow_origins=["*"]` pasaría todo lo de arriba."""
         r = _preflight(client, ORIGEN_AJENO)
         assert r.headers.get("access-control-allow-origin") != ORIGEN_AJENO
 
 
 class TestElOrigenYElAzpSonElMismoValor:
-    def test_no_hay_una_segunda_configuracion_que_pueda_divergir(self, origen) -> None:
+    def test_no_hay_una_segunda_configuracion_que_pueda_divergir(self) -> None:
         """Son el mismo dato, no dos que hay que mantener iguales.
 
         Si alguien agrega un ajuste propio para CORS, este test empieza a mirar
@@ -76,7 +81,6 @@ class TestElOrigenYElAzpSonElMismoValor:
         assert not [c for c in campos if "cors" in c or "origin" in c], (
             f"apareció una configuración de origen aparte: {campos}"
         )
-        assert origen
 
 
 class TestLaConfiguracionSeLeeTarde:

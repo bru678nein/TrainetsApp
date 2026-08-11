@@ -271,6 +271,7 @@ def auth(monkeypatch: pytest.MonkeyPatch, keypair) -> None:
     thing, so it is the only thing faked. Token verification, the header check,
     the session variables and the role lookup all run for real.
     """
+    from app import main
     from app.api import deps
     from app.core.config import Settings
     from app.core.jwks import KeyCache
@@ -282,6 +283,11 @@ def auth(monkeypatch: pytest.MonkeyPatch, keypair) -> None:
         auth_jwks_url="https://clerk.test/.well-known/jwks.json",
     )
     monkeypatch.setattr(deps, "get_settings", lambda: ajustes)
+    # También la de `main`, que es otra referencia al mismo nombre y la que usa
+    # el middleware de CORS. Parchear sólo la de `deps` dejaba cada request de la
+    # suite leyendo el `.env` de la máquina: pasaba en local por un archivo que
+    # no se versiona, y fallaba en CI y en cualquier clon limpio.
+    monkeypatch.setattr(main, "get_settings", lambda: ajustes)
     monkeypatch.setattr(deps, "get_key_cache", lambda: KeyCache(lambda: {"keys": [jwk]}))
 
 

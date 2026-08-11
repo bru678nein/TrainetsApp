@@ -54,12 +54,19 @@ class CorsPerezoso:
     def __init__(self, app: ASGIApp) -> None:
         self._app = app
         self._cors: CORSMiddleware | None = None
+        self._con: object = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if self._cors is None:
+        # Se reconstruye si la configuración cambió, y no sólo la primera vez.
+        # Cacheada para siempre, la primera request de un proceso fija el origen
+        # permitido — que en producción da igual y en la suite significa que el
+        # primer test decide por todos los demás.
+        ajustes = get_settings()
+        if self._cors is None or self._con is not ajustes:
+            self._con = ajustes
             self._cors = CORSMiddleware(
                 self._app,
-                allow_origins=[get_settings().auth_authorized_party],
+                allow_origins=[ajustes.auth_authorized_party],
                 allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
                 allow_headers=list(_CABECERAS),
                 # No cookies: the token travels in the Authorization header, and
