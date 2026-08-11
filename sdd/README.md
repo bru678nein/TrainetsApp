@@ -61,7 +61,7 @@ En orden. Cada una depende de la anterior.
 | 002 | Editor de rutinas | **desbloqueada**, lista para `/plan` | El riesgo real del producto. Las tres definiciones se cerraron con evidencia: el presupuesto de interacción cronometrando la planilla, y la regla de progresión midiéndola — resultó que lo que progresa es el RIR y no la carga. |
 | 003 | Invitaciones y ciclo de vida del vínculo | **en curso**, 7 de 17 (T-019 a T-025 hechas) | Salió de partir la 001. Habilita la 004, que es donde la Fase 0 puso el riesgo real del producto. El bloqueo de escritura sobre lo archivado está medido en `spike/restrictive.py`. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
-| 005 | Panel de análisis | **desbloqueada**, lista para `/plan` | Sin `[NECESITA DEFINICIÓN]`. El dominio y los endpoints de volumen y adherencia ya existen; falta exponer `load_progression`. Es la primera feature con interfaz. |
+| 005 | Panel de análisis | **planificada**, 14 tareas (T-036 a T-049) | Sin `[NECESITA DEFINICIÓN]`. Es la primera feature con interfaz: cinco de las catorce tareas son andamiaje que la 004 hereda entero. Descubrió que el backend no tiene CORS. |
 | 006 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, la 004 no se usa. |
 
 La 001 nació cubriendo también las invitaciones y el archivado. El plan daba
