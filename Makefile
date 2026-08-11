@@ -108,6 +108,15 @@ lint:  ## Linter y tipos
 fmt:  ## Formatea
 	cd backend && $(PY_RUN) -m ruff format . && $(PY_RUN) -m ruff check --fix .
 
+db-claim:  ## Apunta los datos sembrados a tu identidad de Clerk. Uso: make db-claim SUB=user_xxx
+	@test -n "$(SUB)" || (echo "Falta SUB. Sacalo del panel de Clerk, en Users: es el User ID, empieza con user_." && exit 1)
+	@cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -c "\
+import os, sqlalchemy as sa; \
+e = sa.create_engine(os.environ['DATABASE_URL'], isolation_level='AUTOCOMMIT'); \
+c = e.connect(); \
+n = c.execute(sa.text(\"UPDATE app_user SET auth_user_id = :s WHERE auth_user_id = 'seed-coach'\"), {'s': '$(SUB)'}).rowcount; \
+print(f'app_user actualizado: {n} fila(s). Si dice 0, resembrá con make seed.')"
+
 # --- Frontend -----------------------------------------------------------------
 #
 # Targets aparte y no metidos adentro de `lint` y `test`: CI llama a esos dos

@@ -23,6 +23,34 @@ FastAPI.
 npx openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts
 ```
 
+## Probarlo de punta a punta
+
+Tres terminales y un paso que no es obvio.
+
+```bash
+make db-up && make migrate && make seed    # base con la planilla real adentro
+make api                                   # backend en :8000
+make front-dev                             # frontend en :5173
+```
+
+**El paso que falta:** tu usuario de Clerk no existe en la base local. El
+entrenador que crea el importador tiene `auth_user_id = 'seed-coach'`, así que
+entrando con tu cuenta el aislamiento funciona perfecto y te muestra lo que te
+corresponde — nada.
+
+Sacá tu User ID del panel de Clerk (Users; empieza con `user_`) y apuntá los
+datos sembrados a vos:
+
+```bash
+make db-claim SUB=user_2abc...
+```
+
+Después entrá en http://localhost:5173. Deberías ver un atleta, y adentro la
+adherencia por patrón con bisagra de cadera arriba de todo al 72%.
+
+Hay que repetirlo después de cada `make seed`, porque el importador vuelve a
+escribir `seed-coach`.
+
 ## Estructura
 
 ```
