@@ -28,15 +28,15 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-043 | Estados vacío, de carga y de error | 6 tests propios más los del listado; 4 mutaciones cazadas —ignorar el vacío, no anunciar carga o error, reemplazar el motivo por un "sin datos" genérico—. La quinta, invertir carga y error, es **equivalente**: nunca son verdaderas a la vez |
 | T-044 | Vista de adherencia desagregada | El plan daba por hecho que `/adherence` desagregaba y devuelve **por semana**: hubo que agregar `adherence_by_pattern` al dominio y su endpoint, con los dos cortes compartiendo un solo acumulador. 5 tests de dominio, 7 de vista, 5 mutaciones cazadas. Contra la planilla real reproduce el 72% de bisagra sobre 226 series, arriba de todo |
 | T-045 | Vista de volumen por patrón | 10 tests; 6 mutaciones cazadas —mostrar una sola serie, vaciar el selector, no ordenar las semanas, ignorar el filtro, dibujar lo prescrito como si fuera lo hecho—. Once patrones apilados serían once colores: la vista colapsa ese eje y ofrece elegir uno, que es la pregunta que encadena con la adherencia |
+| T-046 | Vista de progresión de carga | 8 tests; 3 mutaciones cazadas, incluida `connectNulls` en true —que borra el hueco y dibuja una progresión continua que no ocurrió—. La cuarta, cuál ejercicio gana un empate, es **arbitraria**: no hay respuesta correcta que fijar |
 | T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
 
 ## Pendientes
 
-Tres.
+Dos.
 
 | ID | Tarea |
 |---|---|
-| T-046 | Vista de progresión de carga |
 | T-047 | CI corre la suite del frontend |
 | T-048 | Documentación y captura |
 

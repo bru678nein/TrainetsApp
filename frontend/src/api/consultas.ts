@@ -64,3 +64,15 @@ export function useVolumen(atletaId: string) {
       pedir(`/api/athletes/${atletaId}/volume`, signal) as Promise<VolumenSemanal[]>,
   });
 }
+
+export type PuntoDeCarga = { week: number; load_kg: number | null };
+export type ProgresionDeEjercicio = { exercise: string; points: PuntoDeCarga[] };
+
+export function useProgresion(atletaId: string) {
+  const pedir = useApi();
+  return useQuery({
+    queryKey: ["progresion", atletaId],
+    queryFn: ({ signal }) =>
+      pedir(`/api/athletes/${atletaId}/progression`, signal) as Promise<ProgresionDeEjercicio[]>,
+  });
+}

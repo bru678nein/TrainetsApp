@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { Adherencia } from "./Adherencia";
+import { Progresion } from "./Progresion";
 import { Volumen } from "./Volumen";
 
 export function PanelDelAtleta() {
@@ -14,6 +15,7 @@ export function PanelDelAtleta() {
       </p>
       <Adherencia atletaId={atletaId} />
       <Volumen atletaId={atletaId} />
+      <Progresion atletaId={atletaId} />
     </>
   );
 }
