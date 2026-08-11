@@ -33,7 +33,8 @@ DSN con un rol que es dueño; ese es el admin.
 DATABASE_URL="<admin>" python -m alembic upgrade head
 ```
 
-Esto crea el esquema, el rol `coachapp_app`, y las 18 policies de RLS.
+Esto crea el esquema, el rol `coachapp_app`, y las 19 policies de RLS —18 de
+la migración 0004, más la de `invitation` que agrega la 0007—.
 
 **3. Contraseña del rol de aplicación.** La migración lo crea **sin contraseña**,
 a propósito: una contraseña versionada está en cada clon y en el historial para

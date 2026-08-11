@@ -67,8 +67,8 @@ Design and negative controls:
 271 tests, and the ones that matter are verified by **breaking the code and
 requiring a named test to fall**. A few that earned their keep:
 
-- Removing any one of the eighteen isolation policies makes a test name which one
-  is missing. Eighteen checks, not one.
+- Removing any one of the eighteen policies migration 0004 creates makes a test
+  name which one is missing. Eighteen checks, not one.
 - The test harness itself was the largest hole: `dependency_overrides` replaces a
   dependency *and its whole subtree*, so hanging an always-failing dependency off
   the security chain left all 71 tests green. The seam moved down a level. The
