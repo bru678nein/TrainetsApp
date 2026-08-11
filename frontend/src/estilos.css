@@ -1,0 +1,45 @@
+/*
+ * Lo mínimo para que el panel exista, y nada más.
+ *
+ * Dos colores de dato y no una paleta: `--prescrito` es lo que el entrenador
+ * planificó y `--hecho` lo que el atleta registró. Toda la feature se trata de
+ * comparar esas dos cosas, así que son los únicos dos que cargan significado —
+ * el resto es tinta y papel.
+ *
+ * El lenguaje visual de la app del atleta no se decide acá. Se decidiría sin el
+ * caso que importa, que es alguien con el celular en la mano entre dos series.
+ */
+:root {
+  --tinta: #1a1a18;
+  --tinta-suave: #6b6b66;
+  --papel: #fbfaf8;
+  --borde: #dcd9d2;
+  --prescrito: #ebe9e4;
+  --hecho: #5b7c99;
+  --alerta: #c0392b;
+
+  --paso: 8px;
+  --radio: 3px;
+}
+
+body {
+  margin: 0;
+  padding: calc(var(--paso) * 3);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color: var(--tinta);
+  background: var(--papel);
+  line-height: 1.5;
+}
+
+h1 { font-size: 1.5rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.125rem; }
+h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
+
+.estado {
+  padding: calc(var(--paso) * 3);
+  border: 1px dashed var(--borde);
+  border-radius: var(--radio);
+  color: var(--tinta-suave);
+  font-size: 0.875rem;
+}
+.estado--falla { border-style: solid; border-color: var(--alerta); color: var(--alerta); }

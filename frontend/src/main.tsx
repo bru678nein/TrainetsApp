@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import "./estilos.css";
 import { CLERK_PUBLISHABLE_KEY } from "./lib/entorno";
 
 const raiz = document.getElementById("root");
