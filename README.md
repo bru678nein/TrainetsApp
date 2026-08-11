@@ -195,10 +195,10 @@ to keep moving is forbidden.
 | Feature | State |
 |---|---|
 | 001 Identity and tenant isolation | **done**, 22 of 22 tasks |
-| 002 Routine editor | spec written, **blocked** on two definitions |
+| 002 Routine editor | spec written, **unblocked** — all three definitions closed with evidence |
 | 003 Invitations and link lifecycle | **in progress**, 7 of 17 |
 | 004 Session view and phone logging | not started |
-| 005 Analytics panel | not started; the domain is done and tested |
+| 005 Analytics panel | **planned**, 14 tasks — the first feature with an interface |
 | 006 Offline PWA | not started |
 
 Most documentation is still in Spanish; translating it is declared debt, and this
