@@ -112,12 +112,26 @@ def adherence_by_week(records: Iterable[SetRecord]) -> list[Adherence]:
     return sorted(acc.values(), key=lambda a: a.week)
 
 
-def load_progression(records: Iterable[SetRecord]) -> dict[str, dict[int, float]]:
-    """Heaviest load per exercise and week."""
-    out: dict[str, dict[int, float]] = defaultdict(dict)
+def load_progression(records: Iterable[SetRecord]) -> dict[str, dict[int, float | None]]:
+    """Heaviest load actually lifted, per exercise and week.
+
+    A week the exercise was prescribed for but nothing was logged against is
+    present with `None`, not absent. Absent is indistinguishable from never
+    prescribed: a chart that jumps from week 1 to week 3 reads as "this exercise
+    was not on the programme that week", when it was and nobody recorded it.
+
+    `None` and not zero, for the same reason one level down. Zero is a claim
+    about the weight; `None` is the absence of a claim.
+    """
+    out: dict[str, dict[int, float | None]] = defaultdict(dict)
     for r in records:
+        semanas = out[r.exercise]
         if r.load_kg is None:
+            # setdefault and not assignment: another set of the same exercise in
+            # the same week may already have a load, and an unlogged one must not
+            # erase it.
+            semanas.setdefault(r.week, None)
             continue
-        prev = out[r.exercise].get(r.week, 0.0)
-        out[r.exercise][r.week] = max(prev, r.load_kg)
+        previo = semanas.get(r.week)
+        semanas[r.week] = r.load_kg if previo is None else max(previo, r.load_kg)
     return {k: dict(sorted(v.items())) for k, v in sorted(out.items())}

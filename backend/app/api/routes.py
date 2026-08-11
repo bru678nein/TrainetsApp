@@ -15,7 +15,12 @@ from app.api.deps import (
     require_tenant_context,
     tenant_session,
 )
-from app.domain.analytics import SetRecord, adherence_by_week, weekly_volume
+from app.domain.analytics import (
+    SetRecord,
+    adherence_by_week,
+    load_progression,
+    weekly_volume,
+)
 from app.domain.rpe import OutOfChartError, estimate_1rm
 from app.models import (
     AppUser,
@@ -35,6 +40,8 @@ from app.schemas import (
     AthleteOut,
     CoachOut,
     ExerciseBlock,
+    LoadPointOut,
+    LoadProgressionOut,
     LogSetIn,
     LogSetOut,
     SessionOut,
@@ -357,6 +364,30 @@ def adherence(
             else None,
         )
         for a in adherence_by_week(_records(db, athlete_id))
+    ]
+
+
+@router.get("/athletes/{athlete_id}/progression", response_model=list[LoadProgressionOut])
+def progression(
+    athlete_id: uuid.UUID, db: OrmSession = Depends(tenant_session)
+) -> list[LoadProgressionOut]:
+    """Heaviest load lifted per exercise and week.
+
+    Built from the prescriptions and not from the logs, which is what keeps a
+    week with nothing recorded visible as a gap. Assembling it from what the
+    athlete logged would silently drop those weeks, and a gap that disappears
+    reads as an exercise that was not programmed.
+    """
+    _athlete_or_404(db, athlete_id)
+    return [
+        LoadProgressionOut(
+            exercise=nombre,
+            points=[
+                LoadPointOut(week=semana, load_kg=round(carga, 1) if carga is not None else None)
+                for semana, carga in semanas.items()
+            ],
+        )
+        for nombre, semanas in load_progression(_records(db, athlete_id)).items()
     ]
 
 

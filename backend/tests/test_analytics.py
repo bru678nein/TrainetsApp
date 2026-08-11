@@ -92,5 +92,26 @@ class TestProgression:
         assert p["PRESS BANCA"] == {1: 110, 2: 105}
         assert p["SENTADILLA"] == {1: 140}
 
-    def test_ignora_series_sin_carga(self):
-        assert load_progression([s(reps_done=10)]) == {}
+    def test_la_semana_prescrita_sin_registro_es_un_hueco(self):
+        """Antes desaparecía, y desaparecer es indistinguible de no estar prescrita.
+
+        Un gráfico de progresión que salta de la semana 1 a la 3 sugiere que en la
+        2 no tocaba ese ejercicio. Tocaba y no se registró, que es otra cosa.
+        """
+        recs = [
+            s(week=1, load_kg=100, reps_done=5),
+            s(week=2),
+            s(week=3, load_kg=105, reps_done=5),
+        ]
+        assert load_progression(recs)["PRESS BANCA"] == {1: 100, 2: None, 3: 105}
+
+    def test_un_hueco_no_es_un_cero(self):
+        """Un cero dice "levantó nada"; un hueco dice "no hay dato"."""
+        semana = load_progression([s(week=1)])["PRESS BANCA"]
+        assert semana[1] is None
+        assert semana[1] != 0
+
+    def test_la_serie_sin_carga_no_pisa_a_la_que_si_tiene(self):
+        """En la misma semana conviven una registrada y una que no."""
+        recs = [s(week=1, load_kg=100, reps_done=5), s(week=1)]
+        assert load_progression(recs)["PRESS BANCA"] == {1: 100}

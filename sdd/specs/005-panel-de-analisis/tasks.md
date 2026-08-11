@@ -15,14 +15,19 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ---
 
+## Hechas
+
+| ID | Tarea | Verificado con |
+|---|---|---|
+| T-036 | Endpoint de progresión de carga | 3 tests de dominio escritos antes y 5 de API; 3 mutaciones —que la semana sin registro desaparezca, usarla en cero, devolver las semanas al revés— caen entre 2 y 4 tests cada una |
+| T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
+
 ## Pendientes
 
-Trece, todas.
+Once.
 
 | ID | Tarea |
 |---|---|
-| T-036 | Endpoint de progresión de carga |
-| T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` |
 | T-038 | Andamiaje del frontend |
 | T-039 | Clerk en el navegador |
 | T-040 | El envoltorio de `fetch` |
@@ -35,9 +40,9 @@ Trece, todas.
 | T-047 | CI corre la suite del frontend |
 | T-048 | Documentación y captura |
 
-El orden importa poco salvo en tres puntos: T-040 necesita a T-039, todas las
-vistas necesitan a T-040, y T-046 necesita el endpoint de T-036. Las dos de
-backend se pueden hacer primero y sin frontend, así que son el punto de entrada.
+El orden importa poco salvo en dos puntos: T-040 necesita a T-039, y todas las
+vistas necesitan a T-040. Las dos de backend ya están hechas — eran el punto de
+entrada por no depender del frontend.
 
 ## Backend
 

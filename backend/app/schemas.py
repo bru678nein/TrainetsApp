@@ -138,6 +138,23 @@ class VolumeOut(BaseModel):
     tonnage_kg: float
 
 
+class LoadPointOut(BaseModel):
+    """One week of an exercise. `load_kg` is null when nothing was logged.
+
+    A list and not an object keyed by week: JSON object keys are strings, and a
+    chart that has to parse "3" back into a number to sort by it will sort "10"
+    before "2" the first time somebody forgets.
+    """
+
+    week: int
+    load_kg: float | None
+
+
+class LoadProgressionOut(BaseModel):
+    exercise: str
+    points: list[LoadPointOut]
+
+
 class AdherenceOut(BaseModel):
     week: int
     sets_planned: int

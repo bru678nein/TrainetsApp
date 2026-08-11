@@ -4,9 +4,18 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, Response, status
+from starlette.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api.routes import alta, router
 from app.core.config import get_settings
+
+# The headers the browser is allowed to send. `Active-Role` is the one that
+# matters and the one that is easy to leave out: it is a custom header, so it
+# triggers a preflight, and without it here the preflight fails with a message
+# that talks about CORS and never names the header. An afternoon goes into
+# looking at the wrong layer.
+_CABECERAS = ("Authorization", "Content-Type", "Active-Role")
 
 
 @asynccontextmanager
@@ -27,7 +36,42 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+class CorsPerezoso:
+    """CORSMiddleware, built on the first request instead of at import time.
+
+    The allowed origin is `auth_authorized_party` — not a value that happens to
+    match it, the same value. Both are the frontend's origin: one decides what
+    the `azp` claim is compared against and the other who the browser is answered
+    for. Two settings would drift, and the symptom of drift is a 401 that looks
+    like a token problem.
+
+    Built lazily because settings are read lazily on purpose: importing this
+    module must not require a configured environment, or the domain tests and the
+    route inspections stop running on a clean clone. `add_middleware` runs at
+    import, so reading the setting there would undo that.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self._app = app
+        self._cors: CORSMiddleware | None = None
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if self._cors is None:
+            self._cors = CORSMiddleware(
+                self._app,
+                allow_origins=[get_settings().auth_authorized_party],
+                allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+                allow_headers=list(_CABECERAS),
+                # No cookies: the token travels in the Authorization header, and
+                # allowing credentials would widen what a hostile page can do
+                # with a session the browser already holds.
+                allow_credentials=False,
+            )
+        await self._cors(scope, receive, send)
+
+
 app = FastAPI(title="Coaching API", version="0.1.0", lifespan=lifespan)
+app.add_middleware(CorsPerezoso)
 app.include_router(router)
 app.include_router(alta)
 
