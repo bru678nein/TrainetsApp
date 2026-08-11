@@ -92,11 +92,25 @@ class Adherence:
 
     @property
     def week(self) -> int:
-        return int(self.clave)  # type: ignore[call-overload]
+        """Falla ruidosamente si se pregunta sobre el corte equivocado.
+
+        Convertir con `int()` o `str()` haría que preguntar la semana de una
+        adherencia agrupada por patrón devolviera algo —una excepción rara o un
+        texto— en vez de decir que la pregunta no aplica.
+        """
+        if not isinstance(self.clave, int):
+            raise TypeError(
+                f"esta adherencia está agrupada por patrón, no por semana: {self.clave!r}"
+            )
+        return self.clave
 
     @property
     def pattern(self) -> str:
-        return str(self.clave)
+        if not isinstance(self.clave, str):
+            raise TypeError(
+                f"esta adherencia está agrupada por semana, no por patrón: {self.clave!r}"
+            )
+        return self.clave
 
     @property
     def completion_rate(self) -> float:
