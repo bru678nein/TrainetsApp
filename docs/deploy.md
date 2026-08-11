@@ -63,6 +63,16 @@ AUTH_AUTHORIZED_PARTY=<el origen del frontend, se compara contra `azp`>
 AUTH_JWKS_URL=<Frontend API URL>/.well-known/jwks.json
 ```
 
+`AUTH_AUTHORIZED_PARTY` hace **dos cosas** y por eso tiene un solo valor: es
+contra lo que se compara el claim `azp`, y es el único origen que CORS habilita.
+Apuntado a otro lado que el frontend, falla dos veces y ninguna lo dice — el
+preflight `OPTIONS` vuelve `400` y, si pasara, el token sería rechazado.
+
+**El frontend es una aplicación aparte.** Se construye con `npm run build` y se
+sirve como estático; sus variables (`VITE_CLERK_PUBLISHABLE_KEY`, `VITE_API_URL`)
+se resuelven **en el build**, no al arrancar, así que cambiarlas exige construir
+de nuevo.
+
 Las tres de auth son obligatorias y no tienen default. **La aplicación se niega a
 arrancar sin ellas**, y eso es deliberado: un deploy que levanta contento
 verificando tokens contra nada es peor que uno que no levanta.

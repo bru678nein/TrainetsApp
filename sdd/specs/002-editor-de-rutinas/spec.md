@@ -1,6 +1,6 @@
 # 002 — Editor de rutinas
 
-Estado: **bloqueada** por una definición pendiente · Rama: `002-editor-de-rutinas`
+Estado: **desbloqueada**, lista para `/plan` · Rama: `002-editor-de-rutinas`
 
 ---
 
@@ -159,16 +159,15 @@ cuatro minutos y medio de puro clic. Queda perdida antes de escribir código.
 
 ## Criterios de aceptación
 
-Se escriben como pruebas. Los que dependen de una definición pendiente están
-marcados.
+Se escriben como pruebas.
 
 1. Un entrenador arma un mesociclo completo —cuatro semanas, tres sesiones por
    semana, con ejercicios y series— y queda guardado tal como lo dejó.
 2. Duplica la semana 1 sobre la 2 y la 2 tiene la misma estructura, con
    identidades propias: editar una no toca la otra.
-3. Duplica una semana ajustando la carga, y todas las series con carga absoluta
-   quedan modificadas según la regla acordada. `[depende de la definición de
-   progresión]`
+3. Duplica la semana 2 sobre la 3 en un mesociclo cuya progresión declara que
+   ahí baja un punto de RIR, y la copia sale con ese RIR sin tocarla a mano. La
+   carga se copia igual.
 4. Prescribe una serie autorregulada, sin peso, y se guarda como tal en vez de
    quedar en cero.
 5. Intenta prescribir carga absoluta y relativa a la vez, y la interfaz lo impide
@@ -178,11 +177,13 @@ marcados.
    ninguna vía. Esto ya lo garantiza la 001; el criterio existe para que los
    endpoints nuevos queden cubiertos por los recorridos de rutas que ya
    verifican todas las rutas de la app.
-8. Armar una semana desde cero cuesta menos que en la planilla.
-   `[depende del presupuesto de interacción]`
-9. Editar una semana que el atleta ya empezó a registrar se comporta según lo
-   definido, sin perder trabajo del atleta. `[depende de la definición de
-   edición sobre lo ejecutado]`
+8. Armar una semana equivalente a una real —4 sesiones, 27 prescripciones, 78
+   series— cuesta **menos de 7 minutos**, cronometrados de punta a punta. Es el
+   número que la Fase 0 midió sobre la planilla.
+9. Borra una serie prescrita que el atleta ya registró, y el registro sobrevive.
+10. Sube el objetivo de una semana que el atleta ya ejecutó, y su adherencia de
+    esa semana **no cambia**: se compara contra lo que estaba prescrito cuando la
+    hizo. Una métrica que se mueve hacia atrás no sirve para decidir nada.
 
 ## Fuera de alcance
 
@@ -198,9 +199,12 @@ marcados.
 - **Compartir programas entre entrenadores.**
 - **Generación automática de rutinas**, con o sin IA. Este producto es
   profundidad en fuerza, y la profundidad la pone el entrenador.
-- **Historial de versiones del programa.** Saber qué decía la prescripción antes
-  de una edición es deseable y no entra acá, aunque la definición pendiente sobre
-  editar lo ejecutado puede empujar en esa dirección.
+- **Historial de versiones del programa.** Poder recorrer cómo fue cambiando un
+  mesociclo no entra acá.
+
+  Ojo con la vuelta que da esto: el criterio 10 obliga a conservar la
+  prescripción **tal como era en el momento de ejecutarse**, que es media
+  versión. Lo que queda afuera es poder navegarla; guardarla es requisito.
 
 ## Cómo se relaciona con la constitución
 

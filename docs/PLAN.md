@@ -99,7 +99,15 @@ final de la Fase 2, con editor y PWA adentro. Una captura no es eso.
 - Volumen semanal por patrón contra rango objetivo.
 - Progresión de carga y e1RM por ejercicio.
 - Adherencia por semana.
-- PWA con service worker: el gimnasio suele no tener señal, y una app de entrenamiento que necesita conexión no se usa.
+- ~~PWA con service worker.~~ **Descartada el 2026-08-11.** La justificación era
+  que en el gimnasio no hay señal, y eso nunca se midió: estaba escrito como un
+  hecho y era una suposición. Sin soporte offline, la feature 004 alcanza sola
+  para que el atleta use la app, que es una feature entera menos entre el estado
+  actual y que el entrenador apague el Excel.
+
+  Vuelve el día que el atleta reporte que se le corta. Registrar sin conexión es
+  lo que la haría imprescindible, y el resto —instalar en el celular, abrir a
+  pantalla completa— es comodidad.
 
 **Acá el proyecto ya sirve como portfolio.** Deploy público, README con capturas, datos de demo.
 

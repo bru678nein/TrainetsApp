@@ -7,10 +7,15 @@ pattern, load progression and adherence.
 Built for a real coach, against a real training spreadsheet — 1,326 prescribed
 sets across 17 weeks. Development data is imported from it, never invented.
 
-**Status.** Backend done and deployed: identity, tenant isolation, and the first
-half of the invitation lifecycle. No frontend yet — until it exists, the athlete
-uses a self-contained HTML page generated from the spreadsheet. The tour below is
-therefore of code and a database, not of screens.
+**Status.** The coach's analytics panel runs against real data — adherence by
+movement pattern, weekly volume planned against done, and load progression. The
+backend under it is deployed: identity, tenant isolation, and half the invitation
+lifecycle.
+
+What does not exist yet is the rest of the loop. The panel displays data the
+application did not produce: it comes from the spreadsheet importer, because the
+coach still cannot prescribe here and the athlete still cannot log here. Those are
+the two features that would let the coach switch Excel off, and neither is built.
 
 ---
 
@@ -64,8 +69,8 @@ Design and negative controls:
 
 ### 2. "It passed" is not the standard
 
-271 tests, and the ones that matter are verified by **breaking the code and
-requiring a named test to fall**. A few that earned their keep:
+352 tests — 297 on the backend, 55 on the frontend — and the ones that matter are
+verified by **breaking the code and requiring a named test to fall**. A few that earned their keep:
 
 - Removing any one of the eighteen policies migration 0004 creates makes a test
   name which one is missing. Eighteen checks, not one.
@@ -132,8 +137,8 @@ verifies it against the JWKS, with no vendor SDK. Who you are comes from the JWT
 default, because guessing it is what turns holding two roles into an escape
 hatch.
 
-Stack: FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Alembic. Frontend: React +
-TypeScript, not started.
+Stack: FastAPI · PostgreSQL 16 · SQLAlchemy 2.0 · Alembic · React · TypeScript ·
+Vite · TanStack Query · Recharts.
 
 ## Running it
 
@@ -178,7 +183,7 @@ it skip rather than fail.
 | `backend/migrations/` | Alembic. The source of the real schema. |
 | `backend/importer/` | Loads real spreadsheets into the schema |
 | `backend/tests/` | Domain, schema against real Postgres, API, auth, dependency composition |
-| `frontend/` | React + TypeScript (PWA). Empty until feature 004. |
+| `frontend/` | React + TypeScript. The coach's panel; one door to the API. |
 | `sdd/` | Constitution, specs, workflow |
 | `docs/` | `PLAN.md`, reference `schema.sql`, ADRs, deployment runbook |
 
@@ -198,8 +203,8 @@ to keep moving is forbidden.
 | 002 Routine editor | spec written, **unblocked** — all three definitions closed with evidence |
 | 003 Invitations and link lifecycle | **in progress**, 7 of 17 |
 | 004 Session view and phone logging | not started |
-| 005 Analytics panel | **planned**, 14 tasks — the first feature with an interface |
-| 006 Offline PWA | not started |
+| 005 Analytics panel | **12 of 13** — the three views run against real data |
+| 006 Offline PWA | **dropped** — see the plan |
 
 Most documentation is still in Spanish; translating it is declared debt, and this
 file is the first instalment.

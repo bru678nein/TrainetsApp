@@ -62,7 +62,7 @@ En orden. Cada una depende de la anterior.
 | 003 | Invitaciones y ciclo de vida del vínculo | **en curso**, 7 de 17 (T-019 a T-025 hechas) | Salió de partir la 001. Habilita la 004, que es donde la Fase 0 puso el riesgo real del producto. El bloqueo de escritura sobre lo archivado está medido en `spike/restrictive.py`. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
 | 005 | Panel de análisis | **en curso**, 12 de 13 | Las tres vistas andando y CI en verde con las dos suites. Falta la captura, que necesita sesión iniciada. |
-| 006 | PWA con soporte offline | | En el gimnasio no hay señal. Sin esto, la 004 no se usa. |
+| 006 | PWA con soporte offline | **descartada** el 2026-08-11 | La decisión es de Bruno. Lo que la justificaba —que en el gimnasio no hay señal— **nunca se verificó**: era una suposición del backlog, no un dato. Sin ella, la 004 alcanza sola. Si algún día el atleta reporta que se le corta, vuelve. |
 
 La 001 nació cubriendo también las invitaciones y el archivado. El plan daba
 bastante más de veinte tareas —la señal de que era más de una feature— y se
