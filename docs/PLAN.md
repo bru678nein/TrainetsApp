@@ -76,6 +76,24 @@ midió; es una pregunta de un minuto al entrenador.
 
 Criterio de salida: el entrenador arma una semana entera sin tocar Excel y sin que vos intervengas.
 
+### El orden real se apartó de estas fases, el 2026-08-10
+
+La analítica (feature 005) se planificó **antes** que el editor y que la vista del
+atleta, o sea trabajo de Fase 2 antes de cerrar la Fase 1. Fue deliberado y el
+motivo es que el proyecto no tiene ninguna interfaz: la señal técnica que lo
+distingue —el aislamiento en la base, medido, y el hábito de verificar rompiendo—
+ya está construida y es invisible, porque un revisor mira noventa segundos y no
+hay nada que mirar.
+
+La 005 es el camino más corto a una pantalla: su dominio ya está escrito y
+testeado, y dos de sus tres endpoints ya existen.
+
+Lo que **no** cambia es el criterio de salida de la Fase 1, que sigue siendo el
+que importa: que el entrenador arme una semana sin tocar Excel. La 005 no acerca
+eso ni un día — muestra datos que la app no generó, importados de la planilla.
+Y ojo con la frase de más abajo: este plan ubica el "ya sirve como portfolio" al
+final de la Fase 2, con editor y PWA adentro. Una captura no es eso.
+
 ### Fase 2 — Analítica y PWA · 3 semanas / 60 h
 
 - Volumen semanal por patrón contra rango objetivo.
