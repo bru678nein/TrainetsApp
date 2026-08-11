@@ -20,3 +20,8 @@ export const CLERK_PUBLISHABLE_KEY = requerida(
   "VITE_CLERK_PUBLISHABLE_KEY",
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
 );
+
+export const API_URL = requerida(
+  "VITE_API_URL",
+  import.meta.env.VITE_API_URL,
+);
