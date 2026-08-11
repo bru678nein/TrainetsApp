@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
+vi.mock("./api/useApi", () => ({ useApi: () => () => Promise.resolve([]) }));
+
 /**
  * Lo que este archivo verifica es la **composición**: que las rutas cuelguen de
  * la puerta de sesión y no al lado.
@@ -33,11 +35,11 @@ describe("la carcasa", () => {
     expect(screen.queryByRole("heading", { name: "Atletas" })).not.toBeInTheDocument();
   });
 
-  it("con sesión sí", () => {
+  it("con sesión sí", async () => {
     // El control: sin esto, una puerta que no deja pasar nunca pasaría el test
     // de arriba y la aplicación no serviría para nada.
     sesionIniciada.valor = true;
     render(<App />);
-    expect(screen.getByRole("heading", { name: "Atletas" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Atletas" })).toBeInTheDocument();
   });
 });

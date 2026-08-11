@@ -1,8 +1,12 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
+import { montar } from "./lib/pruebas";
 import { Rutas } from "./rutas";
+
+// El listado consulta el API en cuanto se monta. Acá lo que se prueba son las
+// rutas, así que la puerta al API se falsifica en el borde y devuelve vacío.
+vi.mock("./api/useApi", () => ({ useApi: () => () => Promise.resolve([]) }));
 
 /**
  * Entrar directo a una URL es lo mismo que recargar la página estando en ella:
@@ -11,17 +15,13 @@ import { Rutas } from "./rutas";
  * tarea sin necesitar un navegador.
  */
 function en(ruta: string) {
-  return render(
-    <MemoryRouter initialEntries={[ruta]}>
-      <Rutas />
-    </MemoryRouter>,
-  );
+  return montar(<Rutas />, ruta);
 }
 
 describe("las rutas", () => {
-  it("la raíz muestra el listado", () => {
+  it("la raíz muestra el listado", async () => {
     en("/");
-    expect(screen.getByRole("heading", { name: "Atletas" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Atletas" })).toBeInTheDocument();
   });
 
   it("entrar directo al panel de un atleta llega a ese atleta", () => {

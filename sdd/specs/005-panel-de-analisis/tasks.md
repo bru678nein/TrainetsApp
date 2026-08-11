@@ -24,15 +24,15 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-039 | Clerk en el navegador | 3 tests sobre la puerta de sesión; montando los hijos fuera de ella caen 2 nombrándola. En el navegador real: el formulario de Clerk renderiza contra la instancia y salen **cero** requests al API sin sesión. No se completó un ingreso —requiere credenciales del dueño— |
 | T-040 | El envoltorio de `fetch` | 12 tests; **7 mutaciones, 7 cazadas**: sacar cualquiera de las dos cabeceras, fijar el rol en coach, cachear el token entre llamadas, llamar sin token, devolver el cuerpo de un error como datos, y usar una ruta relativa |
 | T-041 | Rutas y carcasa | 6 tests; 3 mutaciones cazadas —montar las rutas fuera de la puerta de sesión, cambiar el nombre del parámetro de la URL, sacar la ruta de página inexistente—. En el navegador: entrar directo a `/atletas/abc-123` conserva la dirección y la app arranca ahí |
+| T-042 | Listado de atletas | 6 tests; 5 mutaciones cazadas —filtrar en el navegador, sacar el estado vacío, el de error o el de carga, y enlazar siempre al mismo atleta— |
 | T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
 
 ## Pendientes
 
-Siete.
+Seis.
 
 | ID | Tarea |
 |---|---|
-| T-042 | Listado de atletas |
 | T-043 | Estados vacío, de carga y de error |
 | T-044 | Vista de adherencia desagregada |
 | T-045 | Vista de volumen por patrón |
