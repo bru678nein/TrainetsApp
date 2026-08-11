@@ -51,6 +51,22 @@ adherencia por patrón con bisagra de cadera arriba de todo al 72%.
 Hay que repetirlo después de cada `make seed`, porque el importador vuelve a
 escribir `seed-coach`.
 
+## Cuando no anda
+
+Cada capa falla con un código distinto, y eso es a propósito: el error dice dónde
+mirar sin adivinar. Mirá el log de `make api`, no la consola del navegador.
+
+| Lo que ves | Qué está mal |
+|---|---|
+| `OPTIONS … 400` | El origen no coincide. `AUTH_AUTHORIZED_PARTY` tiene que ser exactamente el origen del frontend, `http://localhost:5173`. |
+| `GET … 503` | No se llega al JWKS. Probalo: `curl -o /dev/null -w '%{http_code}\n' "$AUTH_JWKS_URL"`. Un `000` es un host que no existe. |
+| `GET … 401` | El token no valida. `AUTH_ISSUER` no coincide con el `iss` que emite Clerk. |
+| `GET … 403` | El token está bien y tu identidad no es dueña de nada: falta `make db-claim`. |
+| `200` y lista vacía | El `db-claim` corrió con un `SUB` que no es el tuyo. |
+
+Las tres variables se leen **una vez, al arrancar**. Cambiar el `.env` con el
+servidor prendido no hace nada: hay que cortar `make api` y volver a levantarlo.
+
 ## Estructura
 
 ```
