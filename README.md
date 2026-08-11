@@ -98,9 +98,12 @@ The interesting entries are the reversals: the isolation predicate that looked
 safe and leaked only once a neighbouring policy stopped gating on role; the
 migration backfill that maps a deactivated athlete to *paused* and never to
 *archived*, because the second is irreversible in practice; the interaction
-budget derived from timing the coach in Excel — 7 minutes for a week, 78
-prescribed sets, therefore 5.4 seconds per set — which proved that duplicate-and-
-adjust is not a convenience but the only operation that makes the budget close.
+budget derived from timing the coach in Excel, and its correction: seven minutes
+was written down, then remembered as thirty, which turns 5.4 seconds a set into
+23 and dissolves the argument that copying was arithmetically forced. What still
+holds is what the spreadsheet itself shows — load unchanged 60% of the time, reps
+never, RIR stepping down — so the conclusion survived a premise it did not
+actually rest on.
 
 Start here: [`sdd/README.md`](sdd/README.md) ·
 [`sdd/constitution.md`](sdd/constitution.md) · [`docs/adr/`](docs/adr/)

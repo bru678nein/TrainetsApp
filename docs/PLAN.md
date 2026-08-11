@@ -40,14 +40,20 @@ Sentarte con el entrenador y cronometrar cuánto tarda hoy en armar una semana d
 No escribas una línea hasta tener eso. Es la fase que más gente se saltea y la que más proyectos mata.
 
 **Hecha el 2026-08-10.** El entrenador arma una semana completa en la planilla en
-**unos 7 minutos**. Cruzado con la composición real de una semana en
+**unos 30 minutos**. Cruzado con la composición real de una semana en
 `data/planilla.xlsx` —4 sesiones, ~27 prescripciones, **78 series prescritas**,
-constante a lo largo de 17 semanas— eso da 15,5 segundos por ejercicio y **5,4
+constante a lo largo de 17 semanas— eso da 66 segundos por ejercicio y **23
 segundos por serie**.
 
-Ese ritmo no se consigue escribiendo. Se consigue copiando el bloque de la semana
-anterior y ajustando la carga, y por eso duplicar-y-ajustar no es una capacidad
-más del editor: es la única operación que hace que el presupuesto cierre.
+*(Corregido el 2026-08-11. Estaban anotados 7 minutos, que daban 5,4 segundos por
+serie. Ese número sostenía un argumento más fuerte —a ese ritmo escribir cada
+serie es imposible, así que forzosamente copia— y con 23 segundos ese argumento
+no se sostiene: escribir 78 series en media hora es perfectamente posible.)*
+
+Que igual copia lo dice la planilla y no el cronómetro: dentro de un mesociclo la
+carga se queda igual el 60% de las veces, las repeticiones no cambian **nunca**, y
+lo que se mueve es el RIR en escalones. Eso es duplicar y ajustar. La conclusión
+sobrevive; el argumento que la sostenía era otro.
 
 Las tres irritaciones, en orden de lo que aportan:
 

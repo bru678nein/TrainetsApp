@@ -91,9 +91,11 @@ la copia entera aplicando el valor que corresponde a la posición de destino. La
 carga se copia igual —que es lo que pasa el 60% de las veces— y se edita a mano
 cuando el entrenador quiere moverla.
 
-Declararla una vez por bloque y no en cada duplicación es lo que hace cerrar el
-presupuesto: son 27 prescripciones por semana, y una decisión por prescripción no
-entra en 7 minutos.
+Declararla una vez por bloque y no en cada duplicación no es por el presupuesto:
+con 30 minutos, 27 decisiones entran de sobra. Es porque **la progresión es una
+propiedad del bloque y no de cada duplicación**. Preguntarla 27 veces por semana
+pide 27 veces una respuesta que el entrenador ya tomó una vez, y la primera vez
+que conteste distinto sin querer, el mesociclo deja de tener una forma.
 
 Un límite honesto: esto es la programación de **un** entrenador. Que sea la forma
 del producto y no su costumbre es una hipótesis. La spec la adopta porque es el
@@ -129,12 +131,19 @@ en el momento de ejecutarse, no sólo la vigente. El plan decide cómo.
 
 ### La velocidad
 
-**Definido por la Fase 0, el 2026-08-10.** El entrenador arma una semana completa
-en la planilla en **unos 7 minutos**. Una semana real, medida sobre los datos
-importados, son 4 sesiones, ~27 prescripciones y **78 series prescritas**.
+**Definido por la Fase 0, el 2026-08-10; corregido el 2026-08-11.** El entrenador
+arma una semana completa en la planilla en **unos 30 minutos**. Una semana real,
+medida sobre los datos importados, son 4 sesiones, ~27 prescripciones y **78
+series prescritas**.
 
 El presupuesto es ese: **armar una semana equivalente acá tiene que costar menos
-de 7 minutos, cronometrados de punta a punta.**
+de 30 minutos, cronometrados de punta a punta.**
+
+La primera versión de esta spec decía 7 minutos, mal anotados. La diferencia no
+es de precisión: con 7 el presupuesto era tan ajustado que forzaba el diseño
+—escribir cada serie era imposible—, y con 30 deja de forzarlo. Vale la pena
+decirlo porque el diseño que salió de ese número sigue siendo el correcto, y
+conviene saber que ahora se sostiene por otro motivo.
 
 Está escrito en tiempo y no en clics a propósito, y conviene ser explícito sobre
 por qué, porque el artículo VII pide clics y teclas. Lo que se midió fue el total,
@@ -143,19 +152,20 @@ tarea exigiría un número que nadie tomó. Cronometrar la misma semana de punta
 punta compara exactamente lo que le importa al entrenador, es falsable con un
 cronómetro y no depende de ponerse de acuerdo en qué cuenta como un clic.
 
-De ahí salen dos consecuencias estructurales, que son la parte útil:
+Son **66 segundos por ejercicio y 23 por serie**, incluyendo pensar la carga. Es
+holgado, y decirlo es más honesto que fingir que aprieta.
 
-- **15,5 segundos por ejercicio y 5,4 segundos por serie**, incluyendo pensar la
-  carga. Ninguna interacción por serie puede estar en el camino crítico: 78
-  series a un clic cada una ya se comen buena parte del presupuesto sin haber
-  leído ni decidido nada.
-- **Duplicar-y-ajustar es la operación que hace cerrar el presupuesto**, no una
-  comodidad. Ese ritmo en la planilla se logra copiando el bloque de la semana
-  anterior; escribiéndolo es aritméticamente imposible. Un editor que lo trate
-  como una función más entre otras pierde contra la planilla.
+Lo que el número **no** decide es que haya que duplicar. Eso lo decide la planilla:
+dentro de un mesociclo la carga se queda igual el 60% de las veces, las
+repeticiones no cambian nunca, y lo que se mueve es el RIR en escalones de a dos
+semanas. El entrenador copia y ajusta porque así programa, no porque el reloj lo
+obligue.
 
-Contraste que ordena el resto: diez clics por ejercicio son 270 clics por semana,
-cuatro minutos y medio de puro clic. Queda perdida antes de escribir código.
+Y lo que el número sí acota es el otro extremo: diez clics por ejercicio son 270
+clics por semana. A un clic por segundo son cuatro minutos y medio de puro clic,
+sin leer ni decidir nada — cómodo dentro de 30 minutos, y suficiente para saber
+que una interfaz de diez clics por ejercicio sigue siendo mal diseño aunque entre
+en el presupuesto.
 
 ## Criterios de aceptación
 
@@ -178,7 +188,7 @@ Se escriben como pruebas.
    endpoints nuevos queden cubiertos por los recorridos de rutas que ya
    verifican todas las rutas de la app.
 8. Armar una semana equivalente a una real —4 sesiones, 27 prescripciones, 78
-   series— cuesta **menos de 7 minutos**, cronometrados de punta a punta. Es el
+   series— cuesta **menos de 30 minutos**, cronometrados de punta a punta. Es el
    número que la Fase 0 midió sobre la planilla.
 9. Borra una serie prescrita que el atleta ya registró, y el registro sobrevive.
 10. Sube el objetivo de una semana que el atleta ya ejecutó, y su adherencia de
