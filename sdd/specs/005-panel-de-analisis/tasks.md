@@ -20,15 +20,15 @@ Estado: `pendiente` · `en curso` · `hecha`
 | ID | Tarea | Verificado con |
 |---|---|---|
 | T-036 | Endpoint de progresión de carga | 3 tests de dominio escritos antes y 5 de API; 3 mutaciones —que la semana sin registro desaparezca, usarla en cero, devolver las semanas al revés— caen entre 2 y 4 tests cada una |
+| T-038 | Andamiaje del frontend | un error de tipos hace salir `make check` con 1, y un test de frontend roto también; el único test que hay afirma que TypeScript, React, jsdom y Testing Library están conectados de verdad |
 | T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
 
 ## Pendientes
 
-Once.
+Diez.
 
 | ID | Tarea |
 |---|---|
-| T-038 | Andamiaje del frontend |
 | T-039 | Clerk en el navegador |
 | T-040 | El envoltorio de `fetch` |
 | T-041 | Rutas y carcasa |
