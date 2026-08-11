@@ -5,6 +5,21 @@ on:
   pull_request:
 
 jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # Por los targets del Makefile, igual que el backend: si el workflow
+      # repitiera los comandos, divergirían de lo que corre `make check` en
+      # cuanto uno de los dos cambie. Ya pasó una vez en este repositorio.
+      - run: make front-lint
+      - run: make front-test
+
   backend:
     runs-on: ubuntu-latest
     services:

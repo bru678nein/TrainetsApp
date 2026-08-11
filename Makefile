@@ -119,12 +119,17 @@ print(f'app_user actualizado: {n} fila(s). Si dice 0, resembrá con make seed.')
 
 # --- Frontend -----------------------------------------------------------------
 #
-# Targets aparte y no metidos adentro de `lint` y `test`: CI llama a esos dos
-# directamente, y todavía no instala node. Cuando lo instale, se pliegan ahí y
-# desaparece esta nota.
+# Targets aparte y no metidos adentro de `lint` y `test`, a propósito y de forma
+# definitiva: en CI son dos jobs distintas, cada una con una sola cadena de
+# herramientas. Plegarlos obligaría a la job del frontend a instalar Python y
+# levantar Postgres, y a la del backend a instalar node, para no correr nada de
+# eso. `make check` sigue corriendo las dos, que es lo que importa en local.
 
 front-install:  ## Instala las dependencias del frontend si faltan
-	@test -d frontend/node_modules || (cd frontend && npm install)
+	@# `npm ci` y no `npm install`: instala exactamente lo que fija el lockfile en
+	@# vez de resolver de nuevo. Agregar una dependencia se hace con `npm i` a mano,
+	@# que es cuando el lockfile tiene que cambiar.
+	@test -d frontend/node_modules || (cd frontend && npm ci)
 
 front-lint: front-install  ## ESLint y chequeo de tipos
 	cd frontend && npm run lint
