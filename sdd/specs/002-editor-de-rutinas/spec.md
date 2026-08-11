@@ -61,14 +61,43 @@ requisito central:
 - **Duplicar una semana** sobre la siguiente, con todas sus sesiones y series.
 - **Duplicar una sesión** dentro de la misma semana o hacia otra.
 - **Duplicar un ejercicio** con su bloque de series.
-- Al duplicar, poder **ajustar la carga de todo lo duplicado de una vez**, que es
-  como se construye una progresión.
+- Al duplicar, que la copia salga **con la progresión que le corresponde por su
+  posición en el bloque**, sin tocarla a mano.
 
-`[NECESITA DEFINICIÓN]` **Por qué regla progresa la carga al duplicar.** ¿Un
-porcentaje sobre lo anterior? ¿Un incremento fijo en kilos? ¿Distinto según el
-ejercicio sea básico o accesorio? ¿Lo elige el entrenador cada vez o configura un
-default? Esto no se puede suponer: es la decisión que convierte "duplicar" en
-"planificar", y sale de mirar cómo lo hace hoy en la planilla.
+#### La progresión la define el mesociclo, no la semana anterior
+
+Esto se decidió midiendo la planilla, y lo medido corrigió la pregunta. Estaba
+escrita como "por qué regla progresa **la carga**", y la carga casi no progresa:
+en 100 series de ejercicio×mesociclo se queda igual el 60% de las veces, sube el
+26% y baja el 14%. Las repeticiones no cambian nunca —104 de 104 iguales—.
+
+Lo que progresa es el **RIR**, y baja en el 60% de los casos sin subir en
+ninguno. Sus trayectorias sobre mesociclos de cuatro semanas:
+
+| veces | RIR prescrito |
+|---|---|
+| 34 | 2 → 2 → 2 → 2 |
+| 33 | 2 → 2 → 1 → 1 |
+| 13 | 3 → 3 → 2 → 2 |
+| 7 | 2 → 2 → 1 → 0 |
+
+Sostiene dos semanas y baja un punto. **El patrón es posicional**: depende de
+dónde cae la semana en el bloque, no de cuánto se movió la anterior. Una regla de
+"progresá lo mismo que la vez pasada" reproduce las trayectorias planas y falla
+en las escalonadas, que son la mitad.
+
+Entonces: **el mesociclo declara su progresión una vez**, y duplicar una semana
+la copia entera aplicando el valor que corresponde a la posición de destino. La
+carga se copia igual —que es lo que pasa el 60% de las veces— y se edita a mano
+cuando el entrenador quiere moverla.
+
+Declararla una vez por bloque y no en cada duplicación es lo que hace cerrar el
+presupuesto: son 27 prescripciones por semana, y una decisión por prescripción no
+entra en 7 minutos.
+
+Un límite honesto: esto es la programación de **un** entrenador. Que sea la forma
+del producto y no su costumbre es una hipótesis. La spec la adopta porque es el
+único entrenador que existe, no porque esté generalizada.
 
 ### El catálogo de ejercicios
 
@@ -82,17 +111,21 @@ quedaron sin clasificar.
 
 ### Editar lo que ya se ejecutó
 
-`[NECESITA DEFINICIÓN]` **Qué pasa cuando el entrenador edita una semana que el
-atleta ya empezó a registrar.** Un programa vivo se corrige: el atleta se
-lesiona, la semana salió mal, el entrenador baja el volumen a mitad de camino.
+Un programa vivo se corrige: el atleta se lesiona, la semana salió mal, el
+entrenador baja el volumen a mitad de camino. Eso tiene que poder hacerse.
 
-Si se borra una serie prescrita que ya tiene una serie registrada, ¿se pierde lo
-que el atleta hizo? Si se cambia la prescripción, ¿la adherencia se recalcula
-contra lo nuevo o contra lo que había cuando la ejecutó?
+**Lo que el atleta registró no se pierde nunca.** Borrar una serie prescrita que
+ya tiene una registrada no borra el registro: la prescripción deja de estar y lo
+que la persona hizo queda.
 
-No se puede decidir sin definirlo, y elegir mal borra el trabajo del atleta o
-inutiliza la métrica que el entrenador usa para decidir. Se resuelve en
-`/clarify`, con el entrenador.
+**Y la adherencia se compara contra lo que estaba prescrito cuando la ejecutó**,
+no contra lo que quedó después. La razón es que la alternativa reescribe el
+pasado: el entrenador sube el objetivo un mes más tarde y el 100% del atleta se
+convierte en 60% sin que la persona haya hecho nada distinto. Una métrica que
+cambia hacia atrás no sirve para decidir nada.
+
+Tiene un costo y hay que decirlo: obliga a conservar la prescripción tal como era
+en el momento de ejecutarse, no sólo la vigente. El plan decide cómo.
 
 ### La velocidad
 
@@ -180,9 +213,10 @@ marcados.
   existe. Los recorridos de rutas de la 001 se parametrizan sobre las rutas que
   la app expone, así que cada endpoint que agregue esta feature rompe la suite
   hasta que alguien declare cómo se prueba. Eso es a propósito.
-- **Artículo V**: esta spec tiene dos `[NECESITA DEFINICIÓN]` —el presupuesto de
-  interacción lo cerró la Fase 0—, y por lo tanto
-  **no habilita implementación**. Suponer para no frenar está prohibido.
+- **Artículo V**: esta spec ya no tiene `[NECESITA DEFINICIÓN]`. Las tres se
+  cerraron con evidencia y no por consenso: el presupuesto de interacción salió de
+  cronometrar la planilla, y la regla de progresión de medirla — la pregunta
+  estaba mal formulada y apuntaba a la carga cuando lo que progresa es el RIR.
 
 ## Riesgos
 

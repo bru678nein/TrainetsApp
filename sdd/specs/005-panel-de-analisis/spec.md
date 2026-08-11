@@ -32,7 +32,8 @@ exportar nada a otro lado.
 ## Para quién
 
 - **Entrenador**: mira si el plan que armó se está cumpliendo, y dónde no.
-- **Atleta**: `[NECESITA DEFINICIÓN]`, abajo.
+- **Atleta**: ve su volumen y su progresión. Su adherencia sólo si el
+  entrenador la habilitó para él.
 
 ## Qué tiene que pasar
 
@@ -154,6 +155,10 @@ Se escriben como pruebas.
    adherencias y cuántas sesiones se excluyeron. Nunca sólo la ajustada.
 9. Sin ninguna sesión marcada, el panel no muestra un segundo número vacío ni un
    "0 excluidas": la fila no existe hasta que exista una marca.
+10. Un atleta cuyo entrenador no habilitó la adherencia ve su volumen y su
+    progresión, y no ve ningún porcentaje de cumplimiento — ni propio ni agregado.
+11. Habilitada para un atleta, sigue oculta para los demás del mismo entrenador:
+    la opción es por vínculo, no por espacio.
 
 ## Fuera de alcance
 
@@ -184,13 +189,7 @@ prometiendo una función que no está.
 | Pregunta | Decisión |
 |---|---|
 | ¿Cuándo cuenta que el atleta fue a entrenar? | Siempre. Toda serie prescrita cuenta, y no registrada es no hecha. Separar "no fue" de "fue y no registró" exigiría información que los datos no tienen. |
-
-## Definiciones pendientes
-
-`[NECESITA DEFINICIÓN]` **Si el atleta ve su propio panel, y cuánto.** El
-volumen y la progresión son suyos. La adherencia es un juicio sobre él, y
-mostrársela sin que el entrenador lo haya decidido cambia la relación entre los
-dos. Es una decisión de producto, no de permisos.
+| ¿El atleta ve su propia adherencia? | Es una opción del entrenador, **por atleta y apagada por defecto**. El volumen y la progresión son del atleta y los ve siempre; la adherencia es un juicio sobre él, y encenderlo tiene que ser deliberado. |
 
 ## Cómo se relaciona con la constitución
 
@@ -199,9 +198,8 @@ dos. Es una decisión de producto, no de permisos.
   pasar por una enmienda.
 - **Artículo III**: el panel no agrega superficie de datos nueva; lee la que la
   001 ya aísla. El criterio 5 existe para que eso se verifique y no se asuma.
-- **Artículo V**: queda una definición pendiente y **no habilita implementación**
-  de la vista del atleta. El resto de la spec sí, incluidos los siete criterios de
-  aceptación, que son todos del lado del entrenador.
+- **Artículo V**: esta spec ya no tiene `[NECESITA DEFINICIÓN]` y habilita
+  implementación completa.
 - **Artículo IX**: se diseña contra los datos reales importados, no contra series
   inventadas. Los casos borde que importan —bloques sin registrar, un solo
   atleta, un patrón con 15 series en total— sólo aparecen ahí.
