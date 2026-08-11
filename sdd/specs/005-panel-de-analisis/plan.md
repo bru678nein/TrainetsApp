@@ -152,11 +152,16 @@ Continúan desde T-035 (feature 003).
 9. **T-044** — Vista de adherencia desagregada.
 10. **T-045** — Vista de volumen por patrón.
 11. **T-046** — Vista de progresión de carga.
-12. **T-047** — La opción del entrenador: mostrarle la adherencia al atleta.
-13. **T-048** — CI corre la suite del frontend.
-14. **T-049** — README, backlog y captura del panel con datos reales.
+12. **T-047** — CI corre la suite del frontend.
+13. **T-048** — README, backlog y captura del panel con datos reales.
 
-Catorce. Las cinco primeras son andamiaje que la 004 hereda entera.
+Trece. Las cinco primeras son andamiaje que la 004 hereda entera.
+
+**No está la vista del atleta, y no es un olvido.** Mostrarle o no su adherencia
+es un interruptor del entrenador, o sea una escritura, y la spec pone toda
+escritura fuera de alcance: este panel se lee. Los criterios 10 y 11 dependen de
+que ese interruptor exista, igual que el 8 y el 9 dependen de poder marcar una
+sesión. Las dos son la misma escritura pendiente y salen juntas, fuera de acá.
 
 ## 8. Deuda que este plan no paga
 

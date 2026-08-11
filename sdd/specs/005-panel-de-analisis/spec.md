@@ -175,6 +175,13 @@ Se escriben como pruebas.
 
 ## Depende de
 
+**Dos escrituras que este panel consume y no produce.** Marcar una sesión como no
+esperada, y el interruptor por atleta que decide si ve su propia adherencia. Las
+dos son escrituras sobre el vínculo, y esta feature se lee: por eso están acá y no
+en su alcance. Los criterios 8 y 9 dependen de la primera; el 10 y el 11, de la
+segunda. El panel del entrenador —los siete criterios restantes— no depende de
+ninguna.
+
 **Poder marcar una sesión como no esperada.** No existe todavía. Es una escritura
 sobre el plan —una sesión que el entrenador declara que no correspondía— y por
 eso no entra en una feature de sólo lectura. Es chica e independiente de la 002,
