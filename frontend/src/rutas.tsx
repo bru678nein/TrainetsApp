@@ -1,0 +1,30 @@
+import { Link, Route, Routes } from "react-router-dom";
+
+import { ListadoDeAtletas } from "./features/analytics/ListadoDeAtletas";
+import { PanelDelAtleta } from "./features/analytics/PanelDelAtleta";
+
+/**
+ * Routes, and the reason there is a router at all for two screens.
+ *
+ * The athlete's panel needs an address. A panel that cannot be linked is a panel
+ * that gets shared as a screenshot, and reloading the page has to land back on
+ * the same athlete rather than at the top — which is what happens when the
+ * selected athlete lives in component state instead of in the URL.
+ */
+export function Rutas() {
+  return (
+    <Routes>
+      <Route path="/" element={<ListadoDeAtletas />} />
+      <Route path="/atletas/:atletaId" element={<PanelDelAtleta />} />
+      <Route
+        path="*"
+        element={
+          <section>
+            <h2>Esa página no existe</h2>
+            <Link to="/">Volver a los atletas</Link>
+          </section>
+        }
+      />
+    </Routes>
+  );
+}

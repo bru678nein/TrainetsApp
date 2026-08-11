@@ -1,23 +1,43 @@
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
-// Clerk necesita su proveedor para montar. Acá se lo falsifica al mínimo porque
-// lo que este archivo verifica es el andamiaje —que TypeScript, React, jsdom y
-// Testing Library estén conectados de verdad—, no la sesión. Eso vive en
-// `lib/Sesion.test.tsx`, que sí controla los dos estados.
+/**
+ * Lo que este archivo verifica es la **composición**: que las rutas cuelguen de
+ * la puerta de sesión y no al lado.
+ *
+ * Puestas afuera, la aplicación entera renderiza para cualquiera que abra la
+ * URL. Se vería casi igual —los datos no llegarían— pero la estructura del panel,
+ * los nombres de las secciones y la forma del programa sí. Y el error se comete
+ * moviendo un componente dos líneas.
+ */
+const sesionIniciada = vi.hoisted(() => ({ valor: false }));
+
 vi.mock("@clerk/clerk-react", () => ({
-  SignedIn: () => null,
-  SignedOut: ({ children }: { children: ReactNode }) => children,
+  SignedIn: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? children : null),
+  SignedOut: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? null : children),
   SignIn: () => <div>Ingresar</div>,
-  UserButton: () => null,
+  UserButton: () => <div>Cuenta</div>,
 }));
 
-describe("el andamiaje", () => {
-  it("renderiza, o sea que la cadena entera funciona", () => {
+describe("la carcasa", () => {
+  beforeEach(() => {
+    sesionIniciada.valor = false;
+  });
+
+  it("sin sesión no renderiza ninguna ruta", () => {
     render(<App />);
-    expect(screen.getByRole("heading", { name: "AppWeb Lean" })).toBeInTheDocument();
+    expect(screen.getByText("Ingresar")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Atletas" })).not.toBeInTheDocument();
+  });
+
+  it("con sesión sí", () => {
+    // El control: sin esto, una puerta que no deja pasar nunca pasaría el test
+    // de arriba y la aplicación no serviría para nada.
+    sesionIniciada.valor = true;
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Atletas" })).toBeInTheDocument();
   });
 });
