@@ -29,15 +29,15 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-044 | Vista de adherencia desagregada | El plan daba por hecho que `/adherence` desagregaba y devuelve **por semana**: hubo que agregar `adherence_by_pattern` al dominio y su endpoint, con los dos cortes compartiendo un solo acumulador. 5 tests de dominio, 7 de vista, 5 mutaciones cazadas. Contra la planilla real reproduce el 72% de bisagra sobre 226 series, arriba de todo |
 | T-045 | Vista de volumen por patrón | 10 tests; 6 mutaciones cazadas —mostrar una sola serie, vaciar el selector, no ordenar las semanas, ignorar el filtro, dibujar lo prescrito como si fuera lo hecho—. Once patrones apilados serían once colores: la vista colapsa ese eje y ofrece elegir uno, que es la pregunta que encadena con la adherencia |
 | T-046 | Vista de progresión de carga | 8 tests; 3 mutaciones cazadas, incluida `connectNulls` en true —que borra el hueco y dibuja una progresión continua que no ocurrió—. La cuarta, cuál ejercicio gana un empate, es **arbitraria**: no hay respuesta correcta que fijar |
+| T-047 | CI corre la suite del frontend | Una job por cadena de herramientas, llamando a los targets del Makefile. Verificado sobre la corrida real: las dos jobs en verde. Encontró tres defectos que el `make check` local no veía —un error de `mypy`, y las dos suites dependiendo de archivos `.env` que no se versionan— |
 | T-037 | CORS, atado a `AUTH_AUTHORIZED_PARTY` | 6 tests; sacando `Active-Role` de `allow_headers` cae 1 nombrándolo, abriendo el origen a `*` cae otro, y sin montar el middleware caen 3 |
 
 ## Pendientes
 
-Dos.
+Una.
 
 | ID | Tarea |
 |---|---|
-| T-047 | CI corre la suite del frontend |
 | T-048 | Documentación y captura |
 
 El orden importa poco salvo en dos puntos: T-040 necesita a T-039, y todas las
