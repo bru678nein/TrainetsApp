@@ -108,7 +108,25 @@ lint:  ## Linter y tipos
 fmt:  ## Formatea
 	cd backend && $(PY_RUN) -m ruff format . && $(PY_RUN) -m ruff check --fix .
 
-check: lint test  ## Todo lo que corre en CI
+# --- Frontend -----------------------------------------------------------------
+#
+# Targets aparte y no metidos adentro de `lint` y `test`: CI llama a esos dos
+# directamente, y todavía no instala node. Cuando lo instale, se pliegan ahí y
+# desaparece esta nota.
+
+front-install:  ## Instala las dependencias del frontend si faltan
+	@test -d frontend/node_modules || (cd frontend && npm install)
+
+front-lint: front-install  ## ESLint y chequeo de tipos
+	cd frontend && npm run lint
+
+front-test: front-install  ## Tests del frontend
+	cd frontend && npm test
+
+front-dev: front-install  ## Servidor de desarrollo en :5173
+	cd frontend && npm run dev
+
+check: lint test front-lint front-test  ## Todo lo que corre en CI, más el frontend
 
 seed:  ## Siembra la base de desarrollo con datos reales (ver artículo IX)
 	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m importer.from_spreadsheet \
