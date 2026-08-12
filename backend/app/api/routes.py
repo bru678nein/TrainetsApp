@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
@@ -37,6 +37,7 @@ from app.models import (
     Session,
 )
 from app.schemas import (
+    AceptarInvitacionIn,
     AdherenceOut,
     AthleteCreated,
     AthleteIn,
@@ -45,6 +46,7 @@ from app.schemas import (
     CoachOut,
     EstadoOut,
     ExerciseBlock,
+    InvitacionAceptada,
     InvitacionCreada,
     LoadPointOut,
     LoadProgressionOut,
@@ -572,3 +574,70 @@ def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)
     atletas = db.scalars(select(Athlete).where(Athlete.coach_id == coach.id)).all()
     db.commit()
     return CoachOut(id=coach.id, display_name=persona.display_name, athlete_count=len(atletas))
+
+
+#: Cada rechazo con su código. Distinguibles a propósito: la spec pide que un
+#: link vencido no se confunda con uno inválido, porque a quien lo recibió le
+#: dice qué hacer —pedir otro— y a un atacante no le sirve, ya que el vencido
+#: no vale. `410` y no `404` es exactamente esa distinción, en el vocabulario
+#: que HTTP ya tiene.
+_RECHAZOS = {
+    "inexistente": (status.HTTP_404_NOT_FOUND, "invitacion_inexistente"),
+    "vencida": (status.HTTP_410_GONE, "invitacion_vencida"),
+    "usada": (status.HTTP_409_CONFLICT, "invitacion_usada"),
+    "ya_vinculado": (status.HTTP_409_CONFLICT, "ya_sos_atleta_de_ese_entrenador"),
+}
+
+
+@alta.post("/invitation", response_model=InvitacionAceptada)
+def aceptar_invitacion(
+    payload: AceptarInvitacionIn,
+    ctx: TenantContext = Depends(require_identity_for_signup),
+) -> InvitacionAceptada:
+    """The athlete claims a record the coach already built.
+
+    Hangs off the signup router and not the data one, and that is forced rather
+    than chosen: whoever accepts holds an identity and no link to the record yet,
+    so there is no active role to demand and no tenant context to set.
+
+    The identity is resolved here because creating one needs the email and the
+    name, which travel in the token. Everything that has to be atomic — checking
+    the invitation is neither revoked, spent nor expired, and associating — is
+    one call into `app_aceptar_invitacion`, the only place in the system that
+    writes across the tenant boundary.
+    """
+    from app.domain.invitacion import hash_de
+
+    db = ctx.db
+    persona = db.scalars(
+        select(AppUser).where(AppUser.auth_user_id == ctx.identity.auth_user_id)
+    ).first()
+    if persona is None:
+        if ctx.profile is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "el token no trae email: no se puede crear la identidad",
+            )
+        persona = AppUser(
+            auth_user_id=ctx.identity.auth_user_id,
+            email=ctx.profile.email,
+            display_name=ctx.profile.display_name,
+        )
+        db.add(persona)
+        db.flush()
+
+    resultado = db.execute(
+        text("SELECT app_aceptar_invitacion(:h, :u)"),
+        {"h": hash_de(payload.token), "u": persona.id},
+    ).scalar_one()
+
+    if resultado != "aceptada":
+        # La identidad recién creada se conserva aunque la invitación falle: la
+        # persona existe igual, y borrarla obligaría a recrearla en el reintento
+        # con otro id.
+        db.commit()
+        codigo, detalle = _RECHAZOS[resultado]
+        raise HTTPException(codigo, detalle)
+
+    db.commit()
+    return InvitacionAceptada(resultado="aceptada")

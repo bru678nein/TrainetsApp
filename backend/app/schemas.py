@@ -138,6 +138,14 @@ class VolumeOut(BaseModel):
     tonnage_kg: float
 
 
+class AceptarInvitacionIn(BaseModel):
+    token: str = Field(min_length=1)
+
+
+class InvitacionAceptada(BaseModel):
+    resultado: Literal["aceptada"]
+
+
 class CambioDeEstadoIn(BaseModel):
     """Qué se le pide al vínculo. Los valores son los de `vinculo.Accion`."""
 

@@ -62,7 +62,15 @@ SIN_TENANT = {
 # out of a check — which is exactly the kind of thing that should cost a line in
 # a shared file and a justification, instead of happening quietly. What they do
 # not opt out of is answering 401 without credentials.
-SIN_ROL = {"/api/me/coach"}
+SIN_ROL = {
+    "/api/me/coach",
+    # Aceptar una invitación, por el mismo motivo que el alta: quien acepta
+    # todavía no es atleta de nadie, así que exigirle un rol activo haría el
+    # flujo imposible. Lo que no se saltea es responder 401 sin credenciales, y
+    # `tests/test_endpoint_aceptacion.py` lo verifica junto con los cinco
+    # resultados.
+    "/api/me/invitation",
+}
 
 
 def _todas_las_rutas(nodos: Iterable[object]) -> Iterator[APIRoute]:

@@ -25,6 +25,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-028 | `app_aceptar_invitacion` | 13 tests, los cinco resultados con su escenario; 7 mutaciones cazadas —reusar un token, ignorar o estirar el vencimiento, aceptar una revocada, robarle la ficha a quien ya la tiene, no marcarla usada, no distinguir vencida de inexistente—. Cada rechazo verifica el **efecto**, no sólo el texto devuelto |
 | T-029 | Endpoints de estado del vínculo | 13 tests; 6 mutaciones cazadas —dejar que el atleta cambie su vínculo o invite, no revocar la anterior, permitir transiciones inválidas, invitar sobre lo archivado, token constante—. El token en claro se verifica ausente **sobre las respuestas** de las otras rutas |
 | T-031 | Traducción del bloqueo silencioso | Resultó no ser silencioso: el ORM cuenta filas y levanta, así que era un **500** y no un falso éxito. Un manejador global —no un `if` por endpoint— lo traduce a 409 con su motivo. 5 tests, 5 mutaciones cazadas, incluida tapar cualquier error de base como si fuera el vínculo |
+| T-030 | Endpoint de aceptación | 10 tests; 4 mutaciones cazadas. Los cinco resultados llegan como cinco respuestas distinguibles: **410 para la vencida y 404 para la inexistente**, que es el criterio 2 en el vocabulario que HTTP ya tiene. Sin email en el token no se inventa una identidad |
 | T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
 | T-019 | Migración: `athlete.estado` | ida y vuelta sobre la base sembrada; forzando `is_active = false` el backfill mapea a `pausado` y no a `archivado`; un estado inventado lo rechaza el `CHECK` de la base |
 | T-020 | Modelos y `docs/schema.sql` al día | `test_la_migracion_no_divergio_de_los_modelos`; el `CHECK` de la base se compara contra el enum del dominio |
@@ -33,11 +34,10 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Cinco.
+Cuatro.
 
 | ID | Tarea |
 |---|---|
-| T-030 | Endpoint de aceptación |
 | T-032 | Fixtures de vínculos |
 | T-033 | Recorrido de rutas: el eje del estado |
 | T-034 | Criterios 1 a 12 |
