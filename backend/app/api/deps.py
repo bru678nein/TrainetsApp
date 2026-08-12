@@ -10,10 +10,9 @@ variables — and `tenant_session` hands out the session it opened. An endpoint
 cannot get one without the other, because there is no other way to get one.
 
 What is not here yet: mounting the data router with this dependency, and the
-policies that make the session variables mean something. Until then
-the variables are set and nothing reads them, which is the right order — the app
-learns to declare its context before the database starts demanding it, never
-after.
+policies that make the session variables mean something. Until then the variables
+are set and nothing reads them, which is the right order — the app learns to
+declare its context before the database starts demanding it, never after.
 """
 
 from __future__ import annotations

@@ -10,9 +10,9 @@ which is the case that started the discussion, but for anyone who switches
 coaches: switching archives the previous relationship instead of deleting it,
 so the new one needs a second athlete row while the old one survives.
 
-RLS still does not enter here: it lands two migrations later, once the HTTP layer
-resolves
-the tenant. Enabling it earlier would leave the app seeing zero rows.
+RLS still does not enter here: it lands two migrations later, once the HTTP
+layer resolves the tenant. Enabling it earlier would leave the app seeing zero
+rows.
 
 Revision ID: 0002
 Revises: 0001

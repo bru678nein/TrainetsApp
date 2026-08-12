@@ -576,10 +576,9 @@ def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)
 
 
 #: Cada rechazo con su código. Distinguibles a propósito: un link vencido no se
-#: confunde con uno inválido, porque a quien lo recibió le
-#: dice qué hacer —pedir otro— y a un atacante no le sirve, ya que el vencido
-#: no vale. `410` y no `404` es exactamente esa distinción, en el vocabulario
-#: que HTTP ya tiene.
+#: confunde con uno inválido, porque a quien lo recibió le dice qué hacer —pedir
+#: otro— y a un atacante no le sirve, ya que el vencido no vale. `410` y no
+#: `404` es exactamente esa distinción, en el vocabulario que HTTP ya tiene.
 _RECHAZOS = {
     "inexistente": (status.HTTP_404_NOT_FOUND, "invitacion_inexistente"),
     "vencida": (status.HTTP_410_GONE, "invitacion_vencida"),

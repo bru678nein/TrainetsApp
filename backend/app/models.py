@@ -88,7 +88,8 @@ class AppUser(Base):
 class Coach(Base):
     __tablename__ = "coach"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
-    # UNIQUE encodes the rule: at most one coach profile per person. What a person can hold several of is the athlete role.
+    # UNIQUE encodes the rule: at most one coach profile per person. What a
+    # person can hold several of is the athlete role.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("app_user.id", ondelete="CASCADE"), unique=True
     )
@@ -130,9 +131,9 @@ class Athlete(Base):
     goal: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     # Three states, not a boolean. `pausado` hides the athlete from the coach's
-    # listing and leaves everything editable; `archivado` ends the link, and from
-    # policies on nothing can be written under it. The values are what the domain's
-    # `vinculo.Estado` carries — the enum is not used as the column type so that
+    # listing and leaves everything editable; `archivado` ends the link, and
+    # from then on nothing can be written under it. The values are what the
+    # domain's `vinculo.Estado` carries — the enum is not used as the column type so that
     # the ORM does not have to import the domain to describe a row.
     estado: Mapped[str] = mapped_column(Text, server_default=text("'activo'"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

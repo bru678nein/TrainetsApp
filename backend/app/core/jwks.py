@@ -1,9 +1,9 @@
 """The provider's key set: fetching it, and deciding when to fetch it again.
 
 This is the adapter, not the domain: it reaches the network, so it lives outside
-`app/domain/`, which imports no infrastructure. What it does not do is decide whether a
-token is acceptable — that is `app.domain.identity`, which takes claims and no
-I/O.
+`app/domain/`, which imports no infrastructure. What it does not do is decide
+whether a token is acceptable — that is `app.domain.identity`, which takes claims
+and no I/O.
 
 The caching policy is the whole point, and it balances two things that pull
 against each other:

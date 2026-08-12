@@ -3,8 +3,8 @@
 What this decides is everything that can be decided by looking at the claims.
 Verifying the signature needs the provider's key set, which needs the network,
 which the domain does not do, because it has no infrastructure — that is the
-adapter's job. The split
-is not bureaucratic: the checks that get skipped in practice are the ones here,
+adapter's job. The split is not bureaucratic: the checks that get skipped in
+practice are the ones here,
 not the cryptography, and they are the ones worth testing exhaustively without
 standing anything up.
 
