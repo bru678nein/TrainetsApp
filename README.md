@@ -12,6 +12,21 @@ TypeScript · Vite · TanStack Query · Recharts.
 
 ---
 
+## The coach's panel
+
+![Adherence, weekly volume and load progression for one athlete](docs/panel.png)
+
+Three questions, and the panel exists to answer them in this order. **Is the
+athlete doing the work?** — adherence by movement pattern, worst first, carrying
+the denominator alongside the percentage because zero out of one and zero out of
+two hundred draw the same and mean nothing alike. **Where is the volume going?**
+— sets planned against sets done, by week and by pattern. **Is the load moving?**
+— progression across a mesocycle, with prescribed-but-unlogged weeks left as
+gaps rather than drawn as zeroes, because a week that did not happen is not a
+week of no load.
+
+---
+
 ## What works today
 
 - **Identity and roles.** One person can be a coach, an athlete of several
@@ -136,7 +151,7 @@ it skip rather than fail.
 | `backend/importer/` | Loads real spreadsheets into the schema |
 | `backend/tests/` | Domain, schema against real Postgres, API, auth, dependency composition |
 | `frontend/` | React + TypeScript. The coach's panel; one door to the API. |
-| `docs/` | Product plan, ADRs, reference `schema.sql`, deployment runbook |
+| `docs/` | Product plan, ADRs, reference `schema.sql`, deployment runbook, panel screenshot |
 
 `backend/scripts/gen_app.py` generates a self-contained HTML app from a
 spreadsheet. The athlete opens it on their phone, logs sets and exports CSV. It
