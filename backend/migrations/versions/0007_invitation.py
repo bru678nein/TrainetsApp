@@ -1,11 +1,9 @@
 """Invitations: the table and its policies
 
-Tasks T-024 and T-025, in one migration on purpose. Migration 0003 left
+Table and policies in one migration on purpose. Migration 0003 left
 `ALTER DEFAULT PRIVILEGES`, so a table created here is born with CRUD for the
 application role. Shipping it without policies would open a window — one commit
 wide, but real — where any coach reads every coach's invitations.
-
-See sdd/specs/003-invitaciones-y-vinculos/plan.md, section 2.
 
 What the table stores is the SHA-256 of the token and never the token. A leak of
 this table hands over nothing usable, and it also removes the timing question the
@@ -19,8 +17,8 @@ are already in somebody's hands.
 Only the coach gets a policy. The athlete has none and that is not an oversight:
 when they accept they have no link yet, so no tenant context exists to check
 against, and afterwards an invitation tells them nothing they do not know.
-Acceptance crosses the boundary through a SECURITY DEFINER function instead —
-that is T-028, and keeping it to one auditable place is the point.
+Acceptance crosses the boundary through a SECURITY DEFINER function instead, and
+keeping it to one auditable place is the point.
 
 Revision ID: 0007
 Revises: 0006

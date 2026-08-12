@@ -1,4 +1,4 @@
-"""State transitions of the coach-athlete link. Task T-022.
+"""State transitions of the coach-athlete link.
 
 Three states, four actions, and the twelve pairs written out. The table is
 explicit rather than derived from rules because the interesting content is in

@@ -1,4 +1,4 @@
-"""Invitation tokens: generation, hashing, expiry. Task T-023.
+"""Invitation tokens: generation, hashing, expiry.
 
 `emitir` returns two things and that shape is the design. The clear token is
 handed back to be shown once and never stored; what goes to the database is the

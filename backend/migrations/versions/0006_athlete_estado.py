@@ -7,8 +7,6 @@ take away something the coach has today. Pausing exists for the athlete who is
 injured or takes three months off, and preparing the programme for their return
 is the whole reason anybody pauses anybody.
 
-Task T-019. See sdd/specs/003-invitaciones-y-vinculos/plan.md, section 1.
-
 The backfill maps `false` to `'pausado'` and never to `'archivado'`, and that is
 the decision the whole migration turns on. What `is_active = false` means today
 is "hidden from the list, still editable", which is `pausado` exactly. Mapping it
@@ -22,9 +20,9 @@ enum, so the migration that adds a state would have no possible downgrade. A
 fourth state is already in sight — the athlete who leaves on their own, out of
 scope today.
 
-The write blocking that `archivado` implies does NOT land here. It is T-027, and
-it arrives as RESTRICTIVE policies. Until then this column is a label: it
-changes what the listing shows and nothing else.
+The write blocking that `archivado` implies does NOT land here: it arrives
+later, as RESTRICTIVE policies. Until then this column is a label — it changes
+what the listing shows and nothing else.
 
 Revision ID: 0006
 Revises: 0005

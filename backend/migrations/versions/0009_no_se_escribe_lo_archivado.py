@@ -9,7 +9,7 @@ de la 001 no se re-verifica.
 completo. Las dos partes leen su historial y ninguna lo modifica.
 
 Por qué no alcanzaba con lo que ya había, medido en
-`sdd/specs/003-invitaciones-y-vinculos/spike/restrictive.py`: las policies de la
+un spike previo: las policies de la
 0004 son `FOR ALL`, y ahí `USING` sirve a `SELECT`, `UPDATE` y `DELETE` a la vez.
 "Se lee pero no se borra" no se puede expresar con una sola. Y poner la condición
 sólo en `WITH CHECK` parece funcionar y no funciona — el `UPDATE` se rechaza y el
