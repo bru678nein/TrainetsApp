@@ -25,10 +25,11 @@ Three things, each with the evidence beside it.
 
 ### 1. Tenant isolation lives in the database
 
-Not in a `WHERE coach_id = ?` that every endpoint has to remember. Nineteen Row
-Level Security policies, two per table — one per active role — and an application
-role that owns no table and is not a superuser, which are the two ways to end up
-exempt from RLS.
+Not in a `WHERE coach_id = ?` that every endpoint has to remember. Thirty-seven
+Row Level Security policies — nineteen permissive ones deciding whose data a row
+is, and eighteen restrictive ones ANDed on top that stop anything being written
+under a link the coach has archived — plus an application role that owns no table
+and is not a superuser, which are the two ways to end up exempt from RLS.
 
 Four details fail silently if missed, and each one is verified by breaking it:
 
@@ -69,7 +70,7 @@ Design and negative controls:
 
 ### 2. "It passed" is not the standard
 
-352 tests — 297 on the backend, 55 on the frontend — and the ones that matter are
+456 tests — 401 on the backend, 55 on the frontend — and the ones that matter are
 verified by **breaking the code and requiring a named test to fall**. A few that earned their keep:
 
 - Removing any one of the eighteen policies migration 0004 creates makes a test

@@ -114,14 +114,19 @@ Pero la identidad sola no alcanza, porque RLS sigue aplicando. La escritura la
 hace una función:
 
 ```
-app_aceptar_invitacion(p_token_hash bytea, p_auth_user_id text) -> text
+app_aceptar_invitacion(p_token_hash bytea, p_user_id uuid) -> text
 ```
 
 `SECURITY DEFINER`, con `search_path` fijado y `EXECUTE` revocado de `PUBLIC`,
-igual que los diez helpers que ya creó la 0004. Adentro hace todo y en orden:
-busca por hash, verifica que no esté revocada, ni usada, ni vencida, resuelve el
-`app_user`, comprueba que esa persona no sea ya atleta de ese entrenador, asocia
+igual que los helpers de la 0004. Adentro hace todo y en orden: busca por hash,
+verifica que no esté revocada, ni usada, ni vencida, comprueba que la ficha no
+tenga ya otra cuenta y que esa persona no sea ya atleta de ese entrenador, asocia
 y marca la invitación como usada.
+
+**Recibe un `app_user.id` ya resuelto y no el `sub`**, que es la corrección que
+apareció al implementarlo. Crear la identidad necesita el email y el nombre, que
+viajan en el token y se leen en Python — es el mismo corte que ya usa el alta de
+entrenador. Esta función hace lo que tiene que ser atómico y nada más.
 
 Devuelve **cuál** de esos casos ocurrió, no un booleano: `aceptada`, `vencida`,
 `inexistente`, `usada`, `ya_vinculado`. La spec pide distinguir vencida de
@@ -168,12 +173,12 @@ Las 18 policies existentes **no se tocan**, y encima van policies `RESTRICTIVE`,
 que Postgres combina con `AND` en vez de con `OR`:
 
 ```sql
-CREATE POLICY <tabla>_vinculo_vivo_ins ON <tabla>
-    AS RESTRICTIVE FOR INSERT WITH CHECK (app_vinculo_escribible_<tabla>(id));
-CREATE POLICY <tabla>_vinculo_vivo_upd ON <tabla>
-    AS RESTRICTIVE FOR UPDATE USING (app_vinculo_escribible_<tabla>(id));
-CREATE POLICY <tabla>_vinculo_vivo_del ON <tabla>
-    AS RESTRICTIVE FOR DELETE USING (app_vinculo_escribible_<tabla>(id));
+CREATE POLICY <tabla>_vinculo_vivo_insert ON <tabla>
+    AS RESTRICTIVE FOR INSERT WITH CHECK (app_vinculo_escribible_<tabla>(<tabla>.<fk>));
+CREATE POLICY <tabla>_vinculo_vivo_update ON <tabla>
+    AS RESTRICTIVE FOR UPDATE USING (...) WITH CHECK (...);
+CREATE POLICY <tabla>_vinculo_vivo_delete ON <tabla>
+    AS RESTRICTIVE FOR DELETE USING (...);
 ```
 
 Medido:
@@ -207,6 +212,16 @@ a él también. RLS no distingue por columna. Además deja algo correcto de arri
 corregirle una falta de ortografía al nombre de alguien no debería exigir reabrir
 el vínculo. Lo que se congela es el historial de entrenamiento, que es lo que la
 spec llama "el historial".
+
+**El argumento es la clave foránea al padre, no el id de la propia fila**, y esa
+corrección se hizo al implementar. En un `INSERT` la fila todavía no existe, así
+que un predicado que la busca por su id pregunta por algo que no está: `NOT
+EXISTS` sobre nada contesta verdadero y la regla permite todo sin fallar nunca.
+El padre sí existe y su clave viaja en la fila nueva.
+
+`UPDATE` lleva las dos mitades. `USING` decide qué filas se pueden tocar y
+`WITH CHECK` qué queda después: sin la segunda, una fila viva se podría mover a un
+vínculo archivado.
 
 Los seis helpers `app_vinculo_escribible_<tabla>(uuid)` son `SECURITY DEFINER`,
 con `search_path` fijado y `EXECUTE` revocado de `PUBLIC`, y recorren la misma
@@ -288,3 +303,11 @@ Diecisiete. El límite de `sdd/README.md` son veinte.
   `GET /athletes/{id}/sessions` sigue sin tenerla.
 - **`invitation` no tiene política de retención.** Las aceptadas y las vencidas
   quedan para siempre.
+
+Y un defecto que este plan no previó y apareció al implementarlo: **las policies
+permisivas de la 0004 evaluaban `WITH CHECK` con el id de la fila nueva**, así que
+el entrenador no podía insertar en ninguna de las cuatro tablas del editor —ni en
+su propio espacio, ni con el vínculo activo—. Nadie lo había notado porque ningún
+endpoint escribía ahí y el importador corre como dueño. Corregido en la migración
+0010, con las tres direcciones medidas: el dueño inserta, un ajeno no, y sobre lo
+archivado tampoco.
