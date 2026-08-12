@@ -27,7 +27,14 @@ INEXISTENTE = "00000000-0000-0000-0000-000000000000"
 # Declared rather than guessed: a route with a parameter nobody listed here
 # fails `test_toda_ruta_declara_como_ejercitarla`, so adding an endpoint forces
 # a decision instead of quietly going uncovered.
-PARAMETROS = {"athlete_id", "session_id", "set_id", "program_id", "mesocycle_id", "prescription_id"}
+PARAMETROS = {
+    "athlete_id",
+    "session_id",
+    "set_id",
+    "program_id",
+    "mesocycle_id",
+    "prescription_id",
+}
 
 CUERPOS: dict[str, dict[str, object]] = {
     "/api/sets/{set_id}/log": {"reps": 5, "load_kg": 50, "rir": 2},
@@ -45,6 +52,8 @@ CUERPOS: dict[str, dict[str, object]] = {
     "/api/prescriptions/{prescription_id}/sets": {"reps_min": 5},
     "/api/prescriptions/{prescription_id}/sets/order": {"ids": [INEXISTENTE]},
     "/api/prescribed-sets/{set_id}": {"reps_min": 5},
+    "/api/mesocycles/{mesocycle_id}/duplicate-week": {"from_week": 1, "to_week": 2},
+    "/api/sessions/{session_id}/duplicate": {"to_week": 2, "to_day": 1},
 }
 
 # Routes that take no resource identifier, so "someone else's id" does not apply

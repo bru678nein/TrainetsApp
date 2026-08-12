@@ -369,3 +369,223 @@ class TestQuienNoEdita:
         )
         assert r.status_code == 403
         assert "entrenador" in r.json()["detail"]
+
+
+class TestDuplicar:
+    """Lo que hace que armar un bloque cueste minutos y no una tarde."""
+
+    @pytest.fixture
+    def bloque(self, cliente, coach, programa, ejercicio):
+        """Un mesociclo de cuatro semanas con la progresión 2 → 2 → 1 → 1.
+
+        Es la segunda trayectoria más frecuente de la planilla, 33 de 87 casos, y
+        la primera que distingue una regla posicional de una que mira la semana
+        anterior.
+        """
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={
+                "ordinal": 1,
+                "label": "M",
+                "week_count": 4,
+                "rir_progression": [0, 0, -1, -1],
+            },
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        for n in (1, 2):
+            coach(
+                cliente,
+                "POST",
+                f"/api/prescriptions/{pres}/sets",
+                json={
+                    "reps_min": 8,
+                    "reps_max": 8,
+                    "rir_min": 2,
+                    "rir_max": 2,
+                    "target_load_kg": 80,
+                    "set_number": n,
+                },
+            )
+        return meso, sesion, pres
+
+    def _series_de(self, cliente, coach, sesion_id):
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion_id}").json()
+        return detalle["blocks"][0]["sets"]
+
+    def test_la_copia_tiene_identidad_propia(self, cliente, coach, bloque) -> None:
+        """Editar una no toca la otra. El criterio 2."""
+        meso, sesion, _ = bloque
+        copia = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        ).json()[0]
+        assert copia["id"] != sesion
+        assert copia["week_number"] == 2
+
+        serie_copiada = self._series_de(cliente, coach, copia["id"])[0]
+        coach(
+            cliente,
+            "PATCH",
+            f"/api/prescribed-sets/{serie_copiada['id']}",
+            json={"reps_min": 3, "reps_max": 3},
+        )
+        original = self._series_de(cliente, coach, sesion)[0]
+        assert original["reps_min"] == 8, "editar la copia movió el original"
+
+    def test_de_la_1_a_la_2_el_rir_no_se_mueve(self, cliente, coach, bloque) -> None:
+        """Las dos posiciones declaran el mismo desplazamiento."""
+        meso, _, _ = bloque
+        copia = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        ).json()[0]
+        assert [s["rir_min"] for s in self._series_de(cliente, coach, copia["id"])] == [2, 2]
+
+    def test_de_la_2_a_la_3_baja_un_punto_sin_tocarla_a_mano(self, cliente, coach, bloque) -> None:
+        """El criterio 3, y la razón por la que la progresión es del mesociclo.
+
+        La copia sale con el RIR que le toca por su posición en el bloque. Una
+        regla de "progresá lo mismo que la vez pasada" habría dejado 2, porque de
+        la 1 a la 2 no se movió nada.
+        """
+        meso, _, _ = bloque
+        coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        )
+        tercera = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 2, "to_week": 3},
+        ).json()[0]
+        series = self._series_de(cliente, coach, tercera["id"])
+        assert [s["rir_min"] for s in series] == [1, 1]
+        assert [s["rir_max"] for s in series] == [1, 1]
+
+    def test_la_carga_se_copia_igual(self, cliente, coach, bloque) -> None:
+        """Lo que pasa el 60% de las veces, medido sobre la planilla.
+
+        Moverla sola sería inventar una progresión que el entrenador no declaró.
+        """
+        meso, _, _ = bloque
+        copia = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 3},
+        ).json()[0]
+        assert [s["target_load_kg"] for s in self._series_de(cliente, coach, copia["id"])] == [
+            80,
+            80,
+        ]
+
+    def test_un_bloque_sin_progresion_declarada_copia_plano(
+        self, cliente, coach, programa, ejercicio
+    ) -> None:
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 2, "label": "Plano", "week_count": 4},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        coach(cliente, "POST", f"/api/prescriptions/{pres}/sets", json={"rir_min": 2, "rir_max": 2})
+
+        copia = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 4},
+        ).json()[0]
+        assert self._series_de(cliente, coach, copia["id"])[0]["rir_min"] == 2
+
+    def test_el_rir_no_baja_de_cero(self, cliente, coach, programa, ejercicio) -> None:
+        """Cero es al fallo, y no hay nada más duro.
+
+        Seguir restando haría fallar la copia entera contra el CHECK de la
+        columna por una serie que ya estaba al máximo.
+        """
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 3, "label": "Duro", "week_count": 4, "rir_progression": [0, -3]},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        coach(cliente, "POST", f"/api/prescriptions/{pres}/sets", json={"rir_min": 1, "rir_max": 1})
+
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        )
+        assert r.status_code == 201, r.text
+        assert self._series_de(cliente, coach, r.json()[0]["id"])[0]["rir_min"] == 0
+
+    def test_no_pisa_una_semana_ya_armada(self, cliente, coach, bloque) -> None:
+        """Pisar borra trabajo sin preguntar, y el atleta pudo haber registrado ahí."""
+        meso, _, _ = bloque
+        coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        )
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 2},
+        )
+        assert r.status_code == 409
+        assert "ya tiene sesiones" in r.json()["detail"]
+
+    def test_duplicar_un_ejercicio_lo_deja_al_final(self, cliente, coach, bloque) -> None:
+        _, sesion, pres = bloque
+        r = coach(cliente, "POST", f"/api/prescriptions/{pres}/duplicate")
+        assert r.status_code == 201
+        assert r.json()["position"] == 2
+        assert len(self._series_de(cliente, coach, sesion)) == 2

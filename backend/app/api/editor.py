@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -45,6 +46,8 @@ from app.models import (
     Session,
 )
 from app.schemas import (
+    DuplicarSemanaIn,
+    DuplicarSesionIn,
     ExerciseIn,
     ExerciseOut,
     MesocycleIn,
@@ -198,6 +201,7 @@ def crear_mesociclo(
         label=payload.label,
         week_count=payload.week_count,
         focus=payload.focus,
+        rir_progression=payload.rir_progression,
     )
     db.add(meso)
     db.commit()
@@ -508,3 +512,219 @@ def listar_patrones(ctx: TenantContext = Depends(require_tenant_context)) -> lis
             select(MovementPattern).order_by(MovementPattern.sort_order, MovementPattern.code)
         ).all()
     )
+
+
+# --- Duplicar, que es lo que decide todo ----------------------------------------
+#
+# Es la razón por la que la planilla gana hoy. Copiar una semana entera con sus
+# sesiones, sus ejercicios y sus series, y que la copia salga con la progresión
+# que le corresponde por su posición en el bloque, sin tocarla a mano.
+
+
+def _desplazamiento(meso: Mesocycle, desde: int, hasta: int) -> int:
+    """Cuánto RIR mueve pasar de una semana a otra dentro del mismo bloque.
+
+    La progresión se guarda como desplazamientos absolutos respecto de la primera
+    semana, así que mover de W a T aplica la **diferencia** entre las dos
+    posiciones. Eso es lo que hace que copiar de la 1 a la 2 no mueva nada y de
+    la 2 a la 3 baje un punto, con la misma declaración.
+
+    Lo que falte en la lista se lee como cero: un bloque que se extendió y todavía
+    no declaró las semanas nuevas no progresa en ellas, que es más seguro que
+    inventarle una continuación.
+    """
+    tabla = meso.rir_progression or []
+
+    def en(semana: int) -> int:
+        return tabla[semana - 1] if 1 <= semana <= len(tabla) else 0
+
+    return en(hasta) - en(desde)
+
+
+def _rir_movido(valor: Decimal | None, delta: int) -> Decimal | None:
+    """El RIR corrido, sin bajar de cero.
+
+    Cero es "sin repeticiones en reserva", o sea al fallo. No hay nada más duro
+    que eso, y la columna lo impide con un CHECK — llegar ahí y seguir restando
+    haría fallar la copia entera por una semana que ya estaba al máximo.
+    """
+    if valor is None:
+        return None
+    return max(Decimal(0), valor + delta)
+
+
+def _copiar_serie(serie: PrescribedSet, prescripcion_id: uuid.UUID, delta: int) -> PrescribedSet:
+    """La carga se copia igual, y eso no es pereza: es lo que pasa el 60% de las veces.
+
+    Medido sobre la planilla, dentro de un mesociclo la carga se queda quieta en
+    60 de cada 100 series y las repeticiones no cambian nunca. Lo que se mueve es
+    el RIR. Mover la carga sola sería inventar una progresión que el entrenador no
+    declaró.
+    """
+    return PrescribedSet(
+        prescription_id=prescripcion_id,
+        set_number=serie.set_number,
+        reps_min=serie.reps_min,
+        reps_max=serie.reps_max,
+        rir_min=_rir_movido(serie.rir_min, delta),
+        rir_max=_rir_movido(serie.rir_max, delta),
+        target_load_kg=serie.target_load_kg,
+        target_pct_1rm=serie.target_pct_1rm,
+        tempo=serie.tempo,
+        is_amrap=serie.is_amrap,
+    )
+
+
+def _copiar_prescripcion(
+    db: OrmSession,
+    pres: Prescription,
+    sesion_id: uuid.UUID,
+    delta: int,
+    posicion: int | None = None,
+) -> Prescription:
+    """`posicion` se pasa cuando la copia cae en la misma sesión que el original.
+
+    Copiar a otra sesión conserva el orden, que es lo que se quiere al duplicar
+    una semana. Copiar dentro de la misma no puede: la posición ya está ocupada
+    por quien se está copiando, y el `flush` la choca antes de que nadie la
+    corrija después.
+    """
+    copia = Prescription(
+        session_id=sesion_id,
+        exercise_id=pres.exercise_id,
+        position=posicion if posicion is not None else pres.position,
+        rest_seconds=pres.rest_seconds,
+        coach_note=pres.coach_note,
+        superset_key=pres.superset_key,
+    )
+    db.add(copia)
+    db.flush()
+    for serie in sorted(pres.sets, key=lambda s: s.set_number):
+        db.add(_copiar_serie(serie, copia.id, delta))
+    return copia
+
+
+def _copiar_sesion(db: OrmSession, sesion: Session, semana: int, dia: int, delta: int) -> Session:
+    copia = Session(
+        mesocycle_id=sesion.mesocycle_id,
+        week_number=semana,
+        day_number=dia,
+        label=sesion.label,
+        # `scheduled_on` no se copia: la fecha era de la sesión original y
+        # arrastrarla pondría la semana 3 en el día de la 2. Sin fecha es
+        # correcto; una fecha vieja es una mentira.
+    )
+    db.add(copia)
+    db.flush()
+    for pres in sorted(sesion.prescriptions, key=lambda p: p.position):
+        _copiar_prescripcion(db, pres, copia.id, delta)
+    return copia
+
+
+def _libre(db: OrmSession, mesocycle_id: uuid.UUID, semana: int, dias: set[int]) -> None:
+    ocupados = set(
+        db.scalars(
+            select(Session.day_number).where(
+                Session.mesocycle_id == mesocycle_id, Session.week_number == semana
+            )
+        ).all()
+    )
+    choque = sorted(dias & ocupados)
+    if choque:
+        # 409 y no un reemplazo silencioso: pisar una semana ya armada borra
+        # trabajo sin preguntar, y el atleta puede haber registrado series ahí.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"la semana {semana} ya tiene sesiones en los días {choque}: borralas o elegí otra",
+        )
+
+
+@editor.post(
+    "/mesocycles/{mesocycle_id}/duplicate-week",
+    response_model=list[SessionCreated],
+    status_code=status.HTTP_201_CREATED,
+)
+def duplicar_semana(
+    mesocycle_id: uuid.UUID,
+    payload: DuplicarSemanaIn,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> list[Session]:
+    """Una semana entera sobre otra, con la progresión de la posición de destino."""
+    db = _solo_entrenador(ctx)
+    meso = _o_404(db, Mesocycle, mesocycle_id, "mesociclo")
+    if payload.to_week > meso.week_count:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"el mesociclo tiene {meso.week_count} semanas y pediste la {payload.to_week}",
+        )
+    if payload.to_week == payload.from_week:
+        raise HTTPException(status.HTTP_409_CONFLICT, "el origen y el destino son la misma semana")
+
+    origen = list(
+        db.scalars(
+            select(Session)
+            .where(Session.mesocycle_id == mesocycle_id, Session.week_number == payload.from_week)
+            .order_by(Session.day_number)
+        ).all()
+    )
+    if not origen:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"la semana {payload.from_week} no tiene sesiones"
+        )
+
+    _libre(db, mesocycle_id, payload.to_week, {s.day_number for s in origen})
+    delta = _desplazamiento(meso, payload.from_week, payload.to_week)
+    copias = [_copiar_sesion(db, s, payload.to_week, s.day_number, delta) for s in origen]
+    db.commit()
+    return copias
+
+
+@editor.post(
+    "/sessions/{session_id}/duplicate",
+    response_model=SessionCreated,
+    status_code=status.HTTP_201_CREATED,
+)
+def duplicar_sesion(
+    session_id: uuid.UUID,
+    payload: DuplicarSesionIn,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> Session:
+    db = _solo_entrenador(ctx)
+    sesion = _o_404(db, Session, session_id, "sesión")
+    meso = _o_404(db, Mesocycle, sesion.mesocycle_id, "mesociclo")
+    if payload.to_week > meso.week_count:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"el mesociclo tiene {meso.week_count} semanas y pediste la {payload.to_week}",
+        )
+    _libre(db, sesion.mesocycle_id, payload.to_week, {payload.to_day})
+    delta = _desplazamiento(meso, sesion.week_number, payload.to_week)
+    copia = _copiar_sesion(db, sesion, payload.to_week, payload.to_day, delta)
+    db.commit()
+    return copia
+
+
+@editor.post(
+    "/prescriptions/{prescription_id}/duplicate",
+    response_model=PrescriptionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def duplicar_prescripcion(
+    prescription_id: uuid.UUID, ctx: TenantContext = Depends(require_tenant_context)
+) -> Prescription:
+    """El ejercicio con su bloque de series, al final de la misma sesión.
+
+    Sin progresión: quedarse en la misma sesión es quedarse en la misma semana, y
+    el desplazamiento entre una posición y sí misma es cero.
+    """
+    db = _solo_entrenador(ctx)
+    pres = _o_404(db, Prescription, prescription_id, "prescripción")
+    copia = _copiar_prescripcion(
+        db,
+        pres,
+        pres.session_id,
+        0,
+        posicion=_siguiente(db, Prescription.position, Prescription.session_id == pres.session_id),
+    )
+    db.commit()
+    return copia

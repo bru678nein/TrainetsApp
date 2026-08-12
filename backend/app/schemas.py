@@ -249,15 +249,17 @@ class ProgramOut(BaseModel):
 class MesocycleIn(BaseModel):
     ordinal: int = Field(ge=1)
     label: str = Field(min_length=1, max_length=120)
-    week_count: int = Field(ge=1, le=52)
+    week_count: int = Field(ge=1, le=16)
     focus: str | None = Field(default=None, max_length=120)
+    rir_progression: list[int] | None = Field(default=None, max_length=52)
 
 
 class MesocyclePatch(BaseModel):
     ordinal: int | None = Field(default=None, ge=1)
     label: str | None = Field(default=None, min_length=1, max_length=120)
-    week_count: int | None = Field(default=None, ge=1, le=52)
+    week_count: int | None = Field(default=None, ge=1, le=16)
     focus: str | None = Field(default=None, max_length=120)
+    rir_progression: list[int] | None = Field(default=None, max_length=52)
 
 
 class MesocycleOut(BaseModel):
@@ -268,6 +270,7 @@ class MesocycleOut(BaseModel):
     label: str
     week_count: int
     focus: str | None = None
+    rir_progression: list[int] | None = None
 
 
 class SessionIn(BaseModel):
@@ -447,3 +450,23 @@ class PatternOut(BaseModel):
     code: str
     label_es: str
     is_compound: bool | None = None
+
+
+class DuplicarSemanaIn(BaseModel):
+    """De qué semana a qué semana, las dos en el cuerpo.
+
+    La de origen no viaja en la ruta aunque sea lo primero que uno escribiría: los
+    parámetros de ruta de esta API son identificadores de recurso, y una semana es
+    un número dentro de un mesociclo. El recorrido que prueba "un recurso ajeno
+    contesta igual que uno inexistente" llena cada parámetro con un identificador
+    inventado, y un entero ahí devuelve 422 antes de mirar de quién es el
+    mesociclo — o sea que la ruta quedaría sin esa cobertura.
+    """
+
+    from_week: int = Field(ge=1)
+    to_week: int = Field(ge=1)
+
+
+class DuplicarSesionIn(BaseModel):
+    to_week: int = Field(ge=1)
+    to_day: int = Field(ge=1, le=7)

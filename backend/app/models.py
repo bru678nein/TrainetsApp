@@ -20,6 +20,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    ARRAY,
     Boolean,
     CheckConstraint,
     Date,
@@ -274,6 +275,10 @@ class Mesocycle(Base):
     label: Mapped[str] = mapped_column(String(80))
     week_count: Mapped[int] = mapped_column(SmallInteger)
     focus: Mapped[str | None] = mapped_column(Text)
+    #: Desplazamiento de RIR por semana, relativo a la primera. `NULL` es un
+    #: bloque plano. Duplicar de una semana a otra aplica la diferencia entre
+    #: sus dos posiciones, que es lo que hace la progresión posicional.
+    rir_progression: Mapped[list[int] | None] = mapped_column(ARRAY(SmallInteger))
 
     program: Mapped[Program] = relationship(back_populates="mesocycles")
     sessions: Mapped[list[Session]] = relationship(
@@ -283,6 +288,10 @@ class Mesocycle(Base):
         UniqueConstraint("program_id", "ordinal", name="meso_ordinal_uq", deferrable=True),
         CheckConstraint("week_count BETWEEN 1 AND 16", name="meso_weeks_ok"),
         CheckConstraint("ordinal >= 1", name="meso_ordinal_ok"),
+        CheckConstraint(
+            "rir_progression IS NULL OR (array_length(rir_progression, 1) BETWEEN 1 AND 52 AND rir_progression <@ ARRAY[-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10]::smallint[])",
+            name="meso_rir_progression_ok",
+        ),
     )
 
 
