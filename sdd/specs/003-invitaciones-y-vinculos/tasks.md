@@ -29,6 +29,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-032 | Fixtures de vínculos | Cuatro entrenadores sobre la misma persona —activo, pausado, archivado y uno nuevo—, cada uno con historial completo. Sin historial, "sobre lo archivado se lee todo" se verificaría sobre cero filas y pasaría siempre |
 | T-033 | Recorrido de rutas: el eje del estado | 5 tests. Lleva un **mapa declarado** y no una regla ciega: cambiar estado tiene que seguir funcionando sobre lo archivado, o archivar sería irreversible. Una ruta de escritura nueva sin declarar hace fallar un test que la nombra |
 | T-034 | Criterios 1 a 12 | 10 tests. Encontró que **archivar no invalidaba la invitación pendiente**, que la spec pedía y nunca se implementó: corregido en la migración 0012, dentro de la función de aceptación para que valga sin importar cómo se archivó |
+| T-035 | Documentación y backlog | La tabla de cumplimiento auditada fila por fila contra el código: el artículo VIII no decía que ahora emitimos una credencial propia, el IV no decía que el historial no puede probar el orden, y los números del IX eran de un repo más chico |
 | T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
 | T-019 | Migración: `athlete.estado` | ida y vuelta sobre la base sembrada; forzando `is_active = false` el backfill mapea a `pausado` y no a `archivado`; un estado inventado lo rechaza el `CHECK` de la base |
 | T-020 | Modelos y `docs/schema.sql` al día | `test_la_migracion_no_divergio_de_los_modelos`; el `CHECK` de la base se compara contra el enum del dominio |
@@ -37,16 +38,7 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Una.
-
-| ID | Tarea |
-|---|---|
-| T-035 | Documentación y backlog |
-
-El orden no es libre. T-026 necesita la columna de T-019, T-027 necesita los
-helpers de T-026, y T-031 no se puede escribir antes de que exista el bloqueo que
-traduce. T-022 y T-023 eran de dominio puro y ya están; fueron el punto de entrada por
-no depender de la base.
+Ninguna. Las diecisiete están hechas.
 
 ## Base de datos
 

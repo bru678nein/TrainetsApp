@@ -8,9 +8,10 @@ Built for a real coach, against a real training spreadsheet — 1,326 prescribed
 sets across 17 weeks. Development data is imported from it, never invented.
 
 **Status.** The coach's analytics panel runs against real data — adherence by
-movement pattern, weekly volume planned against done, and load progression. The
-backend under it is deployed: identity, tenant isolation, and half the invitation
-lifecycle.
+movement pattern, weekly volume planned against done, and load progression. Under
+it: identity, tenant isolation, and the whole invitation and link lifecycle —
+inviting, claiming a record, pausing, archiving and reactivating, with writes on
+an archived link refused by the database rather than by each endpoint.
 
 What does not exist yet is the rest of the loop. The panel displays data the
 application did not produce: it comes from the spreadsheet importer, because the
@@ -205,7 +206,7 @@ to keep moving is forbidden.
 |---|---|
 | 001 Identity and tenant isolation | **done**, 22 of 22 tasks |
 | 002 Routine editor | spec written, **unblocked** — all three definitions closed with evidence |
-| 003 Invitations and link lifecycle | **16 of 17** |
+| 003 Invitations and link lifecycle | **done**, 17 of 17 |
 | 004 Session view and phone logging | not started |
 | 005 Analytics panel | **12 of 13** — the three views run against real data |
 | 006 Offline PWA | **dropped** — see the plan |
