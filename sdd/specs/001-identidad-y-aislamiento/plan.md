@@ -312,9 +312,17 @@ tabla, y una tabla con `_as_coach` y sin `_as_athlete` se ve de un vistazo.
 ### `USING` no alcanza: hace falta `WITH CHECK`
 
 `USING` filtra las filas que se leen, y las que ya existen para un `UPDATE` o un
-`DELETE`. **No se aplica a un `INSERT`**: una fila nueva todavía no existe, así
-que no hay nada que filtrar. Lo que gobierna un `INSERT` —y la fila resultante de
-un `UPDATE`— es `WITH CHECK`.
+`DELETE`. **No decide si un `INSERT` se permite**: una fila nueva todavía no
+existe, así que no hay nada que filtrar. Lo que gobierna un `INSERT` —y la fila
+resultante de un `UPDATE`— es `WITH CHECK`.
+
+> **Corregido el 2026-08-12.** Este párrafo decía que `USING` "no se aplica a un
+> `INSERT`", y de ahí salió la decisión de la migración 0010 de arreglar sólo el
+> `WITH CHECK`. Es falso para `INSERT ... RETURNING`: devolver la fila es leerla,
+> así que Postgres le aplica `USING` a una fila que el snapshot de la sentencia
+> no contiene. Un predicado que la busca por su propio `id` da falso y rechaza la
+> escritura entera. Importa porque el ORM emite `RETURNING` siempre. Lo arregló
+> la migración 0013, y lo fija `tests/test_insert_con_returning.py`.
 
 Es la diferencia entre "no ves lo ajeno" y "no escribís sobre lo ajeno", y el
 criterio de aceptación 4 —un atleta no registra una serie prescrita a otro— es lo

@@ -32,14 +32,22 @@ is, and eighteen restrictive ones ANDed on top that stop anything being written
 under a link the coach has archived — plus an application role that owns no table
 and is not a superuser, which are the two ways to end up exempt from RLS.
 
-Four details fail silently if missed, and each one is verified by breaking it:
+Five details fail silently if missed, and each one is verified by breaking it:
 
 - **`FORCE`, not just `ENABLE`.** The owner is exempt from its own policies by
   default, and migrations run as owner. A test walks what the database actually
   has, so a table that gets one without the other is named out loud.
-- **`USING` does not apply to `INSERT`.** An athlete logging a set prescribed to
-  somebody else is rejected by `WITH CHECK`; with `USING` alone that acceptance
-  criterion is unmet while every read test stays green.
+- **`USING` does not decide whether an `INSERT` is allowed** — `WITH CHECK` does.
+  An athlete logging a set prescribed to somebody else is rejected there; with
+  `USING` alone that acceptance criterion is unmet while every read test stays
+  green.
+- **But `USING` does run on an `INSERT ... RETURNING`.** Returning the row means
+  reading it, so the read predicate is applied to a row the statement's snapshot
+  does not contain yet — and one that resolved by the row's own `id` answered
+  false and rejected the write. The ORM emits `RETURNING` always, to recover the
+  primary key, so no application write avoids it. Found by running the schema as
+  the application role rather than as the owner, which is the only way the two
+  halves of a policy can be told apart from outside.
 - **And `WITH CHECK` does not apply to `DELETE`** — the same lesson mirrored,
   found later. Measured in
   [`spike/restrictive.py`](sdd/specs/003-invitaciones-y-vinculos/spike/restrictive.py):
@@ -71,7 +79,7 @@ Design and negative controls:
 
 ### 2. "It passed" is not the standard
 
-488 tests — 433 on the backend, 55 on the frontend — and the ones that matter are
+504 tests — 449 on the backend, 55 on the frontend — and the ones that matter are
 verified by **breaking the code and requiring a named test to fall**. A few that earned their keep:
 
 - Removing any one of the eighteen policies migration 0004 creates makes a test

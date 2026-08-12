@@ -96,6 +96,34 @@ arrancar es dos procesos migrando la misma base al mismo tiempo. Alembic toma un
 lock y una de las dos espera, pero el arranque pasa a depender de una carrera que
 nadie quiso. Es un paso de release.
 
+### Cómo se le llega a la base para migrar
+
+La base **no tiene red pública**. La aplicación le habla por la red interna
+(`postgres.railway.internal`), que no sale a internet, así que migrar desde una
+laptop necesita abrir un proxy TCP, usarlo y cerrarlo:
+
+```bash
+railway tcp-proxy create --service Postgres --port 5432
+railway variables --service Postgres --json    # de acá sale DATABASE_PUBLIC_URL
+cd backend && DATABASE_URL="<esa url>" .venv/bin/python -m alembic upgrade head
+railway tcp-proxy delete --service Postgres --yes <id>
+```
+
+Tres cosas que cuestan tiempo si no están dichas:
+
+- **El endpoint cambia cada vez que se recrea el proxy.** Un DSN guardado de una
+  sesión anterior no sirve, y peor: el host y puerto viejos se los reasignan a
+  otro. Un `password authentication failed` contra la dirección vieja no es la
+  contraseña mal — es la base de otra persona rechazándote.
+- **Esa URL es la del superusuario.** Mientras el proxy está abierto, la base es
+  alcanzable desde internet con sólo una contraseña. Se abre para migrar y se
+  cierra.
+- **`nc -z` sobre el endpoint sigue contestando después de borrar el proxy.** El
+  handshake lo completa el borde de Railway. Lo único que dice la verdad es
+  intentar autenticarse.
+
+Cerrar el proxy no afecta a la aplicación: nunca lo usó.
+
 ## Lo que sale mal, y cómo se ve
 
 **`/health/ready` devuelve `503` con `"status": "sin migrar"`.** La base está

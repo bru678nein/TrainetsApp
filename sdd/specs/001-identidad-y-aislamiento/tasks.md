@@ -120,9 +120,15 @@ registrada le haya sido prescrita al mismo atleta que la firma.
 
 *Hecha cuando:* un atleta que manda su propio `athlete_id` con un
 `prescribed_set_id` de otro es rechazado por la base, no por un `if`. Es el
-criterio de aceptación 4, y **no lo cubre `USING`**: `USING` no se aplica a un
-`INSERT`. Va aparte de T-008 para que no se dé por hecha con los tests de lectura
-en verde.
+criterio de aceptación 4, y **no lo cubre `USING`**: quien decide si un `INSERT`
+se permite es `WITH CHECK`. Va aparte de T-008 para que no se dé por hecha con
+los tests de lectura en verde.
+
+> Corregido el 2026-08-12. Decir que `USING` "no se aplica a un `INSERT`" es
+> falso a secas: un `INSERT ... RETURNING` devuelve la fila, devolverla es
+> leerla, y ahí `USING` sí corre — sobre una fila que el snapshot de la
+> sentencia todavía no tiene. Lo arregló la migración 0013. Lo que sigue en pie
+> es esta tarea: el criterio 4 vive en `WITH CHECK`.
 
 **T-009 — Policy de `exercise`.** El catálogo global (`coach_id IS NULL`) sigue
 visible para todos, en los dos roles.

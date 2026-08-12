@@ -9,9 +9,9 @@
 --  por qué el modelo es como es; los comentarios son el registro de las
 --  decisiones. Para el DDL vigente: `alembic upgrade head --sql`.
 --
---  El RLS del final YA está aplicado: migraciones 0004 y 0005. Lo de abajo es
+--  El RLS del final YA está aplicado: migraciones 0004 a 0013. Lo de abajo es
 --  el bosquejo que explica la forma; el DDL vigente son las migraciones, que
---  traen 18 policies. Ante una diferencia, manda la migración.
+--  traen 37 policies: 19 permisivas y 18 restrictivas. Ante una diferencia, manda la migración.
 --  Ver sdd/specs/001-identidad-y-aislamiento/.
 -- =============================================================================
 
@@ -285,7 +285,7 @@ GROUP BY p.athlete_id, p.id, m.ordinal, s.week_number, e.pattern_code;
 -- Aislamiento por tenant con RLS. APLICADO: migraciones 0004 y 0005.
 --
 -- Este archivo no se aplica nunca, así que lo de abajo es el bosquejo que
--- explica la forma; el DDL vigente son las migraciones, que traen 18 policies.
+-- explica la forma; el DDL vigente son las migraciones, que traen 37 policies: 19 permisivas y 18 restrictivas.
 -- Si las dos difieren, manda la migración y esto es un bug de documentación.
 --
 -- El contrato de la sesión son dos variables, siempre las dos, ninguna con
@@ -368,7 +368,8 @@ ALTER TABLE athlete FORCE  ROW LEVEL SECURITY;
 -- `USING (coach OR atleta)` deja a la persona con los dos roles viendo todo
 -- desde cualquiera, y no se nota leyendo el diff.
 --
--- WITH CHECK en todas, no sólo en logged_set: USING no se aplica a un INSERT, y
+-- WITH CHECK en todas, no sólo en logged_set: USING no decide si un INSERT se
+-- permite —eso lo hace WITH CHECK—, y
 -- una tabla cuya policy no tiene WITH CHECK rechaza toda escritura.
 CREATE POLICY athlete_as_coach ON athlete
     USING (app_active_role() = 'coach'
