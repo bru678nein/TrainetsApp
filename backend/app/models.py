@@ -280,7 +280,7 @@ class Mesocycle(Base):
         back_populates="mesocycle", cascade="all, delete-orphan"
     )
     __table_args__ = (
-        UniqueConstraint("program_id", "ordinal", name="meso_ordinal_uq"),
+        UniqueConstraint("program_id", "ordinal", name="meso_ordinal_uq", deferrable=True),
         CheckConstraint("week_count BETWEEN 1 AND 16", name="meso_weeks_ok"),
         CheckConstraint("ordinal >= 1", name="meso_ordinal_ok"),
     )
@@ -305,7 +305,9 @@ class Session(Base):
         back_populates="session", cascade="all, delete-orphan", order_by="Prescription.position"
     )
     __table_args__ = (
-        UniqueConstraint("mesocycle_id", "week_number", "day_number", name="session_slot_uq"),
+        UniqueConstraint(
+            "mesocycle_id", "week_number", "day_number", name="session_slot_uq", deferrable=True
+        ),
         CheckConstraint("week_number >= 1", name="session_week_ok"),
         CheckConstraint("day_number >= 1", name="session_day_ok"),
     )
@@ -331,7 +333,7 @@ class Prescription(Base):
         order_by="PrescribedSet.set_number",
     )
     __table_args__ = (
-        UniqueConstraint("session_id", "position", name="prescription_pos_uq"),
+        UniqueConstraint("session_id", "position", name="prescription_pos_uq", deferrable=True),
         CheckConstraint("rest_seconds IS NULL OR rest_seconds >= 0", name="prescription_rest_ok"),
     )
 
@@ -359,7 +361,7 @@ class PrescribedSet(Base):
         back_populates="prescribed_set", cascade="all, delete-orphan", uselist=False
     )
     __table_args__ = (
-        UniqueConstraint("prescription_id", "set_number", name="pset_number_uq"),
+        UniqueConstraint("prescription_id", "set_number", name="pset_number_uq", deferrable=True),
         CheckConstraint("set_number >= 1", name="pset_number_ok"),
         CheckConstraint("reps_min IS NULL OR reps_min >= 0", name="pset_reps_min_ok"),
         CheckConstraint("reps_max IS NULL OR reps_max >= 0", name="pset_reps_max_ok"),

@@ -218,3 +218,232 @@ class CoachOut(BaseModel):
     id: uuid.UUID
     display_name: str
     athlete_count: int
+
+
+# --- El editor de rutinas -------------------------------------------------------
+#
+# La estructura que el entrenador arma: programa → mesociclo → sesión →
+# prescripción → serie prescrita. Cada nivel tiene su alta y su modificación
+# parcial, y la modificación parcial usa `None` como "no lo toques" en vez de
+# como "ponelo en nulo". Distinguir las dos cosas necesitaría un centinela, y el
+# único campo donde borrar el valor es una operación real —la carga objetivo de
+# una serie que pasa a ser autorregulada— se resuelve con su propio flag.
+
+
+class ProgramIn(BaseModel):
+    """A programme belongs to an athlete of the caller's; the space is not in the body."""
+
+    name: str = Field(min_length=1, max_length=120)
+    starts_on: date | None = None
+
+
+class ProgramOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    athlete_id: uuid.UUID
+    name: str
+    starts_on: date | None = None
+    status: str | None = None
+
+
+class MesocycleIn(BaseModel):
+    ordinal: int = Field(ge=1)
+    label: str = Field(min_length=1, max_length=120)
+    week_count: int = Field(ge=1, le=52)
+    focus: str | None = Field(default=None, max_length=120)
+
+
+class MesocyclePatch(BaseModel):
+    ordinal: int | None = Field(default=None, ge=1)
+    label: str | None = Field(default=None, min_length=1, max_length=120)
+    week_count: int | None = Field(default=None, ge=1, le=52)
+    focus: str | None = Field(default=None, max_length=120)
+
+
+class MesocycleOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    program_id: uuid.UUID
+    ordinal: int
+    label: str
+    week_count: int
+    focus: str | None = None
+
+
+class SessionIn(BaseModel):
+    """A session is a slot: which week of the block, and which day of that week."""
+
+    week_number: int = Field(ge=1)
+    day_number: int = Field(ge=1, le=7)
+    label: str | None = Field(default=None, max_length=120)
+    scheduled_on: date | None = None
+
+
+class SessionPatch(BaseModel):
+    week_number: int | None = Field(default=None, ge=1)
+    day_number: int | None = Field(default=None, ge=1, le=7)
+    label: str | None = Field(default=None, max_length=120)
+    scheduled_on: date | None = None
+
+
+class SessionCreated(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    mesocycle_id: uuid.UUID
+    week_number: int
+    day_number: int
+    label: str | None = None
+    scheduled_on: date | None = None
+
+
+class PrescriptionIn(BaseModel):
+    exercise_id: uuid.UUID
+    position: int | None = Field(default=None, ge=1)
+    rest_seconds: int | None = Field(default=None, ge=0, le=3600)
+    coach_note: str | None = Field(default=None, max_length=500)
+    superset_key: str | None = Field(default=None, max_length=8)
+
+
+class PrescriptionPatch(BaseModel):
+    position: int | None = Field(default=None, ge=1)
+    rest_seconds: int | None = Field(default=None, ge=0, le=3600)
+    coach_note: str | None = Field(default=None, max_length=500)
+    superset_key: str | None = Field(default=None, max_length=8)
+
+
+class PrescriptionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    session_id: uuid.UUID
+    exercise_id: uuid.UUID
+    position: int
+    rest_seconds: int | None = None
+    coach_note: str | None = None
+    superset_key: str | None = None
+
+
+class _Intensidad(BaseModel):
+    """Las tres formas de prescribir, y lo que ninguna puede violar.
+
+    Carga absoluta, carga relativa al máximo, o autorregulada —sólo RIR, el peso
+    lo elige el atleta ese día—. Las tres conviven y el entrenador usa las tres,
+    pero una serie no puede ser absoluta y relativa a la vez.
+
+    Los campos viven acá y no repetidos en el alta y la modificación: son la
+    misma intensidad, y una copia es un lugar donde los límites se desincronizan.
+
+    La base ya impide la ambigüedad con un CHECK. Esto la rechaza antes, y el
+    motivo no es desconfiar de la base: un CHECK violado sube como un error de
+    integridad sin nombre de campo, y quien lo recibe no sabe cuál de los dos
+    sacar.
+    """
+
+    reps_min: int | None = Field(default=None, ge=0, le=200)
+    reps_max: int | None = Field(default=None, ge=0, le=200)
+    rir_min: float | None = Field(default=None, ge=0, le=10)
+    rir_max: float | None = Field(default=None, ge=0, le=10)
+    target_load_kg: float | None = Field(default=None, ge=0, le=1000)
+    target_pct_1rm: float | None = Field(default=None, gt=0, le=1.5)
+    tempo: str | None = Field(default=None, max_length=16)
+    set_number: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _una_sola_forma_de_carga(self) -> _Intensidad:
+        if self.target_load_kg is not None and self.target_pct_1rm is not None:
+            raise ValueError(
+                "una serie es de carga absoluta o relativa, no las dos: "
+                "mandá target_load_kg o target_pct_1rm, no ambos"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _los_rangos_no_estan_al_reves(self) -> _Intensidad:
+        for menor, mayor, nombre in (
+            (self.reps_min, self.reps_max, "repeticiones"),
+            (self.rir_min, self.rir_max, "RIR"),
+        ):
+            if menor is not None and mayor is not None and mayor < menor:
+                raise ValueError(f"el rango de {nombre} está al revés: el máximo es menor")
+        return self
+
+
+class PrescribedSetIn(_Intensidad):
+    is_amrap: bool = False
+
+
+class PrescribedSetPatch(_Intensidad):
+    """La carga se borra con `autorregulada`, no mandando `None`.
+
+    En una modificación parcial `None` significa "no lo toques", así que sin este
+    flag no habría forma de decir "sacale el peso, que lo elija el atleta": el
+    campo ausente y el campo en nulo se ven iguales.
+    """
+
+    is_amrap: bool | None = None
+    autorregulada: bool = False
+
+
+class PrescribedSetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    prescription_id: uuid.UUID
+    set_number: int
+    reps_min: int | None = None
+    reps_max: int | None = None
+    rir_min: float | None = None
+    rir_max: float | None = None
+    target_load_kg: float | None = None
+    target_pct_1rm: float | None = None
+    tempo: str | None = None
+    is_amrap: bool = False
+
+
+class OrderIn(BaseModel):
+    """El orden completo y no un movimiento suelto.
+
+    Mandar la lista entera hace la operación idempotente y deja que el servidor
+    valide que están todos: un "movete a la posición 3" obliga al cliente a saber
+    qué había en 3, y dos pestañas abiertas lo saben distinto.
+    """
+
+    ids: list[uuid.UUID] = Field(min_length=1)
+
+
+class ExerciseIn(BaseModel):
+    """El patrón de movimiento es obligatorio, y no es burocracia.
+
+    Sin patrón no hay análisis de volumen, que es la razón de ser del producto.
+    En la planilla original era opcional y 354 de 1.326 series quedaron sin
+    clasificar.
+    """
+
+    name: str = Field(min_length=1, max_length=120)
+    pattern_code: str = Field(min_length=1, max_length=64)
+    is_competition_lift: bool = False
+    video_url: str | None = Field(default=None, max_length=500)
+    cues: str | None = Field(default=None, max_length=500)
+
+
+class ExerciseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
+    pattern_code: str
+    is_competition_lift: bool
+    #: `None` es el catálogo global, disponible para todos los entrenadores.
+    coach_id: uuid.UUID | None = None
+    video_url: str | None = None
+    cues: str | None = None
+
+
+class PatternOut(BaseModel):
+    """Los once patrones, que el editor necesita para que el campo sea elegible.
+
+    Son un catálogo cerrado y no texto libre, que es lo que hace contestable la
+    pregunta por volumen por patrón.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+    code: str
+    label_es: str
+    is_compound: bool | None = None

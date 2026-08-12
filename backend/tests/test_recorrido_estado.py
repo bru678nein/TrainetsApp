@@ -29,6 +29,24 @@ ESCRITURAS = {
     "/api/athletes/{athlete_id}/estado": True,
     "/api/me/coach": True,  # alta de identidad, no toca ningún vínculo
     "/api/me/invitation": True,  # aceptar es sobre otra ficha, no sobre ésta
+    # El editor. Todo lo que cuelga del programa de un vínculo archivado tiene
+    # que ser rechazado: archivar significa que el entrenamiento terminó y que
+    # lo que quedó se lee, no se toca. Lo impiden las policies restrictivas, no
+    # un `if` en cada endpoint.
+    "/api/athletes/{athlete_id}/programs": False,
+    "/api/programs/{program_id}/mesocycles": False,
+    "/api/mesocycles/{mesocycle_id}": False,
+    "/api/mesocycles/{mesocycle_id}/sessions": False,
+    "/api/sessions/{session_id}": False,
+    "/api/sessions/{session_id}/prescriptions": False,
+    "/api/sessions/{session_id}/prescriptions/order": False,
+    "/api/prescriptions/{prescription_id}": False,
+    "/api/prescriptions/{prescription_id}/sets": False,
+    "/api/prescriptions/{prescription_id}/sets/order": False,
+    "/api/prescribed-sets/{set_id}": False,
+    # El catálogo es del entrenador, no del vínculo: crear un ejercicio con un
+    # atleta archivado no toca nada de ese atleta.
+    "/api/exercises": True,
 }
 
 

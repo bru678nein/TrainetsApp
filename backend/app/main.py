@@ -8,6 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.api import errores
+from app.api.editor import editor
 from app.api.routes import alta, router
 from app.core.config import get_settings
 
@@ -81,6 +82,7 @@ class CorsPerezoso:
 app = FastAPI(title="Coaching API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CorsPerezoso)
 app.include_router(router)
+app.include_router(editor)
 app.include_router(alta)
 # Traduce los rechazos de la base. Ver `app/api/errores.py`.
 errores.registrar(app)

@@ -27,17 +27,38 @@ INEXISTENTE = "00000000-0000-0000-0000-000000000000"
 # Declared rather than guessed: a route with a parameter nobody listed here
 # fails `test_toda_ruta_declara_como_ejercitarla`, so adding an endpoint forces
 # a decision instead of quietly going uncovered.
-PARAMETROS = {"athlete_id", "session_id", "set_id"}
+PARAMETROS = {"athlete_id", "session_id", "set_id", "program_id", "mesocycle_id", "prescription_id"}
 
 CUERPOS: dict[str, dict[str, object]] = {
     "/api/sets/{set_id}/log": {"reps": 5, "load_kg": 50, "rir": 2},
+    # El editor. Los cuerpos son mínimos y válidos a propósito: lo que se prueba
+    # es que el recurso ajeno responda igual que uno inexistente, y un cuerpo que
+    # no parsea daría 422 en los dos casos sin haber llegado a mirar de quién es.
+    "/api/athletes/{athlete_id}/programs": {"name": "Prueba"},
+    "/api/programs/{program_id}/mesocycles": {"ordinal": 9, "label": "M9", "week_count": 4},
+    "/api/mesocycles/{mesocycle_id}": {"label": "otro nombre"},
+    "/api/mesocycles/{mesocycle_id}/sessions": {"week_number": 1, "day_number": 5},
+    "/api/sessions/{session_id}": {"label": "otro nombre"},
+    "/api/sessions/{session_id}/prescriptions": {"exercise_id": INEXISTENTE},
+    "/api/sessions/{session_id}/prescriptions/order": {"ids": [INEXISTENTE]},
+    "/api/prescriptions/{prescription_id}": {"coach_note": "otra nota"},
+    "/api/prescriptions/{prescription_id}/sets": {"reps_min": 5},
+    "/api/prescriptions/{prescription_id}/sets/order": {"ids": [INEXISTENTE]},
+    "/api/prescribed-sets/{set_id}": {"reps_min": 5},
 }
 
 # Routes that take no resource identifier, so "someone else's id" does not apply
 # to them. They still have to leak nothing, which is what
 # `test_el_listado_de_b_no_trae_atletas_de_a` checks — one test per entry, and
 # the entry is what says somebody looked.
-SIN_IDENTIFICADOR = {"/api/athletes"} | SIN_ROL
+SIN_IDENTIFICADOR = {
+    "/api/athletes",
+    "/api/exercises",
+    # El catálogo de patrones es cerrado y global: once filas iguales para todos,
+    # sin dueño y sin dato de nadie. No hay nada que filtrar, y decirlo acá es
+    # más honesto que escribir un test que no puede fallar.
+    "/api/movement-patterns",
+} | SIN_ROL
 
 
 def _parametros(ruta: str) -> set[str]:
@@ -93,10 +114,17 @@ def recursos_de_a(client, seeded) -> dict[str, str]:
     agenda = client.get(f"/api/athletes/{atleta}/sessions").json()
     assert agenda, "el atleta de A no tiene sesiones"
     detalle = client.get(f"/api/sessions/{agenda[0]['id']}").json()
+    programas = client.get(f"/api/athletes/{atleta}/programs").json()
+    assert programas, "el atleta de A no tiene programa"
+    mesociclos = client.get(f"/api/programs/{programas[0]['id']}/mesocycles").json()
+    assert mesociclos, "el programa de A no tiene mesociclos"
     return {
         "athlete_id": atleta,
         "session_id": agenda[0]["id"],
         "set_id": detalle["blocks"][0]["sets"][0]["id"],
+        "program_id": programas[0]["id"],
+        "mesocycle_id": mesociclos[0]["id"],
+        "prescription_id": detalle["blocks"][0]["prescription_id"],
     }
 
 
