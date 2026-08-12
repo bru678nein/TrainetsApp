@@ -32,3 +32,10 @@ data/*
 # README de portafolio, con la evidencia y los enlaces a sdd/. Local: el README
 # publicado no habla de la metodología.
 README.portfolio.md
+
+# Artefactos de metodología. Se quedan en el disco de quien los escribió y no
+# viajan al repositorio: el proyecto se publica como un proyecto, no como el
+# registro de cómo se construyó.
+sdd/
+.specify/
+prompts/

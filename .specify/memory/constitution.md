@@ -1,1 +1,0 @@
-../../sdd/constitution.md
