@@ -28,3 +28,7 @@ data/*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# README de portafolio, con la evidencia y los enlaces a sdd/. Local: el README
+# publicado no habla de la metodología.
+README.portfolio.md
