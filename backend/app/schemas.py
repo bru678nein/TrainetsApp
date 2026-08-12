@@ -138,6 +138,28 @@ class VolumeOut(BaseModel):
     tonnage_kg: float
 
 
+class CambioDeEstadoIn(BaseModel):
+    """Qué se le pide al vínculo. Los valores son los de `vinculo.Accion`."""
+
+    accion: Literal["pausar", "reanudar", "archivar", "reactivar"]
+
+
+class EstadoOut(BaseModel):
+    athlete_id: uuid.UUID
+    estado: str
+
+
+class InvitacionCreada(BaseModel):
+    """El token en claro viaja acá y en ningún otro lado.
+
+    No hay ruta que lo vuelva a mostrar, y la tabla guarda su hash. Si se pierde,
+    se genera uno nuevo — que además invalida éste, que es lo que se quiere.
+    """
+
+    token: str
+    expires_at: datetime
+
+
 class PatternAdherenceOut(BaseModel):
     """Las tres preguntas de la spec, por patrón de movimiento.
 

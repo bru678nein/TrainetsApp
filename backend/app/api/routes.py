@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
@@ -27,6 +28,7 @@ from app.models import (
     AppUser,
     Athlete,
     Coach,
+    Invitation,
     LoggedSet,
     Mesocycle,
     PrescribedSet,
@@ -39,8 +41,11 @@ from app.schemas import (
     AthleteCreated,
     AthleteIn,
     AthleteOut,
+    CambioDeEstadoIn,
     CoachOut,
+    EstadoOut,
     ExerciseBlock,
+    InvitacionCreada,
     LoadPointOut,
     LoadProgressionOut,
     LogSetIn,
@@ -331,6 +336,95 @@ def log_set(
     log.was_skipped, log.athlete_note, log.e1rm_kg = payload.was_skipped, payload.note, _dec(e1rm)
     db.commit()
     return log
+
+
+@router.post("/athletes/{athlete_id}/estado", response_model=EstadoOut)
+def cambiar_estado(
+    athlete_id: uuid.UUID,
+    payload: CambioDeEstadoIn,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> EstadoOut:
+    """Pause, resume, archive or reactivate a link.
+
+    One endpoint and not four, because which transitions are legal is already
+    decided in one place — the domain's table — and four routes would re-decide
+    it in four.
+
+    The role check is explicit and not left to the policies. An athlete's policy
+    on their own record permits updating it, which would let them archive
+    themselves; the spec puts athlete-initiated departure out of scope, so the
+    refusal has to be here.
+    """
+    from app.domain.vinculo import Accion, Estado, Rechazo, transicionar
+
+    if ctx.role != "coach":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador cambia el vínculo")
+
+    db = ctx.db
+    ficha = _athlete_or_404(db, athlete_id)
+    resultado = transicionar(Estado(ficha.estado), Accion(payload.accion))
+    if isinstance(resultado, Rechazo):
+        # 409 y no 400: lo que se pidió es válido, el vínculo es el que no está
+        # en condiciones de recibirlo. El motivo viaja tal como lo nombra el
+        # dominio, que es lo que distingue "eso ya está hecho" de "reactivalo
+        # primero".
+        raise HTTPException(status.HTTP_409_CONFLICT, resultado.value)
+
+    ficha.estado = resultado.value
+    db.commit()
+    return EstadoOut(athlete_id=ficha.id, estado=ficha.estado)
+
+
+@router.post(
+    "/athletes/{athlete_id}/invitation",
+    response_model=InvitacionCreada,
+    status_code=status.HTTP_201_CREATED,
+)
+def generar_invitacion(
+    athlete_id: uuid.UUID,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> InvitacionCreada:
+    """A link the coach sends so the athlete can claim an existing record.
+
+    The clear token is returned here and nowhere else: the table stores its
+    SHA-256, and no route can show it again. Losing it means generating another,
+    which also invalidates this one — the behaviour wanted anyway.
+
+    Revoking whatever was pending is not politeness. The partial unique index
+    admits one usable invitation per record, so issuing without revoking simply
+    does not commit, and criterion 3 — a new link makes the old one useless — is
+    guaranteed by the schema rather than by remembering.
+    """
+    from app.domain.invitacion import emitir
+
+    if ctx.role != "coach":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador invita")
+
+    db = ctx.db
+    ficha = _athlete_or_404(db, athlete_id)
+    if ficha.estado == "archivado":
+        raise HTTPException(status.HTTP_409_CONFLICT, "vinculo_archivado")
+
+    ahora = datetime.now(UTC)
+    db.execute(
+        update(Invitation)
+        .where(
+            Invitation.athlete_id == ficha.id,
+            Invitation.accepted_at.is_(None),
+            Invitation.revoked_at.is_(None),
+        )
+        .values(revoked_at=ahora)
+    )
+    token, guardable = emitir(ahora)
+    db.add(
+        Invitation(
+            athlete_id=ficha.id,
+            token_hash=guardable.token_hash,
+            expires_at=guardable.expires_at,
+        )
+    )
+    db.commit()
+    return InvitacionCreada(token=token, expires_at=guardable.expires_at)
 
 
 @router.get("/athletes/{athlete_id}/volume", response_model=list[VolumeOut])
