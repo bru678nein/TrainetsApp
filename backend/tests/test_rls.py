@@ -190,3 +190,69 @@ class TestEnableSinForceNoAlcanza:
             .all()
         )
         assert flojas == [], f"con ENABLE y sin FORCE: {flojas}"
+
+
+@pytest.mark.usefixtures("volver")
+class TestNadieCreaUnaIdentidadAjena:
+    """`app_user` sólo acepta la fila de quien está autenticado.
+
+    Es la policy de la que cuelgan todas las demás: `app_current_user_id()`
+    traduce el `sub` del token leyendo esta tabla, así que quien pudiera insertar
+    una identidad con el `sub` de otro se volvería esa persona para el resto del
+    esquema. No haría falta tocar ninguna otra policy.
+
+    Estaba sin fijar. Lo encontró un script de verificación que intentó crear la
+    identidad del segundo entrenador con el contexto del primero todavía puesto:
+    la base lo rechazó, que es lo correcto, y nada en la suite lo afirmaba.
+    """
+
+    def test_no_se_inserta_una_identidad_con_otro_sub(self, db: OrmSession, mundo) -> None:
+        contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
+        with pytest.raises(sa.exc.ProgrammingError) as caido:
+            db.execute(
+                sa.text(
+                    "INSERT INTO app_user (auth_user_id, email, display_name) "
+                    "VALUES (:s, 'ajena@example.com', 'Ajena')"
+                ),
+                {"s": f"sub-inventado-{uuid.uuid4().hex[:8]}"},
+            )
+        assert getattr(caido.value.orig, "sqlstate", None) == "42501"
+
+    def test_la_propia_si(self, db: OrmSession, mundo) -> None:
+        """El control, sin el cual el de arriba pasaría aunque nada se pudiera insertar.
+
+        Un `WITH CHECK` que rechaza todo también rechaza el `sub` ajeno, y el
+        primer caso no distinguiría un caso del otro.
+        """
+        sub = f"sub-propio-{uuid.uuid4().hex[:8]}"
+        contexto_de(db, sub, "coach")
+        db.execute(
+            sa.text(
+                "INSERT INTO app_user (auth_user_id, email, display_name) "
+                "VALUES (:s, 'propia@example.com', 'Propia')"
+            ),
+            {"s": sub},
+        )
+        assert db.execute(sa.text("SELECT count(*) FROM app_user")).scalar() == 1
+
+    def test_tampoco_se_reescribe_la_de_otro(self, db: OrmSession, mundo) -> None:
+        """El `USING` de la misma policy, por el otro lado.
+
+        Un `UPDATE` filtrado no levanta: afecta cero filas y sigue. Afirmar que
+        no explotó diría nada, así que lo que se mira es el `rowcount` y el dato.
+        """
+        ajena = mundo["b"].persona.auth_user_id
+        contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
+        r = db.execute(
+            sa.text("UPDATE app_user SET display_name = 'robada' WHERE auth_user_id = :s"),
+            {"s": ajena},
+        )
+        assert r.rowcount == 0
+
+        db.execute(sa.text("RESET ROLE"))
+        assert (
+            db.execute(
+                sa.text("SELECT display_name FROM app_user WHERE auth_user_id = :s"), {"s": ajena}
+            ).scalar()
+            != "robada"
+        )
