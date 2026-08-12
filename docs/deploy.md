@@ -1,7 +1,7 @@
 # Deploy
 
-Este backend no se deploya con "push y listo", y el motivo es la decisión de la
-tarea T-007: **la aplicación no se conecta como dueña de las tablas.** Eso obliga
+Este backend no se deploya con "push y listo", y el motivo es una decisión de
+diseño: **la aplicación no se conecta como dueña de las tablas.** Eso obliga
 a un orden que no es el habitual, y a un paso manual que se hace una sola vez.
 
 Vale la pena porque es lo mismo que hace que el aislamiento funcione: el dueño de
@@ -181,7 +181,7 @@ alguien creó la tabla con otro rol.
 healthcheck; el resto es configuración del panel y no está versionada.
 
 Lo que había que averiguar antes de comprometerse era si permitía `CREATE ROLE`,
-porque sin eso la migración `0003` no corre y el aislamiento de T-007 no se puede
+porque sin eso la migración `0003` no corre y el aislamiento no se puede
 desplegar tal cual. **Lo permite**, verificado contra la instancia real.
 
 **Backups.** Ninguno configurado. Con datos reales de entrenamiento adentro,

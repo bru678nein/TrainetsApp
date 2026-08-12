@@ -18,7 +18,7 @@ Los tres están ignorados por git. El tercero además lleva el nombre de una
 persona en el nombre del archivo, que es exactamente el motivo por el que la
 regla de esta carpeta es ignorar todo y no ir eligiendo qué parece inofensivo.
 
-La constitución (artículo IX) exige sembrar el entorno con datos reales y no con
+El proyecto siembra el entorno con datos reales y no con
 seeds inventados: los reales traen los casos borde que los sintéticos esconden
 —prescripciones compuestas en texto libre, series de más de 12 repeticiones
 fuera de la tabla RPE, cargas que cambian entre series del mismo ejercicio.

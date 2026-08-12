@@ -40,7 +40,7 @@ describe("los tres estados", () => {
 
 describe("el estado vacío, que es el que importa", () => {
   it("dice el motivo y no un 'sin datos' genérico", () => {
-    // La spec lo pone por encima de los otros dos, y el motivo es que "no hay
+    // Va por encima de los otros dos, y el motivo es que "no hay
     // datos" no contesta nada. Un panel sin series registradas espera al atleta;
     // un entrenador sin atletas se espera a sí mismo. Mismo vacío, dos pasos
     // siguientes distintos.

@@ -1,12 +1,12 @@
-"""Coach B asking for coach A's data. The core of T-016.
+"""Coach B asking for coach A's data.
 
-Acceptance criterion 2 of the spec: someone else's identifier answers exactly
+Someone else's identifier answers exactly
 like one that does not exist. Not a different message, not a different status —
 the response must not distinguish "not yours" from "not there", because a
 distinguishable answer is an existence oracle.
 
-Criterion 3 says this holds for *every* route that returns data, which is what
-the route walk in T-016 proper will enforce. This file goes first with the
+This holds for *every* route that returns data, which is what
+the full route walk enforces. This file goes first with the
 routes spelled out, to find out whether RLS delivers it for free or whether the
 endpoints need work. Assuming it does would be the third assumption of this kind
 to turn out wrong.
@@ -101,7 +101,7 @@ def recursos_de_a(client, seeded) -> dict[str, str]:
 
 
 def test_el_listado_de_b_no_trae_atletas_de_a(como_b):
-    """Criterion 1, and the cheapest thing to get wrong.
+    """The cheapest thing to get wrong.
 
     The message reports how many leaked and their ids, never the rows. A failure
     message is printed by CI, and `full_name` holds the name of a real person
@@ -115,7 +115,7 @@ def test_el_listado_de_b_no_trae_atletas_de_a(como_b):
 
 
 def test_toda_ruta_declara_como_ejercitarla():
-    """Criterion 3: this holds for *every* route, not the ones somebody listed.
+    """This holds for *every* route, not the ones somebody listed.
 
     The walk below can only exercise a route whose parameters it knows how to
     fill. Rather than skipping the ones it does not, this fails — so adding an
@@ -150,7 +150,7 @@ def test_toda_ruta_declara_como_ejercitarla():
     ids=_id_de_ruta,
 )
 def test_un_recurso_ajeno_responde_igual_que_uno_inexistente(como_b, recursos_de_a, route):
-    """Criterion 2, on every route the app exposes.
+    """On every route the app exposes.
 
     Both halves are compared: status *and* body. A 404 whose message says
     "not yours" would pass a status-only check and still be an oracle.
@@ -187,7 +187,7 @@ def test_un_recurso_ajeno_responde_igual_que_uno_inexistente(como_b, recursos_de
     "route", [r for r in rutas_de_datos() if r.path not in SIN_ROL], ids=_id_de_ruta
 )
 def test_toda_ruta_exige_el_header_de_rol(raw_client, mint, recursos_de_a, route):
-    """The third leg of criterion 3, and the one that catches a missing dependency.
+    """The third leg, and the one that catches a missing dependency.
 
     With valid credentials and no `Active-Role`, every data route answers 400.
     An endpoint that somehow bypassed `require_tenant_context` would answer 200
@@ -208,7 +208,7 @@ def test_toda_ruta_exige_el_header_de_rol(raw_client, mint, recursos_de_a, route
 
 @pytest.mark.parametrize("route", rutas_de_datos(), ids=_id_de_ruta)
 def test_toda_ruta_rechaza_a_quien_no_se_identifica(raw_client, recursos_de_a, route):
-    """T-015: no credentials, no data. On every route, discovered not listed.
+    """No credentials, no data. On every route, discovered not listed.
 
     The allowlist that decides which routes are exempt lives in conftest as
     SIN_TENANT, and it is explicit so that adding a route breaks this until

@@ -1,4 +1,4 @@
-"""Settings read from the environment. Task T-006.
+"""Settings read from the environment.
 
 Built on first use and not at import time, for the same reason `get_engine` is:
 importing `app.main` must not require a configured environment. The tests import
@@ -7,8 +7,7 @@ provider at all.
 
 No defaults for the auth values. A default here is a production deployment that
 boots happily while verifying tokens against nothing, which is the failure mode
-this whole feature exists to prevent — the same reasoning as the session
-variables in the 001 plan, section 3.
+the auth layer exists to prevent — the same reasoning as the session variables.
 """
 
 from __future__ import annotations

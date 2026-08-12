@@ -1,8 +1,8 @@
-"""The invitation table and its policies. Tasks T-024 and T-025.
+"""The invitation table and its policies.
 
 Two things are checked here and they are different in kind. One is that the
-schema itself refuses a second usable invitation for the same record — criterion
-3 of the spec, guaranteed by an index rather than by remembering to revoke. The
+schema itself refuses a second usable invitation for the same record,
+guaranteed by an index rather than by remembering to revoke. The
 other is that a coach reaches only their own.
 
 The fixtures come from `test_rls`: two unrelated coaches plus a third person who
@@ -37,7 +37,7 @@ def _invitacion(athlete_id: uuid.UUID, **kwargs: object) -> Invitation:
 
 
 class TestElEsquemaGarantizaUnaSolaUsable:
-    """T-024. Lo que el índice parcial impide, y lo que deja pasar."""
+    """Lo que el índice parcial impide, y lo que deja pasar."""
 
     def test_dos_pendientes_para_la_misma_ficha_son_rechazadas(self, db: OrmSession, mundo) -> None:
         ficha = mundo["a"].athlete.id
@@ -125,7 +125,7 @@ class TestElEsquemaGarantizaUnaSolaUsable:
 
 @pytest.mark.usefixtures("volver")
 class TestCadaCoachVeSoloSusInvitaciones:
-    """T-025. Como rol de aplicación, que es donde RLS aplica."""
+    """Como rol de aplicación, que es donde RLS aplica."""
 
     @pytest.fixture(autouse=True)
     def _sembradas(self, db: OrmSession, mundo) -> None:

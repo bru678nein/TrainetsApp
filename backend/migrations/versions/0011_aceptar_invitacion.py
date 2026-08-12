@@ -15,7 +15,7 @@ necesita el email y el nombre, que viven en el token y se leen en Python — es 
 mismo corte que ya usa el alta de entrenador. Esta función hace lo que tiene que
 ser atómico y nada más.
 
-Devuelve **cuál** de los casos ocurrió y no un booleano: la spec pide distinguir
+Devuelve **cuál** de los casos ocurrió y no un booleano, para distinguir
 un link vencido de uno inválido, porque esa distinción ayuda a la persona
 correcta y no le sirve de nada a un atacante — un link vencido ya no vale.
 

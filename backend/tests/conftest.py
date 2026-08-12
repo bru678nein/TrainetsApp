@@ -55,7 +55,7 @@ SIN_TENANT = {
 }
 
 # Routes that need a verified identity but cannot need a role: the signup path,
-# where the whole point is that the caller does not hold one yet (T-011).
+# where the whole point is that the caller does not hold one yet.
 #
 # Listed rather than detected, and deliberately awkward to add to. Every walk
 # below that assumes a role skips these, so an entry here is an entry that opts
@@ -275,7 +275,7 @@ def identidad_sembrada(db: OrmSession) -> str:
 def auth(monkeypatch: pytest.MonkeyPatch, keypair) -> None:
     """Points the app at a fake provider, and at nothing else.
 
-    This is the T-014a rule applied: the identity provider is the outermost
+    The rule applied: the identity provider is the outermost
     thing, so it is the only thing faked. Token verification, the header check,
     the session variables and the role lookup all run for real.
     """
@@ -311,19 +311,20 @@ def app_de_prueba(
 
     It used to be `dependency_overrides[tenant_session] = lambda: db`, and that
     was a trap with a fuse on it. `dependency_overrides` replaces a dependency
-    *and its whole subtree*: the moment T-006 makes `tenant_session` depend on
+    *and its whole subtree*: the moment `tenant_session` depends on
     `require_tenant_context`, the override would skip token verification, the
     `Active-Role` header and the `SET LOCAL` — and every test would stay green.
 
     That is not a prediction. Hanging a sub-dependency off `tenant_session` that
-    raises unconditionally, the 71 tests still passed, T-016a included: it
+    raises unconditionally, the 71 tests still passed, the isolation ones
+    included: it
     asserts `tenant_session` is in each route's dependency tree, which stays
     true while the override makes sure the function never runs.
 
     So the seam moved down, to where the connection comes from. `tenant_session`
     now runs for real — every line of it — and only `open_session` is faked. The
     rule this encodes: **fake the outermost thing you have to, never the thing
-    you are trying to verify.** When T-006 lands, what gets faked is the identity
+    you are trying to verify.** What gets faked is the identity
     provider, not tenant resolution.
     """
     import sqlalchemy as sa
@@ -335,7 +336,7 @@ def app_de_prueba(
     def _test_session() -> Iterator[OrmSession]:
         """The app's session, running as the application role.
 
-        Without this the whole of T-008 is theatre. The suite connects as the
+        Without this the whole of the isolation is theatre. The suite connects as the
         owner, who is also the cluster superuser here, and a superuser ignores
         policies unconditionally — `FORCE` does not reach them. Every isolation
         test would pass while no policy was ever evaluated.
@@ -440,7 +441,7 @@ def session_detail(client: TestClient, athlete_id: str):
     return _get
 
 
-# --- Escenario compartido para T-015 a T-017 -----------------------------------
+# --- Escenario compartido para los recorridos de rutas --------------------------
 #
 # Se arma con el ORM adentro de la transacción que se revierte, y como dueño, así
 # que RLS no interviene: esto es el montaje, no lo que se prueba. Lo que se prueba
@@ -455,7 +456,7 @@ class Escenario:
 
     That third person is the whole point of criteria 9 to 11: holding both roles
     must not become a way out of the isolation. Two unrelated coaches would
-    never have caught the leak the spec worries about.
+    never have caught the leak that matters.
     """
 
     def __init__(self, **kwargs: object) -> None:
@@ -671,7 +672,7 @@ def volver(db: OrmSession) -> Iterator[None]:
 class Vinculos:
     """Cuatro entrenadores sobre la misma persona, en distintos estados.
 
-    El caso frecuente de la spec —cambiar de entrenador— y el que obligó a que el
+    El caso frecuente —cambiar de entrenador— y el que obligó a que el
     modelo admita varias fichas por persona. Con uno solo no se puede distinguir
     "no ve lo del otro" de "no hay otro".
     """

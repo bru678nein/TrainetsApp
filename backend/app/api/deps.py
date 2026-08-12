@@ -1,16 +1,16 @@
-"""HTTP layer dependencies. Task T-006.
+"""HTTP layer dependencies.
 
-This is the single door into the database from an endpoint. The reasoning is in
-section 3 of the 001 plan: if data access and tenant resolution can be asked for
-separately, sooner or later someone asks for the first and forgets the second,
-and the endpoint ends up reading the whole database.
+This is the single door into the database from an endpoint. The reasoning: if
+data access and tenant resolution can be asked for separately, sooner or later
+someone asks for the first and forgets the second, and the endpoint ends up
+reading the whole database.
 
 `require_tenant_context` does the whole chain — token, identity, role, session
 variables — and `tenant_session` hands out the session it opened. An endpoint
 cannot get one without the other, because there is no other way to get one.
 
-What is not here yet: mounting the data router with this dependency (T-010), and
-the policies that make the session variables mean something (T-008). Until then
+What is not here yet: mounting the data router with this dependency, and the
+policies that make the session variables mean something. Until then
 the variables are set and nothing reads them, which is the right order — the app
 learns to declare its context before the database starts demanding it, never
 after.
@@ -91,7 +91,7 @@ def _identify(token: str) -> tuple[Identity, Profile | None]:
 
     if isinstance(resultado, Identity):
         return resultado, profile_from(claims)
-    # Criterion 6: expiry is the one reason worth telling apart, because it is
+    # Expiry is the one reason worth telling apart, because it is
     # the one where renewing helps. Everything else answers identically, so that
     # no rejection reports how close somebody got.
     if resultado is Rejection.EXPIRED:
@@ -152,7 +152,7 @@ def require_tenant_context(
         db.execute(_SET_IDENTITY, {"sub": identity.auth_user_id})
         db.execute(_SET_ROLE, {"role": role})
 
-        # Asked after the context is set, not before. Once T-008 lands, this
+        # Asked after the context is set, not before. Once the policies land, this
         # same query runs under the policies and the answer stops depending on
         # an `if` written here.
         if db.execute(_HOLDS_ROLE[role], {"sub": identity.auth_user_id}).first() is None:
@@ -166,7 +166,7 @@ def require_identity_for_signup(
 ) -> Iterator[TenantContext]:
     """Verified identity and a session, without demanding a role first.
 
-    The chicken and egg of T-011: `require_tenant_context` answers 403 to
+    The chicken and egg of signing up: `require_tenant_context` answers 403 to
     anybody who does not hold the role, so a brand-new identity could never get
     far enough to create the coach profile that would give them one.
 

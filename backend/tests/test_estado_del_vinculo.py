@@ -1,4 +1,4 @@
-"""The coach's listing only shows active links. Task T-021.
+"""The coach's listing only shows active links.
 
 This file exists because changing the listing's filter from `is_active` to
 `estado = 'activo'` did not move the test count by one. The whole suite passed
@@ -6,7 +6,7 @@ either way, which means nothing was checking what the listing filters on — and
 filter nobody checks is a filter that quietly stops filtering.
 
 What is *not* here: that a paused athlete stays writable while an archived one
-does not. That is criterion 9 and it needs the RESTRICTIVE policies of T-027,
+does not. That needs the RESTRICTIVE policies,
 which do not exist yet. Until then `estado` is a label that changes what the
 listing shows and nothing else, and claiming otherwise would be the kind of
 green test that proves a guarantee nobody built.

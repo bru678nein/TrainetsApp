@@ -5,14 +5,13 @@ its own identity — `coach.auth_user_id` and `athlete.auth_user_id`, each with 
 global UNIQUE — which allowed exactly one athlete row per person for the whole
 lifetime of the system.
 
-That is what feature 001 has to undo. Not for the coach who trains himself,
+That is what this migration undoes. Not for the coach who trains himself,
 which is the case that started the discussion, but for anyone who switches
-coaches: feature 003 archives the previous relationship instead of deleting it,
+coaches: switching archives the previous relationship instead of deleting it,
 so the new one needs a second athlete row while the old one survives.
 
-Task T-001. See sdd/specs/001-identidad-y-aislamiento/plan.md, section 1.
-
-RLS still does not enter here: it lands in T-008, once the HTTP layer resolves
+RLS still does not enter here: it lands two migrations later, once the HTTP layer
+resolves
 the tenant. Enabling it earlier would leave the app seeing zero rows.
 
 Revision ID: 0002
@@ -48,13 +47,13 @@ def upgrade() -> None:
     )
 
     # An athlete who already claimed an account but has no email cannot become
-    # an identity: app_user.email is NOT NULL because spec 001 says a person
+    # an identity: app_user.email is NOT NULL because a person
     # signs up with an email. Rather than inventing one, stop and say so — the
     # default when a constraint rejects real data is to investigate the data
-    # (constitution, article II).
+    # invariants live in the database, not only in the application code.
     #
     # Unreachable today: nothing sets athlete.auth_user_id, because the flow
-    # that would is feature 003.
+    # that would is the invitation flow.
     op.execute(
         """
         DO $$

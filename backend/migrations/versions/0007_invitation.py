@@ -7,7 +7,8 @@ wide, but real — where any coach reads every coach's invitations.
 
 What the table stores is the SHA-256 of the token and never the token. A leak of
 this table hands over nothing usable, and it also removes the timing question the
-spec raises: what arrives is hashed and looked up by a unique index, so there is
+design raises: what arrives is hashed and looked up by a unique index, so there
+is
 no comparison whose duration depends on how close a guess got.
 
 `expires_at` is a column and not `created_at + interval '7 days'` evaluated on
@@ -44,7 +45,7 @@ ES_COACH = "app_active_role() = 'coach'"
 # looks the row up by its own id is asking about something that is not there.
 # The athlete it points at does exist, and it is one hop from the tenant.
 #
-# SECURITY DEFINER for the reason measured in the 001 plan, section 4: reaching
+# SECURITY DEFINER for a measured reason: reaching
 # the tenant through a table that has its own policies makes Postgres evaluate
 # those policies too, and the cost compounds. The same traversal inside a
 # definer function went from over a second to sixty milliseconds.
@@ -87,9 +88,9 @@ def upgrade() -> None:
     op.create_index("invitation_token_uq", "invitation", ["token_hash"], unique=True)
     # At most one usable invitation per record. The predicate deliberately does
     # not mention `expires_at`: `now()` is not immutable and Postgres rejects it
-    # in an index. The consequence is the one the spec wants anyway — issuing a
+    # in an index. The consequence is the one wanted anyway — issuing a
     # new link FORCES revoking the previous one in the same transaction, so
-    # criterion 3 is guaranteed by the schema and not by remembering.
+    # the rule is guaranteed by the schema and not by remembering.
     op.create_index(
         "invitation_pendiente_uq",
         "invitation",

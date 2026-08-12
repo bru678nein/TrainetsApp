@@ -1,8 +1,9 @@
 """Application role that does not own the tables
 
-Task T-007. The app stops connecting as the owner, because an owner bypasses row
+The app stops connecting as the owner, because an owner bypasses row
 level security by default and the migrations run as owner. Without this, the RLS
-that lands in T-008 would be enforced in the tests and absent in production —
+that lands in the next migration would be enforced in the tests and absent in
+production —
 or, worse, the other way round.
 
 `FORCE ROW LEVEL SECURITY` closes the owner's exemption, but a superuser bypasses

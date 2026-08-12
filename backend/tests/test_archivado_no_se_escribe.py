@@ -154,7 +154,7 @@ class TestArchivadoNoSeEscribe:
     ) -> None:
         """Los controles. Sin ellos, una regla que bloquea todo pasaría lo de arriba.
 
-        Y `pausado` es la mitad de la distinción que la spec tomó: si acá
+        Y `pausado` es la mitad de la distinción entre los dos estados: si acá
         fallara, pausar sería archivar y el entrenador no podría preparar el
         programa de vuelta de alguien que está parado.
         """
@@ -208,7 +208,7 @@ class TestLasDieciochoEstan:
 
     def test_ninguna_toca_el_select(self, db: OrmSession) -> None:
         """Lo archivado se lee. Una restrictiva sobre SELECT borraría el historial
-        de la vista de las dos partes, que es lo contrario de lo que la spec pide.
+        de la vista de las dos partes, que es lo contrario de lo que se quiere.
         """
         sobre_select = (
             db.execute(

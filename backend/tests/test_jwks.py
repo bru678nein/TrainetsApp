@@ -1,4 +1,4 @@
-"""JWKS cache with a refresh cooldown. Task T-005.
+"""JWKS cache with a refresh cooldown.
 
 The adapter that talks to the provider. It is not domain — it reaches the
 network — but the part worth testing hard is the caching policy, and that is
@@ -79,7 +79,7 @@ class TestHappyPath:
 
 
 class TestKeyRotation:
-    """The acceptance criterion of T-005: a rotation resolves without a restart."""
+    """What the cache is for: a rotation resolves without a restart."""
 
     def test_un_kid_nuevo_se_resuelve_sin_reiniciar(self, clock):
         p = FakeProvider("vieja")

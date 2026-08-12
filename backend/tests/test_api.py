@@ -131,7 +131,8 @@ class TestLogging:
         assert r.status_code == 404
 
     def test_serie_inexistente_y_ajena_responden_igual(self, client, session_detail):
-        """Criterion 2 of spec 001, in the form that can be verified today.
+        """Someone else's identifier answers like a missing one, in the form that
+        can be verified today.
 
         Without auth there is no "someone else's" set to try, so this only pins
         the contract: the 404 does not say why. Once 001 adds RLS, another

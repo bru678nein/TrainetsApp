@@ -6,7 +6,7 @@ walks each route's dependency tree and checks the protection **is in place**,
 which is a much harder claim to satisfy unintentionally.
 
 It needs no database: it inspects the app, it does not query it. This is layer 4
-of section 3 of the feature 001 plan.
+of the single-door design.
 """
 
 from __future__ import annotations
@@ -49,7 +49,8 @@ def test_toda_ruta_de_datos_pasa_por_tenant_session(route):
     """No route reaches the database without resolving a tenant first.
 
     Written against `require_tenant_context` rather than `tenant_session`, which
-    is the stronger claim now that T-006 landed: `tenant_session` hangs off it,
+    is the stronger claim now that the context dependency landed: `tenant_session`
+    hangs off it,
     so an endpoint that asks for a session passes through here anyway, and one
     that needs the identity as well — the creating endpoints do — asks for the
     context directly and is just as covered.
@@ -102,7 +103,7 @@ def test_la_peticion_pasa_por_tenant_session_de_verdad(client, sessions_opened):
 
 
 def test_el_router_de_datos_declara_la_dependencia():
-    """T-010: the protection hangs off the router, not off each endpoint.
+    """The protection hangs off the router, not off each endpoint.
 
     The dependency-tree test above cannot tell the two apart. Every endpoint
     today asks for a session, and that drags `require_tenant_context` in by
@@ -126,7 +127,7 @@ def test_una_ruta_que_no_toca_la_base_igual_pide_credenciales():
     covers it.
 
     Built on the real router's dependency list rather than a copy, so reverting
-    T-010 fails here too.
+    the router-level protection fails here too.
     """
     from fastapi import APIRouter, FastAPI
     from fastapi.testclient import TestClient

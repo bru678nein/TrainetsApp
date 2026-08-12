@@ -4,9 +4,8 @@ Fecha: 2026-08-07 · Estado: aceptado
 
 ## Contexto
 
-El artículo VIII de la constitución prohíbe escribir autenticación propia: el
-proveedor es externo y el backend se limita a verificar el JWT. La feature 001
-necesita elegir cuál.
+El proyecto no escribe autenticación propia: el proveedor es externo y el backend
+se limita a verificar el JWT. Queda elegir cuál.
 
 `docs/PLAN.md` sugería Clerk o `fastapi-users`, y avisaba en la misma tabla que
 el ecosistema de auth se había movido y que convenía verificar el estado al
@@ -33,12 +32,13 @@ de este proyecto está en el portfolio, no en la facturación (`PLAN.md`, secci�
 ## Opciones
 
 **`fastapi-users`.** Control total y sin costo. Descartada dos veces: está en
-mantenimiento, y es autoalojada, que es exactamente lo que el artículo VIII
-descarta. Escribir hash de contraseñas y flujos de recuperación no impresiona a
+mantenimiento, y es autoalojada, que es exactamente lo que la decisión de no
+escribir auth propia descarta. Escribir hash de contraseñas y flujos de recuperación no impresiona a
 nadie y consume dos semanas.
 
 **Supabase Auth.** El argumento fuerte es que `auth.uid()` hace las policies de
-RLS más directas, y el artículo III es la razón de existir de la feature 001. El
+RLS más directas, y el aislamiento por tenant es la razón de existir de todo
+este trabajo. El
 costo es que ata la base de datos al mismo proveedor que la identidad, y que el
 plan gratuito pausa la demo. Evitar la pausa cuesta USD 25 mensuales para
 siempre, contra un proyecto que por diseño no factura. Los *keep-alive* que
@@ -60,17 +60,18 @@ y `azp`. Sin SDK de Clerk en el backend.
 
 Dos cosas que **no** se delegan al proveedor, porque son del dominio:
 
-**El link de invitación es nuestro.** La spec 001 exige que la ficha del atleta
+**El link de invitación es nuestro.** El diseño exige que la ficha del atleta
 exista, con su programa entero cargado, antes de que el atleta tenga cuenta.
 Usar las invitaciones de Clerk obligaría a que la identidad venga primero, que
 es al revés de como trabajan los entrenadores. El token de invitación se genera
 y se valida acá; Clerk aparece recién cuando el atleta se registra y se asocia
-su identidad a la ficha existente. El flujo completo es la feature 003; esta
-decisión se toma acá porque condiciona qué se le delega al proveedor.
+su identidad a la ficha existente. El flujo completo vive en el ciclo de vida
+del vínculo; esta decisión se toma acá porque condiciona qué se le delega al
+proveedor.
 
 **Los roles son nuestros.** Clerk tiene organizations y roles, pero el modelo
 entrenador/atleta —incluida la persona que es las dos cosas, y el atleta con
-varios entrenadores— se decidió en la spec 001 con cuidado. Clerk responde
+varios entrenadores— se decidió con cuidado. Clerk responde
 "quién sos"; qué podés hacer lo resuelven la tabla de identidad y RLS.
 
 El aislamiento por tenant se implementa con `SET LOCAL` de una variable de

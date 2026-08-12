@@ -1,6 +1,6 @@
 """A missing tenant context errors, on a recycled connection too
 
-The 001 plan, section 3, layer 3, argues that `current_setting` without its
+The design argues that `current_setting` without its
 second argument makes a forgotten context fail loudly instead of returning zero
 rows — "a forgotten SET LOCAL stops looking like 'this user has no data' and
 looks like what it is: a bug".

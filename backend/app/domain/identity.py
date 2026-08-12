@@ -1,8 +1,9 @@
-"""Decoded claims to an identity, or to a reason for rejection. Task T-004.
+"""Decoded claims to an identity, or to a reason for rejection.
 
 What this decides is everything that can be decided by looking at the claims.
 Verifying the signature needs the provider's key set, which needs the network,
-which article I keeps out of the domain — that is the adapter, T-005. The split
+which the domain does not do, because it has no infrastructure — that is the
+adapter's job. The split
 is not bureaucratic: the checks that get skipped in practice are the ones here,
 not the cryptography, and they are the ones worth testing exhaustively without
 standing anything up.
@@ -12,7 +13,7 @@ that reads the clock has expiry tests that pass at 11:59 and fail at 12:00, and
 those tests get deleted rather than fixed.
 
 The reason for a rejection is domain vocabulary, not an HTTP status. Mapping it
-to a response is the adapter's job (T-006), which is what lets criterion 6 send
+to a response is also the adapter's job, which is what lets a request send
 a code the client can read on `EXPIRED` and a generic answer for everything else.
 """
 

@@ -1,10 +1,10 @@
-"""State transitions of the coach-athlete link. Task T-022.
+"""State transitions of the coach-athlete link.
 
-Written before the implementation, as article IV requires for the domain.
+Written before the implementation, as domain code requires here.
 
 The whole point of this module is that pausing and archiving are not the same
 thing, and the transition table is where that distinction is enforced rather
-than assumed. The 003 spec separated them because collapsing them takes a
+than assumed. They were separated because collapsing them takes a
 capability away from the coach: a paused athlete is still editable, so the coach
 can prepare the programme for their return, and an archived one is not.
 
@@ -96,7 +96,7 @@ def test_las_doce_combinaciones_estan_decididas():
 
 
 def test_pausado_no_es_archivado():
-    """El guardián de la distinción que la spec tomó como decisión.
+    """El guardián de la distinción entre pausar y archivar.
 
     Si alguien colapsa los dos estados, esto cae antes que cualquier test de
     base de datos, y lo dice con el nombre puesto.

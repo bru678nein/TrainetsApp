@@ -1,8 +1,9 @@
-"""Bearer token to identity, end to end except for the network. Task T-006.
+"""Bearer token to identity, end to end except for the network.
 
 Real RSA keys and real signatures — generated here, verified here. The only
 thing faked is the provider's HTTP endpoint, which is the outermost thing and
-therefore the right one to fake: the rule T-014a left written down. Nothing
+therefore the right one to fake: fake the outermost thing you have to, never the
+thing you are trying to verify. Nothing
 below it is stubbed, so a token that verifies in this file would verify against
 Clerk.
 
@@ -70,7 +71,7 @@ class TestLegitimateToken:
         assert verify(sign(private), keys, EXPECTED, NOW) == Identity("user_abc")
 
     def test_un_token_vencido_se_distingue(self, keypair, keys):
-        """Criterion 6: the client has to know renewing is worth trying."""
+        """The client has to know renewing is worth trying."""
         private, _ = keypair
         stale = sign(private, exp=(NOW - timedelta(seconds=1)).timestamp())
         assert verify(stale, keys, EXPECTED, NOW) is Rejection.EXPIRED
@@ -148,7 +149,7 @@ class TestProviderIsNotOverCalled:
         """The algorithm check runs first, and this is what that buys.
 
         Otherwise every forged token with an unknown `kid` costs a lookup, and
-        the cooldown from T-005 is the only thing left between us and the
+        the refresh cooldown is the only thing left between us and the
         provider.
         """
         _, jwk = keypair

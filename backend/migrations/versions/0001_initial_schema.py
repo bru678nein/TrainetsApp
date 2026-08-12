@@ -5,7 +5,8 @@ documentation and never applied) and in `Base.metadata.create_all()` (which
 ignored extensions, the functional index and the view).
 
 RLS is deliberately left out: enabling it without tenant resolution in the HTTP
-layer would leave the app seeing zero rows. It lands with feature 001, together
+layer would leave the app seeing zero rows. It lands two migrations later,
+together
 with the per-request `SET LOCAL`.
 
 Revision ID: 0001

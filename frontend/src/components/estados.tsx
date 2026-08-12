@@ -18,7 +18,7 @@ export function Falla({ que }: { que: string }) {
 }
 
 /**
- * The empty state, which the spec calls the most important of the three.
+ * The empty state, the most important of the three.
  *
  * It takes a reason and not a title, because "no data" is what every empty
  * screen in every application says and it answers nothing. Here the difference

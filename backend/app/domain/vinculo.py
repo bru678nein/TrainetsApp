@@ -8,8 +8,8 @@ of a rule — which reads the same as a case nobody thought about.
 Pausing and archiving are deliberately different, and this module is where that
 survives contact with the code. Pausing hides an athlete from the coach's list
 and leaves everything editable; archiving ends the link and freezes the training
-history for both sides. The 003 spec separated them because collapsing them
-takes away something the coach has today: preparing the programme for somebody
+history for both sides. They were separated because collapsing them takes away
+something the coach has today: preparing the programme for somebody
 who is coming back from three months off.
 
 No database and no HTTP. The rejection is domain vocabulary; mapping it to a

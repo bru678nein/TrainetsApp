@@ -121,7 +121,7 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
         user = AppUser(auth_user_id="seed-coach", email="coach@example.com", display_name="Coach")
         coach = Coach(user=user)
         # user_id stays NULL: the seeded athlete has no account. That is the
-        # normal state until feature 003 provides the invitation flow.
+        # normal state until the invitation flow fills it in.
         athlete = Athlete(coach=coach, full_name=athlete_name, level="intermedio")
         db.add_all([user, coach, athlete])
 

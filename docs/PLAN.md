@@ -84,8 +84,7 @@ Criterio de salida: el entrenador arma una semana entera sin tocar Excel y sin q
 
 ### El orden real se apartó de estas fases, el 2026-08-10
 
-La analítica (feature 005) se planificó **antes** que el editor y que la vista del
-atleta, o sea trabajo de Fase 2 antes de cerrar la Fase 1. Fue deliberado y el
+La analítica se planificó **antes** que el editor y que la vista del atleta, o sea trabajo de Fase 2 antes de cerrar la Fase 1. Fue deliberado y el
 motivo es que el proyecto no tiene ninguna interfaz: la señal técnica que lo
 distingue —el aislamiento en la base, medido, y el hábito de verificar rompiendo—
 ya está construida y es invisible, porque un revisor mira noventa segundos y no
@@ -107,9 +106,9 @@ final de la Fase 2, con editor y PWA adentro. Una captura no es eso.
 - Adherencia por semana.
 - ~~PWA con service worker.~~ **Descartada el 2026-08-11.** La justificación era
   que en el gimnasio no hay señal, y eso nunca se midió: estaba escrito como un
-  hecho y era una suposición. Sin soporte offline, la feature 004 alcanza sola
-  para que el atleta use la app, que es una feature entera menos entre el estado
-  actual y que el entrenador apague el Excel.
+  hecho y era una suposición. Sin soporte offline, la vista del atleta alcanza
+  sola para que use la app, que es una pieza entera menos entre el estado actual
+  y que el entrenador apague el Excel.
 
   Vuelve el día que el atleta reporte que se le corta. Registrar sin conexión es
   lo que la haría imprescindible, y el resto —instalar en el celular, abrir a

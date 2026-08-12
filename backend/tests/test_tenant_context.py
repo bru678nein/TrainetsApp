@@ -1,6 +1,6 @@
 """The four cases of the table in section 3 of the plan, plus what surrounds them.
 
-Task T-006. Nothing is stubbed except the identity provider: real signatures,
+Nothing is stubbed except the identity provider: real signatures,
 real header parsing, real session variables, real role lookup against Postgres.
 
 The table the plan commits to:
@@ -10,7 +10,7 @@ The table the plan commits to:
     the person does not hold it     403
     the person holds it             resolves
 
-The reason there is no default is the second risk in the spec: choosing a
+The reason there is no default: choosing a
 "reasonable" role when the header is missing — the only one the person holds, or
 the wider one — is what turns an athlete who also coaches into a way out of the
 isolation.
@@ -70,7 +70,7 @@ class TestLasCredenciales:
         assert r.status_code == 401
 
     def test_un_token_vencido_se_distingue(self, raw_client, mint):
-        """Criterion 6: the client has to be able to tell renewing is worth a try."""
+        """The client has to be able to tell renewing is worth a try."""
         vencido = mint(exp=(datetime.now(UTC) - timedelta(seconds=1)).timestamp())
         r = raw_client.get(
             RUTA, headers={"Authorization": f"Bearer {vencido}", "Active-Role": "coach"}
@@ -133,7 +133,7 @@ class TestLasVariablesDeSesion:
 
         Read back afterwards, which works because the harness shares one
         transaction across requests — the same quirk plan section 5 records as
-        something T-014 has to fix. When it is fixed this test has to move
+        something a later change has to fix. When it is fixed this test has to move
         inside the request instead of after it.
         """
         client.get(RUTA)

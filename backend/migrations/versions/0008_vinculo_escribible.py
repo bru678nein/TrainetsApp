@@ -15,7 +15,7 @@ All six are generated from one hierarchy. The chain from a logged set up to the
 athlete is five joins, and written by hand six times it drifts — the fix lands in
 one copy and the other five keep the bug.
 
-SECURITY DEFINER for the reason measured in the 001 plan, section 4: reaching the
+SECURITY DEFINER for a measured reason: reaching the
 tenant through tables that have their own policies makes Postgres evaluate those
 policies too, and the cost compounds per level. The same traversal inside a
 definer function went from over a second to sixty milliseconds. The price is that

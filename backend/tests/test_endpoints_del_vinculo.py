@@ -5,7 +5,7 @@ alguna otra ruta, y que un atleta pueda cambiar el estado de su propia ficha.
 
 Lo segundo no lo impide RLS: la policy del atleta sobre `athlete` permite
 actualizar su propia fila, porque es la que necesita para asociarse. Que no pueda
-archivarse solo es una regla de producto —la spec la pone fuera de alcance— y por
+archivarse solo es una regla de producto —está fuera de alcance— y por
 eso el rechazo vive en el endpoint y no en la base.
 """
 
@@ -64,7 +64,7 @@ class TestElCicloDeEstados:
 
 class TestElAtletaNoCambiaSuVinculo:
     def test_no_puede_archivarse_solo(self, escenario, como, db) -> None:
-        """La spec lo pone fuera de alcance, y RLS no lo impide.
+        """Está fuera de alcance, y RLS no lo impide.
 
         La policy del atleta sobre su propia ficha permite escribir —la necesita
         para asociarse—, así que sin este chequeo un atleta podría cerrar su

@@ -1,8 +1,8 @@
 """Row level security: two policies per table, one per role
 
-Task T-008, the one that makes article III of the constitution true rather than
-declared. The design is section 4 of the 001 plan, verified in
-sdd/specs/001-identidad-y-aislamiento/spike/ with negative controls that
+The migration that makes tenant isolation true rather than
+declared. The design was verified in
+a spike with negative controls that
 reproduce the leak when each decision is removed.
 
 The session contract is two variables, both always set, neither with a default:
@@ -70,7 +70,7 @@ APP_ROLE = "coachapp_app"
 LLANAS = ["app_user", "coach", "athlete", "exercise", "program"]
 
 # How each deep table joins its way up to `program`, aliased `p`. The row being
-# tested is aliased `x`. This map is the spec — the functions below are
+# tested is aliased `x`. This map is the definition — the functions below are
 # generated from it so that the chain is written once and cannot drift between
 # the coach version and the athlete version.
 CADENAS = {
@@ -113,7 +113,7 @@ LLANAS_PRED: dict[str, tuple[str | None, str | None]] = {
         "app_user.auth_user_id = current_setting('app.current_auth_user_id')",
         "app_user.auth_user_id = current_setting('app.current_auth_user_id')",
     ),
-    # The athlete reads nothing of the coach. When feature 004 wants to show
+    # The athlete reads nothing of the coach. When phone logging wants to show
     # "your coach: X" that is a new and explicit policy, not a hole already open.
     "coach": ("coach.user_id = app_current_user_id()", None),
     "athlete": (
@@ -220,7 +220,7 @@ def upgrade() -> None:
         )
         extra = ""
         if tabla == "logged_set":
-            # Criterion 4, and the reason WITH CHECK here is not a copy of
+            # The reason WITH CHECK here is not a copy of
             # USING. Without this the athlete sends their own athlete_id with
             # somebody else's prescribed_set_id and the row goes in: both "it is
             # mine" predicates pass separately, what is missing is that they

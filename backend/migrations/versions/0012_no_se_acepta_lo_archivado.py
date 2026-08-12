@@ -1,6 +1,6 @@
 """Una invitación no revive un vínculo que el entrenador cerró
 
-La spec dice que archivar invalida la invitación pendiente. Faltaba, y lo
+Archivar tiene que invalidar la invitación pendiente. Faltaba, y lo
 encontró el test del criterio 11: con el vínculo archivado, aceptar seguía
 asociando.
 

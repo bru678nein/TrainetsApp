@@ -1,9 +1,10 @@
-"""Logout belongs to the provider. Task T-013, ADR 0005.
+"""Logout belongs to the provider. See ADR 0005.
 
 The task said "the previous token stops working". Implementing it surfaced that
-criterion 8 and article VIII contradict each other: stopping a token on demand
+two requirements contradict each other: stopping a token on demand
 needs revocation state, and the article forbids handling sessions by hand. The
-constitution breaks the tie in favour of the article, so the backend keeps no
+rule against writing session handling by hand wins the tie, so the backend keeps
+no
 session state and logout is an operation against Clerk.
 
 Which leaves exactly one thing load-bearing on our side: **`exp` is honoured
@@ -110,23 +111,26 @@ class TestNoHayEstadoDeSesion:
         assert revocacion == set(), f"apareció estado de revocación en app_user: {revocacion}"
 
 
-def test_el_criterio_8_dice_lo_que_el_sistema_hace():
-    """The spec is the artefact; if it promises immediacy, this fails.
+def test_el_adr_sigue_declarando_la_ventana():
+    """The decision record is the artefact; if it drops the window, this fails.
 
-    Amending the criterion was half of T-013. A test guards it because the
-    tempting edit — putting the old wording back because it reads stronger —
-    would restore a promise nothing implements.
+    What the requirement originally promised — the previous token stops working
+    at once — needs revocation state that this project deliberately does not
+    keep. The tempting edit is to write the stronger sentence back because it
+    reads better, and that would restore a promise nothing implements. So the
+    limit is asserted where it is written down.
     """
     from pathlib import Path
 
-    spec = (
-        Path(__file__).resolve().parents[2] / "sdd/specs/001-identidad-y-aislamiento/spec.md"
+    adr = (
+        Path(__file__).resolve().parents[2]
+        / "docs/adr/0005-el-cierre-de-sesion-es-del-proveedor.md"
     ).read_text()
-    assert "el token anterior deja de servir." not in spec, (
-        "el criterio 8 volvió a prometer que el token deja de servir en el acto, "
-        "y eso exige el estado de revocación que el ADR 0005 descartó"
+    assert "60 segundos" in adr, (
+        "el ADR dejó de declarar la ventana de 60 segundos, que es el límite real "
+        "de delegar el cierre de sesión"
     )
-    assert "ADR 0005" in spec
+    assert "el token anterior deja de servir." not in adr
 
 
 @pytest.mark.parametrize("segundos", [0, -1, -3600])

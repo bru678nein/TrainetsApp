@@ -1,6 +1,6 @@
 """Los cinco resultados de aceptar una invitación.
 
-Cada uno con su escenario, porque un booleano no serviría: la spec pide que un
+Cada uno con su escenario, porque un booleano no serviría: hace falta que un
 link vencido se distinga de uno inválido, y esa distinción le sirve a quien lo
 recibió —pedir otro— sin darle nada a un atacante, porque el vencido ya no vale.
 
@@ -106,7 +106,7 @@ class TestLaAceptacionQueFunciona:
         assert usada is True
 
     def test_el_historial_previo_viene_con_la_ficha(self, db, mundo, persona) -> None:
-        """El criterio 1 de la spec: el entrenador arma todo y después invita."""
+        """El entrenador arma todo y después invita."""
         ficha = mundo["a"].athlete.id
         db.execute(sa.text("UPDATE athlete SET user_id = NULL WHERE id = :i"), {"i": ficha})
         db.flush()

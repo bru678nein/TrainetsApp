@@ -1,9 +1,9 @@
-"""Invitation tokens: generation, hashing, expiry. Task T-023.
+"""Invitation tokens: generation, hashing, expiry.
 
-Written before the implementation, as article IV requires for the domain.
+Written before the implementation, as domain code requires here.
 
 No clock and no database. `emitir` takes the moment of issue as an argument for
-the same reason `identify` does in T-004: a function that reads the clock has
+the same reason `identify` does: a function that reads the clock has
 expiry tests that pass at 11:59 and fail at 12:00, and those tests get deleted
 rather than fixed.
 
@@ -50,7 +50,7 @@ def test_el_hash_es_estable():
 
 
 def test_la_vigencia_es_de_siete_dias():
-    """Lo dice la spec, y está acá para que cambiarlo sea una decisión visible."""
+    """Está acá para que cambiarlo sea una decisión visible."""
     assert timedelta(days=7) == VIGENCIA
 
 
@@ -60,7 +60,7 @@ def test_el_vencimiento_se_calcula_desde_la_emision():
 
 
 def test_a_los_seis_dias_sirve_y_a_los_ocho_no():
-    """El criterio 2 de la spec, en el dominio."""
+    """El vencimiento, en el dominio."""
     _, guardable = emitir(EMISION)
     assert not esta_vencida(guardable.expires_at, EMISION + timedelta(days=6))
     assert esta_vencida(guardable.expires_at, EMISION + timedelta(days=8))

@@ -1,6 +1,6 @@
-"""Row level security, against Postgres, as the application role. Task T-008.
+"""Row level security, against Postgres, as the application role.
 
-This is the file that makes article III of the constitution verifiable. Every
+This is the file that makes tenant isolation verifiable. Every
 query here runs after `SET LOCAL ROLE coachapp_app`, because the suite connects
 as the owner and the owner here is also the cluster superuser — and a superuser
 ignores policies unconditionally, `FORCE` included. Without the role switch each
@@ -8,7 +8,7 @@ of these would pass without a single policy ever being evaluated.
 
 The data is built here rather than taken from the spreadsheet: two coaches with
 an athlete each, plus a person who is a coach *and* an athlete of the first one,
-which is the case the second risk in the spec is about.
+which is the case a careless role check turns into a way out.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from tests.conftest import contexto_de
 @pytest.mark.usefixtures("volver")
 class TestSinContexto:
     def test_un_select_da_error_y_no_cero_filas(self, db: OrmSession, mundo) -> None:
-        """The criterion T-007 could not check, and the reason FORCE matters.
+        """What the application role alone could not prove, and why FORCE matters.
 
         `current_setting` without its second argument. With `missing_ok = true`
         a forgotten context reads as "this user has no data" and can live for
@@ -45,14 +45,14 @@ class TestElCoachVeLoSuyo:
         assert nombres == {"atleta de " + mundo["a"].persona.display_name, "C entrenado por A"}
 
     def test_la_tabla_mas_profunda_tampoco(self, db: OrmSession, mundo) -> None:
-        """`logged_set` is five levels from its tenant. The acceptance criterion."""
+        """`logged_set` is five levels from its tenant."""
         contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
         visibles = db.scalars(sa.text("SELECT id FROM logged_set")).all()
         assert mundo["a"].log.id in visibles
         assert mundo["b"].log.id not in visibles
 
     def test_por_id_directo_tampoco(self, db: OrmSession, mundo) -> None:
-        """Criterion 2: someone else's identifier answers like a missing one."""
+        """Someone else's identifier answers like a missing one."""
         contexto_de(db, mundo["a"].persona.auth_user_id, "coach")
         fila = db.execute(
             sa.text("SELECT 1 FROM logged_set WHERE id = :i"), {"i": mundo["b"].log.id}
@@ -79,7 +79,7 @@ class TestElRiesgoDosDeLaSpec:
 
 @pytest.mark.usefixtures("volver")
 class TestCriterioCuatro:
-    """An athlete cannot log a set prescribed to somebody else. Spec criterion 4."""
+    """An athlete cannot log a set prescribed to somebody else."""
 
     def test_registrar_una_serie_ajena_es_rechazado(self, db: OrmSession, mundo) -> None:
         """The person acting is C, an athlete of A, signing with their own record.
@@ -125,7 +125,7 @@ class TestElCatalogoGlobal:
 
 
 class TestElContextoOlvidadoNoEsSilencioso:
-    """Migration 0005. The guarantee the 001 plan leans on, on a real pool.
+    """Migration 0005. The guarantee the whole design leans on, on a real pool.
 
     `SET LOCAL` reverts at commit, but a custom setting that has ever been set
     cannot go back to undefined — it reverts to the empty string. So on the

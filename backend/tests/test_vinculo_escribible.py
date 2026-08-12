@@ -89,7 +89,7 @@ class TestLasSeisContestanIgual:
     def test_sobre_uno_pausado_tambien(self, db, cadena, tabla) -> None:
         """Pausar esconde del listado y no congela nada.
 
-        Es la mitad de la distinción que la spec tomó: si esto diera falso, el
+        Es la mitad de la distinción entre pausar y archivar: si esto diera falso, el
         entrenador no podría prepararle el programa de vuelta a alguien que está
         parado tres meses, que es el motivo entero por el que pausar existe.
         """

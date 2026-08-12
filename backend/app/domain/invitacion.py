@@ -10,7 +10,7 @@ expiry tests that pass at 11:59 and fail at 12:00, and those get deleted rather
 than fixed — the same reasoning as `identity.identify`.
 
 No database, no HTTP, no provider. `secrets` and `hashlib` are the standard
-library, which article I allows; what it keeps out is infrastructure.
+library, which the domain allows; what it keeps out is infrastructure.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-#: Seven days, from the spec. Named so that changing it is a visible decision
+#: Seven days. Named so that changing it is a visible decision
 #: and not a literal buried in a call.
 VIGENCIA = timedelta(days=7)
 
@@ -64,7 +64,7 @@ def hash_de(token: str) -> bytes:
     slowness would only be latency added to every acceptance.
 
     Storing the hash means a database leak hands over nothing usable. It also
-    removes the timing question the spec raises, and not by comparing carefully:
+    removes the timing question, and not by comparing carefully:
     there is no comparison at all. What arrives is hashed and looked up by index,
     so no code path takes longer the closer a guess gets.
     """

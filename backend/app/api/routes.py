@@ -59,7 +59,7 @@ from app.schemas import (
     VolumeOut,
 )
 
-# The dependency goes on the router, not on each endpoint. Task T-010.
+# The dependency goes on the router, not on each endpoint.
 #
 # Every route hanging off this one resolves identity and role before its handler
 # runs, including the ones that never touch the database — and those are exactly
@@ -149,12 +149,12 @@ def crear_atleta(
     payload: AthleteIn,
     ctx: TenantContext = Depends(require_tenant_context),
 ) -> AthleteCreated:
-    """A record for somebody who has no account yet. Task T-012.
+    """A record for somebody who has no account yet.
 
-    The central case of spec 001, not an edge one: the coach builds the whole
-    programme before the athlete signs up, which is how they work today with a
-    spreadsheet they share afterwards. So `user_id` stays NULL, and how the
-    person later claims the record is feature 003.
+    The central case, not an edge one: the coach builds the whole programme
+    before the athlete signs up, which is how they work today with a spreadsheet
+    they share afterwards. So `user_id` stays NULL, and the person claims the
+    record later through an invitation link.
     """
     if ctx.role != "coach":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador crea fichas")
@@ -237,8 +237,7 @@ def get_session(session_id: uuid.UUID, db: OrmSession = Depends(tenant_session))
     """The view the athlete opens at the gym.
 
     It does not check who owns the session: there is no identity to compare it
-    against yet. That check is acceptance criterion 3 of spec 001 and belongs
-    with RLS underneath, not as an `if` here.
+    against yet. That check belongs with RLS underneath, not as an `if` here.
     """
     stmt = (
         select(Session)
@@ -296,7 +295,7 @@ def log_set(
     """Idempotent: the athlete can correct a set as many times as they want.
 
     It also does not check that the set belongs to the athlete logging it —
-    there is no identity yet. That is acceptance criterion 4 of spec 001.
+    there is no identity yet; the policies enforce it.
     """
     ps = db.get(PrescribedSet, set_id)
     if ps is None:
@@ -305,12 +304,12 @@ def log_set(
     # Today this cannot return None: the whole chain prescribed_set →
     # prescription → session → mesocycle → program → athlete_id is NOT NULL, so
     # if the set exists its program exists. It is handled anyway because under
-    # RLS (feature 001) that stops being true: the set may be visible and the
+    # RLS that stops being true: the set may be visible and the
     # program not, leaving the join empty.
     #
     # In that case the correct answer is 404 with the same message as a
-    # non-existent set. That is acceptance criterion 2 of spec 001: someone
-    # else's identifier is indistinguishable from one that does not exist.
+    # non-existent set, so that someone else's identifier is indistinguishable
+    # from one that does not exist.
     athlete_id = db.scalars(
         select(Program.athlete_id)
         .join(Mesocycle)
@@ -354,8 +353,8 @@ def cambiar_estado(
 
     The role check is explicit and not left to the policies. An athlete's policy
     on their own record permits updating it, which would let them archive
-    themselves; the spec puts athlete-initiated departure out of scope, so the
-    refusal has to be here.
+    themselves; athlete-initiated departure is out of scope, so the refusal has
+    to be here.
     """
     from app.domain.vinculo import Accion, Estado, Rechazo, transicionar
 
@@ -394,7 +393,7 @@ def generar_invitacion(
 
     Revoking whatever was pending is not politeness. The partial unique index
     admits one usable invitation per record, so issuing without revoking simply
-    does not commit, and criterion 3 — a new link makes the old one useless — is
+    does not commit, and the rule that a new link makes the old one useless is
     guaranteed by the schema rather than by remembering.
     """
     from app.domain.invitacion import emitir
@@ -519,7 +518,7 @@ def progression(
     ]
 
 
-# Second router, and the only one that does not demand a role. Task T-011.
+# Second router, and the only one that does not demand a role.
 #
 # It exists because of a chicken and egg: `require_tenant_context` answers 403 to
 # anybody without the role, so a brand-new identity could never reach the
@@ -576,8 +575,8 @@ def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)
     return CoachOut(id=coach.id, display_name=persona.display_name, athlete_count=len(atletas))
 
 
-#: Cada rechazo con su código. Distinguibles a propósito: la spec pide que un
-#: link vencido no se confunda con uno inválido, porque a quien lo recibió le
+#: Cada rechazo con su código. Distinguibles a propósito: un link vencido no se
+#: confunde con uno inválido, porque a quien lo recibió le
 #: dice qué hacer —pedir otro— y a un atacante no le sirve, ya que el vencido
 #: no vale. `410` y no `404` es exactamente esa distinción, en el vocabulario
 #: que HTTP ya tiene.

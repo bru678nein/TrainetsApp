@@ -4,7 +4,7 @@
 DEV_DSN  ?= postgresql+psycopg://coach:coach@localhost:5433/coachapp
 TEST_DSN ?= postgresql+psycopg://coach:coach@localhost:5433/coachapp_test
 
-# Contraseña local del rol de aplicación (T-007). La migración 0003 crea el rol
+# Contraseña local del rol de aplicación. La migración 0003 crea el rol
 # sin contraseña a propósito —una contraseña versionada está en cada clon y en
 # el historial para siempre— así que se la pone la infraestructura: acá para
 # desarrollo, el workflow de CI para CI, la consola del proveedor en producción.
@@ -13,8 +13,8 @@ APP_PASSWORD ?= coachapp_app
 # El DSN con el que corre la aplicación: rol sin privilegios, que no es dueño de
 # las tablas. `migrate` y `seed` siguen usando DEV_DSN porque son operaciones de
 # administración —crear el esquema, sembrarlo— y necesitan al dueño. Esa
-# diferencia es la tarea T-007 entera: si la app se conecta como dueño, el
-# FORCE ROW LEVEL SECURITY de T-008 no la alcanza.
+# diferencia es el aislamiento entero: si la app se conecta como dueño, el
+# FORCE ROW LEVEL SECURITY no la alcanza.
 APP_DSN  ?= postgresql+psycopg://coachapp_app:$(APP_PASSWORD)@localhost:5433/coachapp
 
 # Intérprete para crear el venv. CI corre 3.11; usá una versión con wheels
@@ -62,7 +62,7 @@ ADMIN_DSN ?= $(DEV_DSN)
 # Estricto a propósito: si no puede poner la contraseña, falla. CI lo llama
 # directo y tiene que ponerse en rojo. Quien degrada es `db-up`, que puede correr
 # antes de la primera migración y ahí el rol legítimamente no existe todavía.
-db-app-password:  ## Le pone contraseña al rol de aplicación (T-007)
+db-app-password:  ## Le pone contraseña al rol de aplicación
 	@cd backend && DATABASE_URL="$(ADMIN_DSN)" $(PY_RUN) -m scripts.set_app_password \
 	  "$(APP_PASSWORD)"
 
@@ -142,6 +142,6 @@ front-dev: front-install  ## Servidor de desarrollo en :5173
 
 check: lint test front-lint front-test  ## Todo lo que corre en CI, más el frontend
 
-seed:  ## Siembra la base de desarrollo con datos reales (ver artículo IX)
+seed:  ## Siembra la base de desarrollo con datos reales, nunca inventados
 	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m importer.from_spreadsheet \
 	  ../data/planilla.xlsx --reset

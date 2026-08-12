@@ -1,4 +1,4 @@
-"""Sets the application role's password. Task T-007.
+"""Sets the application role's password.
 
 The migration creates `coachapp_app` without one on purpose: a password in a
 versioned file is in every clone and in the history forever. Giving it one is

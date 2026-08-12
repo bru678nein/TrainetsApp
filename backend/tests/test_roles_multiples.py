@@ -1,8 +1,8 @@
-"""One person, two roles. Criteria 9 to 11 of the spec. Task T-017.
+"""One person, two roles.
 
-The spec resolved that a person can be a coach and, at the same time, somebody
+A person can be a coach and, at the same time, somebody
 else's athlete — and that multi-link arrives through the ordinary door, not the
-exotic one: people change coaches, and feature 003 archives the previous link
+exotic one: people change coaches, and switching archives the previous link
 instead of deleting it.
 
 The risk it names is the reverse of the obvious one. It is not that holding two
@@ -54,7 +54,7 @@ class TestCriterio10:
         assert [a["id"] for a in de_b] == [str(escenario.atleta_de_b)]
 
     def test_el_listado_de_uno_no_revela_al_otro(self, escenario, como):
-        """Criterion 10's second half: not even that the other exists."""
+        """The second half: not even that the other exists."""
         r = como(escenario.sub_a, "coach")("GET", f"/api/athletes/{escenario.atleta_de_b}/sessions")
         fantasma = como(escenario.sub_a, "coach")(
             "GET", "/api/athletes/00000000-0000-0000-0000-000000000000/sessions"
@@ -63,7 +63,7 @@ class TestCriterio10:
 
 
 class TestCriterio11:
-    """The one the spec calls the escape route, if the role is resolved loosely."""
+    """The escape route, if the role is resolved loosely."""
 
     def test_ser_atleta_de_alguien_no_abre_su_espacio(self, escenario, como):
         """C is A's athlete. That must give C nothing of A's beyond their own program.
@@ -80,7 +80,7 @@ class TestCriterio11:
         assert str(escenario.atleta_de_b) not in vistos
         assert str(escenario.ficha_de_c) not in vistos, (
             "C, mirando como atleta, alcanzó su propio espacio de entrenador: "
-            "es la fuga del riesgo 2 de la spec"
+            "es la fuga que abre resolver el rol con manga ancha"
         )
 
     def test_como_atleta_no_alcanza_las_sesiones_del_espacio_ajeno(self, escenario, como):

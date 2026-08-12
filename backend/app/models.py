@@ -72,7 +72,7 @@ class AppUser(Base):
     global UNIQUE allowed exactly one athlete row per person, ever.
 
     Which matters not for the coach who trains himself, but for anyone who
-    switches coaches: archiving the previous relationship (feature 003) means
+    switches coaches: archiving the previous relationship means
     the new one needs a second athlete row while the old one survives.
     """
 
@@ -88,8 +88,7 @@ class AppUser(Base):
 class Coach(Base):
     __tablename__ = "coach"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
-    # UNIQUE encodes the rule from spec 001: at most one coach profile per
-    # person. What a person can hold several of is the athlete role.
+    # UNIQUE encodes the rule: at most one coach profile per person. What a person can hold several of is the athlete role.
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("app_user.id", ondelete="CASCADE"), unique=True
     )
@@ -132,7 +131,7 @@ class Athlete(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     # Three states, not a boolean. `pausado` hides the athlete from the coach's
     # listing and leaves everything editable; `archivado` ends the link, and from
-    # T-027 on nothing can be written under it. The values are what the domain's
+    # policies on nothing can be written under it. The values are what the domain's
     # `vinculo.Estado` carries — the enum is not used as the column type so that
     # the ORM does not have to import the domain to describe a row.
     estado: Mapped[str] = mapped_column(Text, server_default=text("'activo'"))
@@ -337,7 +336,7 @@ class Prescription(Base):
 
 
 class PrescribedSet(Base):
-    """The grain of the system. See PLAN.md, section 4."""
+    """The grain of the system: one prescribed set is one row."""
 
     __tablename__ = "prescribed_set"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
@@ -389,7 +388,9 @@ class PrescribedSet(Base):
 
 
 class LoggedSet(Base):
-    """A separate table from the prescription, on purpose. See PLAN.md, section 4."""
+    """A separate table from the prescription, on purpose: what was planned and
+    what was done are different facts, and overwriting one with the other loses
+    the comparison the whole product is built on."""
 
     __tablename__ = "logged_set"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)

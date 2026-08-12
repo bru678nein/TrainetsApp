@@ -12,7 +12,6 @@
 --  El RLS del final YA está aplicado: migraciones 0004 a 0013. Lo de abajo es
 --  el bosquejo que explica la forma; el DDL vigente son las migraciones, que
 --  traen 37 policies: 19 permisivas y 18 restrictivas. Ante una diferencia, manda la migración.
---  Ver sdd/specs/001-identidad-y-aislamiento/.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -27,7 +26,7 @@ CREATE EXTENSION IF NOT EXISTS "citext";
 -- `coach` y en `athlete`, cada uno con su UNIQUE global— y eso permitía una sola
 -- ficha de atleta por persona para toda la vida del sistema. Lo que lo forzó no
 -- fue el entrenador que se entrena solo, sino cualquiera que cambie de
--- entrenador: la feature 003 archiva el vínculo anterior en vez de borrarlo, así
+-- entrenador: el vínculo anterior se archiva en vez de borrarse, así
 -- que el nuevo necesita una ficha más mientras la vieja sobrevive.
 -- -----------------------------------------------------------------------------
 CREATE TABLE app_user (
@@ -70,7 +69,7 @@ CREATE TABLE athlete (
     goal          text,
     notes         text,
     -- Tres estados y no un booleano. `pausado` esconde al atleta del listado y
-    -- deja todo editable; `archivado` cierra el vínculo y desde T-027 nadie
+    -- deja todo editable; `archivado` cierra el vínculo y nadie
     -- escribe debajo de él.
     estado        text NOT NULL DEFAULT 'activo'
                   CHECK (estado IN ('activo','pausado','archivado')),
@@ -246,7 +245,7 @@ CREATE INDEX logged_set_athlete_time_idx ON logged_set (athlete_id, performed_at
 -- RPE x reps. No existe: los coeficientes viven en backend/app/domain/rpe.py,
 -- como diccionario.
 --
--- El motivo es el artículo I de la constitución. El dominio calcula e1RM sin
+-- El motivo es que el dominio no depende de infraestructura. Calcula e1RM sin
 -- I/O y se testea sin levantar base; leer los coeficientes de una tabla lo
 -- habría obligado a recibir una sesión de SQLAlchemy, que es exactamente lo
 -- que el artículo prohíbe. El argumento a favor era "versionado por si cambia",
@@ -358,7 +357,7 @@ $$;
 -- sin RLS. FORCE además de ENABLE porque el dueño está exento por default y las
 -- migraciones corren como dueño; sin él los tests pasarían sobre policies que en
 -- producción no aplican igual. Un superusuario saltea RLS pase lo que pase, así
--- que la app se conecta con un rol que no es ninguna de las dos cosas (T-007).
+-- que la app se conecta con un rol que no es ninguna de las dos cosas.
 ALTER TABLE athlete ENABLE ROW LEVEL SECURITY;
 ALTER TABLE athlete FORCE  ROW LEVEL SECURITY;
 

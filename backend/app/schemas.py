@@ -19,8 +19,8 @@ class AthleteIn(BaseModel):
 
     No `coach_id` and no `user_id`, on purpose. The space is the caller's own —
     taking it from the body would let somebody file an athlete into another
-    coach's space, and `user_id` is what feature 003 fills in when the person
-    claims the record, not something the coach asserts.
+    coach's space, and `user_id` is filled in when the person claims the record
+    through an invitation, not something the coach asserts.
     """
 
     full_name: str = Field(min_length=1, max_length=160)
@@ -169,7 +169,7 @@ class InvitacionCreada(BaseModel):
 
 
 class PatternAdherenceOut(BaseModel):
-    """Las tres preguntas de la spec, por patrón de movimiento.
+    """Las tres preguntas de la adherencia, por patrón de movimiento.
 
     Viaja con `sets_planned` y no sólo con los porcentajes: un porcentaje sin su
     denominador miente. Cero de una serie y cero de doscientas se dibujan igual y

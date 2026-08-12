@@ -1,8 +1,8 @@
-"""A record for an athlete with no account. Task T-012.
+"""A record for an athlete with no account.
 
 "El atleta existe en el sistema aunque todavía no tenga cuenta: el entrenador
 puede armarle el programa completo antes de que el atleta se registre. Esto no
-es un detalle — es como trabajan hoy." — spec 001.
+es un detalle: es como trabajan hoy.
 
 So the interesting assertions are not that a row appears. They are that
 `user_id` stays NULL, that the record can immediately be prescribed to, and that
@@ -22,7 +22,7 @@ RUTA = "/api/athletes"
 
 class TestLaFicha:
     def test_se_crea_sin_cuenta(self, client, db):
-        """The acceptance criterion's first half: it exists with `user_id` NULL."""
+        """The first half: it exists with `user_id` NULL."""
         from app.models import Athlete
 
         r = client.post(RUTA, json={"full_name": "Ficha Nueva"})
@@ -50,10 +50,11 @@ class TestLaFicha:
         assert creada["id"] in listado
 
     def test_se_le_puede_prescribir(self, client, db):
-        """The second half of the criterion, and the reason the record exists.
+        """The second half, and the reason the record exists.
 
         Written against the database because the endpoints that build a
-        programme are feature 002. What has to hold today is that the record is
+        programme are the routine editor. What has to hold today is that the
+        record is
         a usable target: a programme can point at it, under the caller's own
         tenant context, without RLS refusing the write.
         """

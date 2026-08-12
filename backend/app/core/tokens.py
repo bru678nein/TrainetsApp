@@ -1,4 +1,4 @@
-"""Bearer token to identity. Task T-006, the adapter half.
+"""Bearer token to identity: the adapter half.
 
 Three steps, in this order, and the order is the security:
 

@@ -1,7 +1,7 @@
 """Pausing is not archiving: athlete.estado
 
 `is_active` did exactly one thing: hide an athlete from the coach's listing. It
-blocked nothing. Feature 003 needs a second, heavier state — the link is over,
+blocked nothing. There has to be a second, heavier state — the link is over,
 both sides read the history and neither writes it — and collapsing the two would
 take away something the coach has today. Pausing exists for the athlete who is
 injured or takes three months off, and preparing the programme for their return

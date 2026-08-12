@@ -1,7 +1,7 @@
 """The provider's key set: fetching it, and deciding when to fetch it again.
 
-Task T-005. This is the adapter, not the domain: it reaches the network, so it
-lives outside `app/domain/` (article I). What it does not do is decide whether a
+This is the adapter, not the domain: it reaches the network, so it lives outside
+`app/domain/`, which imports no infrastructure. What it does not do is decide whether a
 token is acceptable — that is `app.domain.identity`, which takes claims and no
 I/O.
 

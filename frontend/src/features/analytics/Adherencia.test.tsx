@@ -34,7 +34,7 @@ describe("la adherencia por patrón", () => {
   });
 
   it("cada porcentaje viene con su denominador", async () => {
-    // Criterio 3 de la spec. 0 de 15 y 0 de 226 se dibujan igual y significan
+    // 0 de 15 y 0 de 226 se dibujan igual y significan
     // cosas opuestas: una es una conducta, la otra es un bloque que recién
     // empieza.
     montar(<Adherencia atletaId="a1" />);

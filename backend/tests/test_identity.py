@@ -1,6 +1,6 @@
-"""Claims to identity, or to a reason for rejection. Task T-004.
+"""Claims to identity, or to a reason for rejection.
 
-Written before the implementation, as article IV requires for the domain.
+Written before the implementation, as domain code requires here.
 
 No network and no clock: `identify` takes the decoded claims, what it expects
 to find in them, and the current time. Reading the clock inside would make every
@@ -8,7 +8,8 @@ expiry test depend on when it runs, and a test that passes at 11:59 and fails at
 12:00 gets deleted rather than fixed.
 
 Signature verification is not here. It needs the JWKS, which needs the network,
-which article I keeps out of the domain — that is the adapter, T-005. What lives
+which the domain does not do, because it has no infrastructure — that is the
+adapter. What lives
 here is everything that can be decided by looking at the claims, which is where
 the holes actually are: `azp` is the one people forget, and it is what stops a
 token Clerk issued for another origin from working against this API.
@@ -89,7 +90,7 @@ class TestProvenance:
         assert identify(foreign, EXPECTED, "RS256", NOW) is Rejection.WRONG_ISSUER
 
     def test_azp_de_otro_origen(self):
-        """Criterion 7 of the spec, and the most common hole in this integration.
+        """The most common hole in this integration.
 
         Same issuer, valid signature, unexpired — and issued for another
         application. Without this check it works against this API.
@@ -124,7 +125,7 @@ class TestSubject:
 class TestCheckOrder:
     """Which reason wins when a token breaks more than one rule.
 
-    It matters because criterion 6 makes `EXPIRED` a reason the client is told,
+    It matters because `EXPIRED` is a reason the client is told,
     so it knows renewing is worth a try, while everything else answers with a
     generic 401. Reporting `EXPIRED` for a token from another issuer would be
     telling a forger that their token is fine and just needs renewing.
@@ -148,7 +149,8 @@ class TestCheckOrder:
 
 
 def test_el_dominio_no_importa_infraestructura():
-    """Article I, from inside and narrower than the CI grep.
+    """The domain imports no infrastructure, checked from inside and narrower
+    than the CI grep.
 
     It reads the import statements, not the source text: the CI grep would flag
     a module that merely names a library in a comment, and a check that fires on

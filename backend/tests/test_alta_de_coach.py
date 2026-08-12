@@ -1,7 +1,7 @@
-"""First login: an identity with no coach profile gets one. Task T-011.
+"""First login: an identity with no coach profile gets one.
 
 "Una persona se registra con email y queda con su espacio vacío. Al entrar por
-primera vez no hay atletas." — spec 001.
+primera vez no hay atletas.
 
 This is the one endpoint that does not demand a role, and the reason is a
 chicken and egg: `require_tenant_context` answers 403 to anybody who does not
@@ -30,7 +30,7 @@ def recien_llegado(mint) -> tuple[str, str]:
 
 class TestElAlta:
     def test_una_identidad_nueva_obtiene_su_espacio_vacio(self, raw_client, recien_llegado):
-        """The acceptance criterion, whole: it exists, and it is empty."""
+        """The whole of it: the profile exists, and it is empty."""
         _, token = recien_llegado
         r = raw_client.post(RUTA, headers={"Authorization": f"Bearer {token}"})
 

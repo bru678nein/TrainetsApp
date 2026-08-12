@@ -16,8 +16,8 @@ este esquema sea correcto no existe en SQLite:
 - El índice funcional con `COALESCE` que hace únicos los nombres de ejercicio
   por coach, tratando el catálogo global como un tenant más.
 - La vista `weekly_volume`.
-- Row Level Security, que llega con la feature 001 y es el artículo III de la
-  constitución.
+- Row Level Security, que es cómo el proyecto aísla los datos de cada
+  entrenador: en la base, no en cada endpoint.
 
 Correr la suite en SQLite significaba que ninguna de esas cosas se ejercitaba
 nunca. Los tests pasaban en verde sobre un motor que no era el de producción, lo
@@ -50,7 +50,8 @@ Hay además un test que compara los modelos contra la base migrada y falla si
 divergieron.
 
 Los tests del dominio (`app/domain/`) no tocan nada de esto y siguen corriendo
-en milisegundos sin dependencias, que es justamente el punto del artículo I.
+en milisegundos sin dependencias, que es justamente el punto de mantenerlos
+libres de infraestructura.
 
 Esa afirmación fue falsa durante un tiempo y nadie se enteró: `conftest.py`
 importaba SQLAlchemy, Alembic y FastAPI a nivel de módulo, y pytest carga ese

@@ -171,7 +171,8 @@ class TestConstraints:
             db.flush()
 
     def test_una_persona_es_atleta_de_varios_coaches(self, db: OrmSession) -> None:
-        """The whole point of T-001: one identity, several athlete records.
+        """The whole point of splitting identity from role: one identity, several
+        athlete records.
 
         The pre-0002 model made this impossible — athlete.auth_user_id carried a
         global UNIQUE — and it is the ordinary case of switching coaches, not an

@@ -2,7 +2,7 @@
 
 This module deliberately exposes no FastAPI dependency. The only way into the
 database from an endpoint is `app.api.deps.tenant_session`, which is where
-tenant resolution will live. See the 001 plan, section 3.
+tenant resolution lives.
 """
 
 import os

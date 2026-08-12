@@ -1,7 +1,7 @@
 """El atleta reclama una ficha que el entrenador ya armó.
 
 Los cinco resultados llegan como cinco respuestas distinguibles, y esa es la
-mitad que importa: la spec pide que un link vencido no se confunda con uno
+mitad que importa: un link vencido no se puede confundir con uno
 inválido. `410` frente a `404` es esa distinción en el vocabulario que HTTP ya
 tiene — le dice a quien lo recibió que pida otro, y no le sirve a un atacante
 porque el vencido ya no vale.

@@ -1,14 +1,15 @@
-"""The application role. Task T-007.
+"""The application role.
 
 The app must not connect as the owner of the tables, because an owner bypasses
 row level security by default. `FORCE ROW LEVEL SECURITY` closes that hole, but
 a superuser bypasses RLS unconditionally and no FORCE reaches them — so the role
 has to be neither owner nor superuser, and without BYPASSRLS.
 
-Half of what T-007 promises cannot be checked yet: "a SELECT with no tenant
-context errors instead of returning rows" needs policies, which land in T-008.
+Half of what this role promises cannot be checked yet: "a SELECT with no tenant
+context errors instead of returning rows" needs the policies, which land later.
 What is checkable today is everything about the role itself, and that is what is
-here. The other half is T-008's to prove, and it is written down as such rather
+here. The other half is the policies' to prove, and it is written down as such
+rather
 than quietly assumed.
 """
 
@@ -134,7 +135,7 @@ class TestElRolPuedeTrabajar:
         try:
             with eng.connect() as conn:
                 assert conn.execute(sa.text("SELECT current_user")).scalar() == APP_ROLE
-                # Reading is *not* checked here any more: since T-008 a query
+                # Reading is *not* checked here any more: since the policies landed, a query
                 # with no tenant context errors, which is the whole point. That
                 # is asserted in test_rls.py.
                 conn.execute(sa.text("SELECT 1")).scalar()

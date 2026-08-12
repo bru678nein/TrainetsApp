@@ -9,8 +9,7 @@ pero no nombró con qué librería. `requirements.txt` traía
 `python-jose[cryptography]>=3.3` desde antes de esa decisión, declarada y sin
 usar por nadie.
 
-La tarea T-005 es el adaptador que trae el JWKS y lo cachea. Al empezarla había
-que resolver dos cosas: con qué librería se verifica la firma, y si el caché de
+El adaptador que trae el JWKS y lo cachea obliga a resolver dos cosas: con qué librería se verifica la firma, y si el caché de
 claves lo escribimos nosotros o lo trae la librería.
 
 Verificado en agosto de 2026, que es lo que `PLAN.md` §5 pide hacer en vez de
@@ -39,7 +38,7 @@ convertía un fallo puntual del proveedor en una caída de auth en toda la app.
 
 **PyJWT reemplaza a `python-jose`.** Se saca `python-jose` de
 `requirements.txt` ahora, porque está declarado sin usarse y arrastra CVEs sin
-darnos nada. PyJWT entra cuando haya código que verifique firmas, o sea T-006 —
+darnos nada. PyJWT entra cuando haya código que verifique firmas, y no antes:
 declarar una dependencia antes de usarla es cómo llegamos a esta situación.
 
 **El caché de JWKS es nuestro**, en `app/core/jwks.py`, y no `PyJWKClient`. La
@@ -52,9 +51,9 @@ cuya semántica no controlamos. El caché que la sección 2 del plan describe so
 unas cuarenta líneas, hace exactamente lo que queremos y se testea con un
 proveedor falso y un reloj falso, sin socket.
 
-Queda documentado que esto es una excepción consciente al artículo VI: la
-alternativa de librería existe y se descarta con motivo, no por gusto de
-escribir código.
+Queda documentado que esto es una excepción consciente a la preferencia por
+librerías antes que código propio: la alternativa existe y se descarta con
+motivo, no por gusto de escribir código.
 
 ## Consecuencias
 
