@@ -59,7 +59,7 @@ En orden. Cada una depende de la anterior.
 | — | Migraciones con Alembic | hecho | Se resolvió antes de abrir el backlog, porque tener datos sin migraciones versionadas era deuda inmediata. Trajo la decisión de sacar SQLite de los tests: ver ADR 0002. |
 | 001 | Identidad y aislamiento por tenant | **hecha**, 22 de 22 | Es el agujero más grande del backend actual y lo primero que mira un revisor. Todo lo demás se construye encima. |
 | 002 | Editor de rutinas | **desbloqueada**, lista para `/plan` | El riesgo real del producto. Las tres definiciones se cerraron con evidencia: el presupuesto de interacción cronometrando la planilla, y la regla de progresión midiéndola — resultó que lo que progresa es el RIR y no la carga. |
-| 003 | Invitaciones y ciclo de vida del vínculo | **en curso**, 13 de 17 | El ciclo completo funciona por API. Faltan las fixtures, los recorridos y los criterios. |
+| 003 | Invitaciones y ciclo de vida del vínculo | **16 de 17** | Falta sólo la documentación de cierre. El ciclo completo funciona: invitar, aceptar, pausar, archivar y reactivar, con el bloqueo de escritura sobre lo archivado en la base. |
 | 004 | Vista de sesión y registro en el celular | | Es lo que el atleta usa todos los días. Mientras tanto lo cubre `backend/scripts/gen_app.py`. |
 | 005 | Panel de análisis | **en curso**, 12 de 13 | Las tres vistas andando y CI en verde con las dos suites. Falta la captura, que necesita sesión iniciada. |
 | 006 | PWA con soporte offline | **descartada** el 2026-08-11 | La decisión es de Bruno. Lo que la justificaba —que en el gimnasio no hay señal— **nunca se verificó**: era una suposición del backlog, no un dato. Sin ella, la 004 alcanza sola. Si algún día el atleta reporta que se le corta, vuelve. |

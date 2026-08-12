@@ -318,6 +318,13 @@ Diecisiete. El límite de `sdd/README.md` son veinte.
 - **`invitation` no tiene política de retención.** Las aceptadas y las vencidas
   quedan para siempre.
 
+Y una regla que este plan no bajó a ningún lado y la spec sí pedía: **archivar
+invalida la invitación pendiente.** Faltaba entera, y la encontró el test del
+criterio 11 — con el vínculo archivado, aceptar seguía asociando. Se resolvió
+adentro de `app_aceptar_invitacion` (migración 0012) y no revocando al archivar,
+porque así la garantía no depende de que todo camino futuro que archive se acuerde
+de revocar.
+
 Y un defecto que este plan no previó y apareció al implementarlo: **las policies
 permisivas de la 0004 evaluaban `WITH CHECK` con el id de la fila nueva**, así que
 el entrenador no podía insertar en ninguna de las cuatro tablas del editor —ni en

@@ -26,6 +26,9 @@ Estado: `pendiente` · `en curso` · `hecha`
 | T-029 | Endpoints de estado del vínculo | 13 tests; 6 mutaciones cazadas —dejar que el atleta cambie su vínculo o invite, no revocar la anterior, permitir transiciones inválidas, invitar sobre lo archivado, token constante—. El token en claro se verifica ausente **sobre las respuestas** de las otras rutas |
 | T-031 | Traducción del bloqueo silencioso | Resultó no ser silencioso: el ORM cuenta filas y levanta, así que era un **500** y no un falso éxito. Un manejador global —no un `if` por endpoint— lo traduce a 409 con su motivo. 5 tests, 5 mutaciones cazadas, incluida tapar cualquier error de base como si fuera el vínculo |
 | T-030 | Endpoint de aceptación | 10 tests; 4 mutaciones cazadas. Los cinco resultados llegan como cinco respuestas distinguibles: **410 para la vencida y 404 para la inexistente**, que es el criterio 2 en el vocabulario que HTTP ya tiene. Sin email en el token no se inventa una identidad |
+| T-032 | Fixtures de vínculos | Cuatro entrenadores sobre la misma persona —activo, pausado, archivado y uno nuevo—, cada uno con historial completo. Sin historial, "sobre lo archivado se lee todo" se verificaría sobre cero filas y pasaría siempre |
+| T-033 | Recorrido de rutas: el eje del estado | 5 tests. Lleva un **mapa declarado** y no una regla ciega: cambiar estado tiene que seguir funcionando sobre lo archivado, o archivar sería irreversible. Una ruta de escritura nueva sin declarar hace fallar un test que la nombra |
+| T-034 | Criterios 1 a 12 | 10 tests. Encontró que **archivar no invalidaba la invitación pendiente**, que la spec pedía y nunca se implementó: corregido en la migración 0012, dentro de la función de aceptación para que valga sin importar cómo se archivó |
 | T-022 | Dominio: transiciones de estado | 8 tests escritos antes; 4 mutaciones —confundir los dos motivos de rechazo, colapsar pausado y archivado, dejar un agujero en la tabla, tratar pausado como archivado— caen 2 tests cada una |
 | T-019 | Migración: `athlete.estado` | ida y vuelta sobre la base sembrada; forzando `is_active = false` el backfill mapea a `pausado` y no a `archivado`; un estado inventado lo rechaza el `CHECK` de la base |
 | T-020 | Modelos y `docs/schema.sql` al día | `test_la_migracion_no_divergio_de_los_modelos`; el `CHECK` de la base se compara contra el enum del dominio |
@@ -34,13 +37,10 @@ Estado: `pendiente` · `en curso` · `hecha`
 
 ## Pendientes
 
-Cuatro.
+Una.
 
 | ID | Tarea |
 |---|---|
-| T-032 | Fixtures de vínculos |
-| T-033 | Recorrido de rutas: el eje del estado |
-| T-034 | Criterios 1 a 12 |
 | T-035 | Documentación y backlog |
 
 El orden no es libre. T-026 necesita la columna de T-019, T-027 necesita los

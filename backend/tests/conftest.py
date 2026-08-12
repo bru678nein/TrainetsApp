@@ -658,3 +658,124 @@ def volver(db: OrmSession) -> Iterator[None]:
     except sa.exc.SQLAlchemyError:
         db.rollback()
         db.execute(sa.text("RESET ROLE"))
+
+
+# --- Vínculos en cada estado, con historial ------------------------------------
+#
+# Viven acá porque las usan el recorrido de rutas y los criterios de la 003, y
+# dos armados que pudieran diferir son peores que uno: si el escenario del
+# recorrido no fuera el mismo que el de los criterios, uno de los dos estaría
+# verificando algo que el otro no.
+
+
+class Vinculos:
+    """Cuatro entrenadores sobre la misma persona, en distintos estados.
+
+    El caso frecuente de la spec —cambiar de entrenador— y el que obligó a que el
+    modelo admita varias fichas por persona. Con uno solo no se puede distinguir
+    "no ve lo del otro" de "no hay otro".
+    """
+
+    def __init__(self, **kwargs: object) -> None:
+        self.__dict__.update(kwargs)
+
+
+@pytest.fixture
+def vinculos(db: OrmSession) -> Vinculos:
+    import sqlalchemy as sa
+
+    marca = uuid.uuid4().hex[:6]
+
+    def persona(etiqueta: str) -> uuid.UUID:
+        return db.execute(
+            sa.text(
+                "INSERT INTO app_user (auth_user_id, email, display_name) "
+                "VALUES (:s, :e, :n) RETURNING id"
+            ),
+            {"s": f"{etiqueta}-{marca}", "e": f"{etiqueta}-{marca}@example.com", "n": etiqueta},
+        ).scalar_one()
+
+    atleta_u = persona("atleta")
+    fichas: dict[str, uuid.UUID] = {}
+    subs: dict[str, str] = {}
+
+    for etiqueta, estado in (
+        ("activo", "activo"),
+        ("pausado", "pausado"),
+        ("archivado", "archivado"),
+        ("otro", "activo"),
+    ):
+        u = persona(f"coach-{etiqueta}")
+        subs[etiqueta] = f"coach-{etiqueta}-{marca}"
+        c = db.execute(
+            sa.text("INSERT INTO coach (user_id) VALUES (:u) RETURNING id"), {"u": u}
+        ).scalar_one()
+        a = db.execute(
+            sa.text(
+                "INSERT INTO athlete (coach_id, user_id, full_name, estado) "
+                "VALUES (:c, :u, :n, :e) RETURNING id"
+            ),
+            {"c": c, "u": atleta_u, "n": f"ficha {etiqueta}", "e": estado},
+        ).scalar_one()
+        fichas[etiqueta] = a
+
+        # Historial completo bajo cada vínculo: sin él, "sobre lo archivado se
+        # lee todo" se verificaría sobre cero filas y pasaría siempre.
+        p = db.execute(
+            sa.text(
+                "INSERT INTO program (coach_id, athlete_id, name) "
+                "VALUES (:c,:a,'Prog') RETURNING id"
+            ),
+            {"c": c, "a": a},
+        ).scalar_one()
+        m = db.execute(
+            sa.text(
+                "INSERT INTO mesocycle (program_id, ordinal, label, week_count) "
+                "VALUES (:p,1,'M1',4) RETURNING id"
+            ),
+            {"p": p},
+        ).scalar_one()
+        se = db.execute(
+            sa.text(
+                "INSERT INTO session (mesocycle_id, week_number, day_number) "
+                "VALUES (:m,1,1) RETURNING id"
+            ),
+            {"m": m},
+        ).scalar_one()
+        patron = db.execute(
+            sa.text(
+                "INSERT INTO movement_pattern (code, label_es, sort_order) "
+                "VALUES (:c,'P',1) RETURNING code"
+            ),
+            {"c": f"p-{etiqueta}-{marca}"},
+        ).scalar_one()
+        ej = db.execute(
+            sa.text(
+                "INSERT INTO exercise (coach_id, pattern_code, name) VALUES (:c,:p,:n) RETURNING id"
+            ),
+            {"c": c, "p": patron, "n": f"EJ {etiqueta} {marca}"},
+        ).scalar_one()
+        pr = db.execute(
+            sa.text(
+                "INSERT INTO prescription (session_id, exercise_id, position) "
+                "VALUES (:s,:e,1) RETURNING id"
+            ),
+            {"s": se, "e": ej},
+        ).scalar_one()
+        ps = db.execute(
+            sa.text(
+                "INSERT INTO prescribed_set (prescription_id, set_number, reps_min, reps_max) "
+                "VALUES (:p,1,5,5) RETURNING id"
+            ),
+            {"p": pr},
+        ).scalar_one()
+        db.execute(
+            sa.text(
+                "INSERT INTO logged_set (prescribed_set_id, athlete_id, reps) VALUES (:p,:a,5)"
+            ),
+            {"p": ps, "a": a},
+        )
+        fichas[f"{etiqueta}_serie"] = ps
+
+    db.flush()
+    return Vinculos(fichas=fichas, subs=subs, atleta_sub=f"atleta-{marca}")

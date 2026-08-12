@@ -33,7 +33,8 @@ DSN con un rol que es dueño; ese es el admin.
 DATABASE_URL="<admin>" python -m alembic upgrade head
 ```
 
-Esto crea el esquema, el rol `coachapp_app`, y 37 policies de RLS: 19 permisivas
+Esto crea el esquema, el rol `coachapp_app`, las funciones que cruzan el límite
+del tenant, y 37 policies de RLS: 19 permisivas
 que deciden de quién es cada fila, y 18 restrictivas que impiden escribir bajo un
 vínculo archivado.
 

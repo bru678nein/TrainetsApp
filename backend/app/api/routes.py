@@ -586,6 +586,10 @@ _RECHAZOS = {
     "vencida": (status.HTTP_410_GONE, "invitacion_vencida"),
     "usada": (status.HTTP_409_CONFLICT, "invitacion_usada"),
     "ya_vinculado": (status.HTTP_409_CONFLICT, "ya_sos_atleta_de_ese_entrenador"),
+    # `410` como la vencida y no `404`: el link existió y el vínculo se cerró.
+    # Se distingue de `inexistente` porque las salidas son distintas — una se
+    # arregla pidiendo otro link, ésta sólo si el entrenador reactiva.
+    "vinculo_archivado": (status.HTTP_410_GONE, "vinculo_archivado"),
 }
 
 

@@ -70,7 +70,7 @@ Design and negative controls:
 
 ### 2. "It passed" is not the standard
 
-461 tests — 406 on the backend, 55 on the frontend — and the ones that matter are
+488 tests — 433 on the backend, 55 on the frontend — and the ones that matter are
 verified by **breaking the code and requiring a named test to fall**. A few that earned their keep:
 
 - Removing any one of the eighteen policies migration 0004 creates makes a test
@@ -205,7 +205,7 @@ to keep moving is forbidden.
 |---|---|
 | 001 Identity and tenant isolation | **done**, 22 of 22 tasks |
 | 002 Routine editor | spec written, **unblocked** — all three definitions closed with evidence |
-| 003 Invitations and link lifecycle | **in progress**, 7 of 17 |
+| 003 Invitations and link lifecycle | **16 of 17** |
 | 004 Session view and phone logging | not started |
 | 005 Analytics panel | **12 of 13** — the three views run against real data |
 | 006 Offline PWA | **dropped** — see the plan |
