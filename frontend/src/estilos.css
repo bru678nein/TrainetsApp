@@ -74,3 +74,13 @@ h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
 .adherencia__hecho--flojo { background: var(--alerta); }
 .adherencia__cifra { font-variant-numeric: tabular-nums; }
 .adherencia__base { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+
+/* El link de invitación se muestra una sola vez: tiene que entrar entero y ser
+   seleccionable de un toque, no truncarse con puntos suspensivos. */
+.link-de-invitacion {
+  width: 100%;
+  max-width: 34rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+}

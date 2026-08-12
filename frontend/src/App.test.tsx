@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
-vi.mock("./api/useApi", () => ({ useApi: () => () => Promise.resolve([]) }));
+vi.mock("./api/useApi", () => ({
+  useApi: () => () => Promise.resolve([]),
+  useEnviar: () => () => Promise.resolve({}),
+}));
 
 /**
  * Lo que este archivo verifica es la **composición**: que las rutas cuelguen de

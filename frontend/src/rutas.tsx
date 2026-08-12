@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 
 import { ListadoDeAtletas } from "./features/analytics/ListadoDeAtletas";
 import { PanelDelAtleta } from "./features/analytics/PanelDelAtleta";
+import { Aceptar } from "./features/invitaciones/Aceptar";
 
 /**
  * Routes, and the reason there is a router at all for two screens.
@@ -16,6 +17,9 @@ export function Rutas() {
     <Routes>
       <Route path="/" element={<ListadoDeAtletas />} />
       <Route path="/atletas/:atletaId" element={<PanelDelAtleta />} />
+      {/* El token viaja en la ruta y no en la query: una query string se pierde
+          en más redirecciones, y ésta atraviesa la del proveedor de identidad. */}
+      <Route path="/invitacion/:token" element={<Aceptar />} />
       <Route
         path="*"
         element={

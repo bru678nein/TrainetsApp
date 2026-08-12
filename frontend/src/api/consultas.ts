@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { useApi } from "./useApi";
+import { useApi, useEnviar } from "./useApi";
 
 export type Atleta = { id: string; full_name: string; level: string | null };
 
@@ -74,5 +74,42 @@ export function useProgresion(atletaId: string) {
     queryKey: ["progresion", atletaId],
     queryFn: ({ signal }) =>
       pedir(`/api/athletes/${atletaId}/progression`, signal) as Promise<ProgresionDeEjercicio[]>,
+  });
+}
+
+export type InvitacionCreada = { token: string; expires_at: string };
+
+/**
+ * The coach issues a link for a record that has no account yet.
+ *
+ * The clear token comes back here and nowhere else — the table keeps its hash,
+ * and no route can show it again. So the caller has exactly one chance to put it
+ * in front of somebody, which is why this is a mutation whose result the screen
+ * holds rather than a query that could be refetched into nothing.
+ *
+ * Issuing invalidates whatever was pending for that record. That is not this
+ * code's doing: a partial unique index admits one usable invitation per athlete,
+ * so the server revokes before inserting or the insert does not commit.
+ */
+export function useGenerarInvitacion() {
+  const enviar = useEnviar();
+  return useMutation({
+    mutationFn: (atletaId: string) =>
+      enviar(`/api/athletes/${atletaId}/invitation`) as Promise<InvitacionCreada>,
+  });
+}
+
+/**
+ * The athlete claims the record the coach already built.
+ *
+ * No role is sent, and that is forced rather than chosen: whoever accepts is not
+ * yet an athlete of anybody, so there is no active role to assert. The endpoint
+ * reads no `Active-Role` for the same reason.
+ */
+export function useAceptarInvitacion() {
+  const enviar = useEnviar(null);
+  return useMutation({
+    mutationFn: (token: string) =>
+      enviar("/api/me/invitation", { token }) as Promise<{ resultado: "aceptada" }>,
   });
 }

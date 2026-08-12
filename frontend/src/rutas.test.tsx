@@ -12,6 +12,9 @@ vi.mock("./api/useApi", () => ({
     pedido = ruta;
     return Promise.resolve([]);
   },
+  // El panel monta el botón de invitar, que sale por la puerta de escritura.
+  // Acá no se ejercita: lo que se prueba es a dónde llega cada dirección.
+  useEnviar: () => () => Promise.resolve({}),
 }));
 
 /**
