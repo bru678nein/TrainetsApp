@@ -229,16 +229,30 @@ cadena hacia `program` que ya recorren los `app_<rol>_ve_<tabla>` de la 0004. Se
 generan del mismo mapa, por el mismo motivo que aquellos: escrita dos veces, la
 cadena se desincroniza.
 
-### Lo que falla en silencio, y hay que traducir
+### Cómo se ve un rechazo desde afuera
 
-Bloqueado por `RESTRICTIVE`, **`INSERT` tira error pero `UPDATE` y `DELETE`
-devuelven cero filas**. No es un detalle de implementación: un endpoint que borra
-una serie y no mira el `rowcount` devuelve `204` y el que llamó cree que borró.
+Este párrafo decía que el silencio era el problema: que `UPDATE` y `DELETE`
+devuelven cero filas y un endpoint que no mira el `rowcount` contesta `204`
+mientras quien llamó cree que guardó. **Medido sobre la aplicación corriendo, es
+falso**, y conviene dejar por qué.
 
-Toda escritura que pueda caer sobre un vínculo archivado tiene que comprobar
-filas afectadas y traducir el cero a un rechazo explícito. Es la contraparte
-exacta de por qué la 0005 existe: un contexto ausente que devolvía cero filas en
-vez de fallar.
+SQLAlchemy cuenta las filas que una actualización del ORM espera tocar. Cuando la
+policy filtra la fila, levanta `StaleDataError` en vez de seguir de largo: el dato
+viejo queda intacto y no hay falso éxito. El riesgo era menor de lo que este plan
+suponía.
+
+Lo que sí estaba mal era la respuesta. Esos rechazos salían como `500`, que dice
+"el servidor se rompió" cuando lo que pasó es "este vínculo está archivado", y un
+frontend ante un `500` reintenta en vez de ofrecer reactivar.
+
+Se traducen en `app/api/errores.py`, con manejadores globales y no con un `if` por
+endpoint. La diferencia importa en una sola dirección: la garantía vive en las
+policies, así que olvidarse de una traducción cuesta una respuesta fea sobre un
+dato que igual está a salvo. Si el bloqueo viviera ahí, olvidarse sería una fuga.
+
+El silencio sigue existiendo donde no hay ORM: un `db.execute(update(...))` a
+nivel Core devuelve cero filas sin quejarse. Ninguna escritura de esta feature lo
+hace, y vale saberlo antes de escribir la primera.
 
 ## 5. Cómo se verifica que no falte ninguna ruta
 

@@ -70,7 +70,7 @@ Design and negative controls:
 
 ### 2. "It passed" is not the standard
 
-456 tests — 401 on the backend, 55 on the frontend — and the ones that matter are
+461 tests — 406 on the backend, 55 on the frontend — and the ones that matter are
 verified by **breaking the code and requiring a named test to fall**. A few that earned their keep:
 
 - Removing any one of the eighteen policies migration 0004 creates makes a test
