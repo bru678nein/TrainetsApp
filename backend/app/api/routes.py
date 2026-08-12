@@ -28,6 +28,7 @@ from app.models import (
     AppUser,
     Athlete,
     Coach,
+    Exercise,
     Invitation,
     LoggedSet,
     Mesocycle,
@@ -75,6 +76,10 @@ from app.schemas import (
 router = APIRouter(prefix="/api", dependencies=[Depends(require_tenant_context)])
 
 
+def _flo(value: Decimal | None) -> float | None:
+    return None if value is None else float(value)
+
+
 def _dec(value: float | None) -> Decimal | None:
     """`numeric` columns map to `Decimal`.
 
@@ -105,15 +110,20 @@ def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
     )
     out = []
     for ps, pr, se, log in db.execute(stmt).all():
+        # Contra qué se compara: lo congelado si la serie se ejecutó, lo vigente
+        # si todavía no. Una serie sin registro no tiene pasado que respetar, así
+        # que corregirla mueve su objetivo, que es lo que el entrenador quiere.
+        # Una que sí lo tiene se compara contra lo que le pidieron ese día.
+        contra = log if log is not None and log.week_number is not None else None
         out.append(
             SetRecord(
-                week=se.week_number,
-                pattern=pr.exercise.pattern_code,
-                exercise=pr.exercise.name,
-                reps_min=ps.reps_min,
-                reps_max=ps.reps_max,
-                rir_min=float(ps.rir_min) if ps.rir_min is not None else None,
-                rir_max=float(ps.rir_max) if ps.rir_max is not None else None,
+                week=contra.week_number if contra else se.week_number,
+                pattern=contra.pattern_code if contra else pr.exercise.pattern_code,
+                exercise=contra.exercise_name if contra else pr.exercise.name,
+                reps_min=contra.prescribed_reps_min if contra else ps.reps_min,
+                reps_max=contra.prescribed_reps_max if contra else ps.reps_max,
+                rir_min=_flo(contra.prescribed_rir_min if contra else ps.rir_min),
+                rir_max=_flo(contra.prescribed_rir_max if contra else ps.rir_max),
                 reps_done=log.reps if log else None,
                 load_kg=float(log.load_kg) if log and log.load_kg is not None else None,
                 rir_done=float(log.rir) if log and log.rir is not None else None,
@@ -121,6 +131,27 @@ def _records(db: OrmSession, athlete_id: uuid.UUID) -> list[SetRecord]:
             )
         )
     return out
+
+
+def _congelar_lo_prescrito(db: OrmSession, log: LoggedSet, ps: PrescribedSet) -> None:
+    """Copia sobre el registro contra qué se ejecutó, y en qué semana y ejercicio.
+
+    La semana y el ejercicio no son para la comparación: son para que el registro
+    siga siendo legible el día que su prescripción deje de existir. Sin ellos, un
+    registro huérfano es un número sin contexto.
+    """
+    fila = db.execute(
+        select(Session.week_number, Exercise.pattern_code, Exercise.name)
+        .join(Prescription, Prescription.session_id == Session.id)
+        .join(Exercise, Exercise.id == Prescription.exercise_id)
+        .where(Prescription.id == ps.prescription_id)
+    ).one_or_none()
+
+    log.prescribed_reps_min, log.prescribed_reps_max = ps.reps_min, ps.reps_max
+    log.prescribed_rir_min, log.prescribed_rir_max = ps.rir_min, ps.rir_max
+    log.prescribed_load_kg = ps.target_load_kg
+    if fila is not None:
+        log.week_number, log.pattern_code, log.exercise_name = fila
 
 
 def _coach_del_contexto(db: OrmSession, ctx: TenantContext) -> Coach:
@@ -333,6 +364,13 @@ def log_set(
     if log is None:
         log = LoggedSet(prescribed_set_id=set_id, athlete_id=athlete_id)
         db.add(log)
+        # Lo prescrito se congela **una sola vez**, cuando el registro nace, y no
+        # se refresca al corregirlo. Es lo que hace que la adherencia no se mueva
+        # hacia atrás: el entrenador sube el objetivo un mes después y el 100% de
+        # la persona sigue siendo 100%, porque se compara contra lo que le
+        # pidieron ese día. Refrescarlo acá sería reescribir el pasado desde el
+        # único lugar que lo tenía guardado.
+        _congelar_lo_prescrito(db, log, ps)
     log.reps, log.load_kg, log.rir = payload.reps, _dec(payload.load_kg), _dec(payload.rir)
     log.was_skipped, log.athlete_note, log.e1rm_kg = payload.was_skipped, payload.note, _dec(e1rm)
     db.commit()

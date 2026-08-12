@@ -589,3 +589,145 @@ class TestDuplicar:
         assert r.status_code == 201
         assert r.json()["position"] == 2
         assert len(self._series_de(cliente, coach, sesion)) == 2
+
+
+class TestLoQueElAtletaHizoNoSeToca:
+    """Un programa vivo se corrige, y corregirlo no puede reescribir el pasado."""
+
+    @pytest.fixture
+    def ejecutada(self, cliente, coach, escenario, mint, programa, ejercicio):
+        """Una serie prescrita que el atleta ya registró, con su objetivo original."""
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 5, "label": "M", "week_count": 1},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 6},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        serie = coach(
+            cliente,
+            "POST",
+            f"/api/prescriptions/{pres}/sets",
+            json={"reps_min": 8, "reps_max": 8, "rir_min": 2, "rir_max": 2},
+        ).json()["id"]
+
+        r = cliente.put(
+            f"/api/sets/{serie}/log",
+            json={"reps": 8, "load_kg": 80, "rir": 2},
+            headers={
+                "Authorization": f"Bearer {mint(escenario.sub_c)}",
+                "Active-Role": "athlete",
+            },
+        )
+        assert r.status_code == 200, r.text
+        return serie
+
+    def _adherencia(self, cliente, coach, escenario):
+        return coach(cliente, "GET", f"/api/athletes/{escenario.atleta_de_a}/adherence").json()
+
+    def test_borrar_la_prescripcion_no_borra_el_registro(
+        self, cliente, coach, ejecutada, db
+    ) -> None:
+        """El criterio 9. Antes de la 0016 el `ON DELETE CASCADE` se lo llevaba."""
+        import sqlalchemy as sa
+
+        r = coach(cliente, "DELETE", f"/api/prescribed-sets/{ejecutada}")
+        assert r.status_code == 204, r.text
+
+        db.execute(sa.text("RESET ROLE"))
+        quedan = db.execute(
+            sa.text("SELECT count(*) FROM logged_set WHERE prescribed_set_id IS NULL AND reps = 8")
+        ).scalar()
+        assert quedan >= 1, "borrar la serie prescrita se llevó puesto lo que el atleta hizo"
+
+    def test_el_registro_huerfano_conserva_su_contexto(self, cliente, coach, ejecutada, db) -> None:
+        """Sin la semana y el ejercicio, un registro huérfano es un número suelto."""
+        import sqlalchemy as sa
+
+        coach(cliente, "DELETE", f"/api/prescribed-sets/{ejecutada}")
+        db.execute(sa.text("RESET ROLE"))
+        fila = db.execute(
+            sa.text(
+                "SELECT week_number, exercise_name, prescribed_reps_min FROM logged_set "
+                "WHERE prescribed_set_id IS NULL AND reps = 8"
+            )
+        ).first()
+        assert fila is not None
+        assert fila[0] == 1
+        assert fila[1] is not None
+        assert fila[2] == 8
+
+    def test_subir_el_objetivo_no_mueve_la_adherencia_de_lo_ya_hecho(
+        self, cliente, coach, escenario, ejecutada
+    ) -> None:
+        """El criterio 10, y la razón por la que se congela lo prescrito.
+
+        El atleta hizo 8 de 8 y estaba en rango. Si el entrenador sube el objetivo
+        a 12 un mes después, comparar contra lo vigente convertiría ese 100% en 0%
+        sin que la persona haya hecho nada distinto. Una métrica que cambia hacia
+        atrás no sirve para decidir nada.
+        """
+        antes = self._adherencia(cliente, coach, escenario)
+
+        r = coach(
+            cliente,
+            "PATCH",
+            f"/api/prescribed-sets/{ejecutada}",
+            json={"reps_min": 12, "reps_max": 12},
+        )
+        assert r.status_code == 200, r.text
+
+        assert self._adherencia(cliente, coach, escenario) == antes
+
+    def test_corregir_una_serie_todavia_no_ejecutada_sí_mueve_su_objetivo(
+        self, cliente, coach, escenario, programa, ejercicio
+    ) -> None:
+        """El control, sin el cual lo de arriba pasaría con la adherencia congelada.
+
+        Una serie sin registro no tiene pasado que respetar: corregirla tiene que
+        mover su objetivo, que es exactamente para lo que el entrenador edita.
+        """
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 6, "label": "M", "week_count": 1},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 7},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        serie = coach(
+            cliente,
+            "POST",
+            f"/api/prescriptions/{pres}/sets",
+            json={"reps_min": 8, "reps_max": 8},
+        ).json()["id"]
+
+        coach(
+            cliente,
+            "PATCH",
+            f"/api/prescribed-sets/{serie}",
+            json={"reps_min": 12, "reps_max": 12},
+        )
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
+        assert detalle["blocks"][0]["sets"][0]["reps_min"] == 12

@@ -366,8 +366,13 @@ class PrescribedSet(Base):
     is_amrap: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
 
     prescription: Mapped[Prescription] = relationship(back_populates="sets")
+    #: Sin `delete-orphan` y con `passive_deletes`, que juntos son la mitad ORM
+    #: de que lo registrado sobreviva. El `ON DELETE SET NULL` de la base no
+    #: alcanza solo: con el cascade puesto, el ORM borraba el registro él mismo
+    #: antes de mandar el DELETE, así que la regla del esquema nunca llegaba a
+    #: correr. Lo encontró el test del criterio 9, no la lectura de la migración.
     log: Mapped[LoggedSet | None] = relationship(
-        back_populates="prescribed_set", cascade="all, delete-orphan", uselist=False
+        back_populates="prescribed_set", uselist=False, passive_deletes=True
     )
     __table_args__ = (
         UniqueConstraint("prescription_id", "set_number", name="pset_number_uq", deferrable=True),
@@ -406,8 +411,11 @@ class LoggedSet(Base):
 
     __tablename__ = "logged_set"
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, server_default=_UUID_PK)
-    prescribed_set_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("prescribed_set.id", ondelete="CASCADE"), unique=True
+    #: Nulo cuando el entrenador sacó la serie del plan después de que el atleta
+    #: la ejecutó. El registro sobrevive; lo que se pierde es el vínculo con un
+    #: plan que ya no existe.
+    prescribed_set_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("prescribed_set.id", ondelete="SET NULL"), unique=True
     )
     athlete_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("athlete.id", ondelete="CASCADE"))
     performed_at: Mapped[datetime] = mapped_column(
@@ -421,6 +429,21 @@ class LoggedSet(Base):
     # Estimated 1RM from the RPE chart. Persisted so it is not recomputed on
     # every progress query.
     e1rm_kg: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+
+    # Lo prescrito, congelado en el momento de ejecutarlo. Desnormalización
+    # deliberada: la copia tiene que quedar desactualizada, porque es el valor que
+    # regía cuando pasó la cosa y no un caché del vigente. Sin esto la adherencia
+    # se mueve hacia atrás cada vez que el entrenador corrige el plan.
+    prescribed_reps_min: Mapped[int | None] = mapped_column(SmallInteger)
+    prescribed_reps_max: Mapped[int | None] = mapped_column(SmallInteger)
+    prescribed_rir_min: Mapped[Decimal | None] = mapped_column(Numeric(3, 1))
+    prescribed_rir_max: Mapped[Decimal | None] = mapped_column(Numeric(3, 1))
+    prescribed_load_kg: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    #: Para que un registro huérfano siga siendo legible cuando su prescripción
+    #: ya no está: en qué semana fue y de qué ejercicio.
+    week_number: Mapped[int | None] = mapped_column(SmallInteger)
+    pattern_code: Mapped[str | None] = mapped_column(Text)
+    exercise_name: Mapped[str | None] = mapped_column(Text)
 
     prescribed_set: Mapped[PrescribedSet] = relationship(back_populates="log")
     athlete: Mapped[Athlete] = relationship()
