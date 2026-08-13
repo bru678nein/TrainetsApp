@@ -812,6 +812,53 @@ class TestElCatalogoSeMantiene:
         r = coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "///"})
         assert r.status_code == 422
 
+    def test_los_once_de_la_planilla_no_tienen_dueño(self, cliente, coach, db) -> None:
+        """La base común: un entrenador nuevo la necesita para no arrancar con un
+        desplegable vacío."""
+        import sqlalchemy as sa
+
+        sin_dueño = db.execute(
+            sa.text("SELECT count(*) FROM movement_pattern WHERE coach_id IS NULL")
+        ).scalar()
+        assert sin_dueño >= 11
+
+    def test_el_patron_que_creo_es_mio_y_no_del_otro(self, cliente, coach, escenario, mint) -> None:
+        """Dos entrenadores nombran distinto lo mismo. Compartirlos ensucia el
+        catálogo de los dos."""
+        coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "Antebrazo"})
+
+        de_b = cliente.get(
+            "/api/movement-patterns",
+            headers={"Authorization": f"Bearer {mint(escenario.sub_b)}", "Active-Role": "coach"},
+        ).json()
+        assert "Antebrazo" not in [p["label_es"] for p in de_b]
+        # Pero sí ve la base común, que es la mitad que no se pierde.
+        assert len(de_b) >= 11
+
+    def test_dos_entrenadores_pueden_usar_el_mismo_nombre(
+        self, cliente, coach, escenario, mint
+    ) -> None:
+        """`code` sigue siendo único en toda la tabla porque es la clave primaria
+        y los ejercicios apuntan ahí. El segundo queda con un código distinto, y
+        nadie ve un código: la interfaz muestra el nombre."""
+        primero = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "Antebrazo"}
+        ).json()
+
+        r = cliente.post(
+            "/api/movement-patterns",
+            json={"label_es": "Antebrazo"},
+            headers={"Authorization": f"Bearer {mint(escenario.sub_b)}", "Active-Role": "coach"},
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["code"] != primero["code"]
+        assert r.json()["label_es"] == primero["label_es"]
+
+    def test_repetir_el_nombre_dentro_del_mismo_entrenador_es_409(self, cliente, coach) -> None:
+        coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "Antebrazo"})
+        r = coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "antebrazo"})
+        assert r.status_code == 409
+
     def test_el_patron_nuevo_sirve_para_crear_un_ejercicio(self, cliente, coach) -> None:
         """Es lo que hace que ampliarlo valga la pena: deja de ser obligatorio
         elegir uno de los once que vinieron con la planilla."""

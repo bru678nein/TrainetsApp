@@ -217,6 +217,11 @@ class MovementPattern(Base):
     label_es: Mapped[str] = mapped_column(String(60))
     is_compound: Mapped[bool] = mapped_column(Boolean, server_default=text("true"))
     sort_order: Mapped[int] = mapped_column(SmallInteger, server_default=text("0"))
+    #: NULL = la base compartida, los once que trajo la planilla. El resto es de
+    #: quien lo creó, igual que un ejercicio propio.
+    coach_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("coach.id", ondelete="CASCADE"), index=True
+    )
 
 
 class Exercise(Base):

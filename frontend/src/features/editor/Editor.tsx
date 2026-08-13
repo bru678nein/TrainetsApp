@@ -395,7 +395,7 @@ function AgregarPatron() {
       {/* Conviene decirlo antes y no descubrirlo después: la tabla no tiene
           dueño, y que sea compartida es lo que permite comparar volumen por
           patrón entre atletas. */}
-      <small>Queda disponible para todos los entrenadores. El código sale del nombre.</small>
+      <small>Es tuyo: no aparece en el catálogo de otros entrenadores.</small>
       <Aviso de={crear} />
     </section>
   );

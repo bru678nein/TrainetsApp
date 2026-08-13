@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -798,36 +799,84 @@ def borrar_ejercicio(
 def crear_patron(
     payload: PatternIn, ctx: TenantContext = Depends(require_tenant_context)
 ) -> MovementPattern:
-    """Un patrón de movimiento nuevo.
+    """Un patrón de movimiento nuevo, del entrenador que lo crea.
 
-    **Queda disponible para todos los entrenadores**, porque la tabla no tiene
-    dueño: es un catálogo compartido y esa es la razón por la que el volumen por
-    patrón se puede comparar entre atletas. Conviene que esté dicho — agregar uno
-    no es una preferencia personal, es ampliar un vocabulario común.
+    Los once que trajo la planilla no tienen dueño y son la base común: un
+    entrenador nuevo los necesita para no arrancar con un desplegable vacío. Lo
+    que agrega cada uno es suyo y no aparece en el catálogo de nadie más, igual
+    que un ejercicio propio — dos entrenadores nombran distinto lo mismo, y
+    compartirlos ensucia el catálogo de los dos.
 
     El código se deriva del nombre en vez de pedirse. Pedir los dos es pedir dos
     veces lo mismo y dejar que se contradigan.
     """
     db = _solo_entrenador(ctx)
-    codigo = _codigo_de(payload.label_es)
-    if not codigo:
+    raiz = _codigo_de(payload.label_es)
+    if not raiz:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "el nombre no deja ningún código utilizable: usá letras o números",
         )
-    if db.get(MovementPattern, codigo) is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, f"el patrón '{codigo}' ya existe")
+
+    coach_id = db.scalar(text("SELECT id FROM coach WHERE user_id = app_current_user_id()"))
+    ya_lo_tiene = db.scalar(
+        select(MovementPattern.code).where(
+            MovementPattern.label_es.ilike(payload.label_es.strip()),
+            (MovementPattern.coach_id == coach_id) | (MovementPattern.coach_id.is_(None)),
+        )
+    )
+    if ya_lo_tiene:
+        raise HTTPException(status.HTTP_409_CONFLICT, "ya tenés un patrón con ese nombre")
 
     ultimo = db.scalar(select(func.max(MovementPattern.sort_order))) or 0
-    patron = MovementPattern(
-        code=codigo,
-        label_es=payload.label_es.strip(),
-        is_compound=payload.is_compound,
-        sort_order=ultimo + 1,
-    )
-    db.add(patron)
+    patron = _insertar_con_codigo_libre(db, raiz, payload, coach_id, ultimo + 1)
     db.commit()
     return patron
+
+
+def _insertar_con_codigo_libre(
+    db: OrmSession, raiz: str, payload: PatternIn, coach_id: uuid.UUID | None, orden: int
+) -> MovementPattern:
+    """Inserta, y si el código está tomado prueba el siguiente.
+
+    `code` es la clave primaria de toda la tabla —`exercise.pattern_code` apunta
+    ahí— así que sigue siendo único de punta a punta aunque las filas tengan
+    dueño. Dos entrenadores que crean «Antebrazo» terminan con `antebrazo` y
+    `antebrazo_2`, y ninguno ve un código: la interfaz muestra `label_es`.
+
+    Se prueba en vez de consultar primero, y eso no es pereza. Una consulta que
+    busque códigos tomados corre bajo las policies y **no ve el del otro
+    entrenador**, así que devolvería uno libre que en realidad no lo está — es el
+    error que tuvo la primera versión de esto. Esquivar las policies para
+    mirarlas sería filtrar que existe algo ajeno. Y aunque se pudiera consultar,
+    entre la consulta y el `INSERT` cabe el de otra persona: el choque hay que
+    saber manejarlo igual.
+
+    Cada intento va en su savepoint. Sin eso, el primer rechazo aborta la
+    transacción entera y el reintento falla por un motivo que no es el suyo.
+    """
+    for intento in range(1, 100):
+        codigo = raiz if intento == 1 else f"{raiz}_{intento}"[:64]
+        punto = db.begin_nested()
+        patron = MovementPattern(
+            code=codigo,
+            label_es=payload.label_es.strip(),
+            is_compound=payload.is_compound,
+            sort_order=orden,
+            coach_id=coach_id,
+        )
+        db.add(patron)
+        try:
+            punto.commit()
+        except IntegrityError:
+            # Revertir el savepoint ya saca la instancia de la sesión: pedirle a
+            # SQLAlchemy que además la olvide falla porque no la tiene.
+            punto.rollback()
+            continue
+        return patron
+    raise HTTPException(
+        status.HTTP_409_CONFLICT, "hay demasiados patrones con ese nombre: elegí otro"
+    )
 
 
 def _codigo_de(nombre: str) -> str:
