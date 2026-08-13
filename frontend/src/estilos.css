@@ -84,3 +84,26 @@ h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
   font-size: 0.85rem;
   padding: 0.4rem 0.5rem;
 }
+
+/* Reordenar arrastrando. Lo mínimo para que el gesto se entienda: qué agarré y
+   dónde va a caer. Sin la señal de destino, arrastrar es adivinar. */
+.ordenable {
+  list-style: none;
+  padding-left: 0;
+}
+.ordenable > li {
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+.ordenable > li.agarrado {
+  opacity: 0.45;
+}
+.ordenable > li.encima {
+  border-color: currentColor;
+  border-style: dashed;
+}
+.asa {
+  cursor: grab;
+  letter-spacing: -0.15em;
+}

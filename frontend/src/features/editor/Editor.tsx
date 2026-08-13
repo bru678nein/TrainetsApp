@@ -13,6 +13,7 @@ import {
   type Programa,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
+import { ListaOrdenable } from "../../components/ListaOrdenable";
 import { useAgenda } from "../../api/consultas";
 
 /**
@@ -247,6 +248,9 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
   const duplicarEjercicio = useEscrituraDelEditor<unknown, string>((enviar, _, id) =>
     enviar(`/api/prescriptions/${id}/duplicate`),
   );
+  const reordenar = useEscrituraDelEditor<unknown, string[]>((_, mutar, ids) =>
+    mutar("PUT", `/api/sessions/${sesionId}/prescriptions/order`, { ids }),
+  );
 
   return (
     <div>
@@ -256,9 +260,13 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
             {datos.blocks.length === 0 ? (
               <p>Sin ejercicios todavía.</p>
             ) : (
-              <ol>
-                {datos.blocks.map((bloque) => (
-                  <li key={bloque.prescription_id}>
+              <ListaOrdenable
+                elementos={datos.blocks.map((b) => ({ ...b, id: b.prescription_id }))}
+                onOrdenar={(ids) => reordenar.mutate(ids)}
+                deshabilitado={reordenar.isPending}
+              >
+                {(bloque) => (
+                  <>
                     <strong>{bloque.exercise}</strong>{" "}
                     <button
                       type="button"
@@ -290,9 +298,9 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
                       ))}
                     </ul>
                     <NuevaSerie prescripcionId={bloque.prescription_id} />
-                  </li>
-                ))}
-              </ol>
+                  </>
+                )}
+              </ListaOrdenable>
             )}
           </>
         )}
@@ -323,6 +331,7 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
       </Consulta>
       <Aviso de={borrarSerie} />
       <Aviso de={borrarEjercicio} />
+      <Aviso de={reordenar} />
     </div>
   );
 }
