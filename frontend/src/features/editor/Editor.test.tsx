@@ -200,3 +200,57 @@ describe("agregar y borrar días", () => {
     expect(dia).toHaveAttribute("aria-expanded", "false");
   });
 });
+
+describe("las dos pestañas del editor", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("arranca en mesociclos", async () => {
+    responder();
+    montarEditor();
+    expect(await screen.findByRole("heading", { name: "Semana 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Crear un ejercicio" })).not.toBeInTheDocument();
+  });
+
+  it("el catálogo vive en su propia pestaña", async () => {
+    // Armar el bloque de este atleta y mantener el catálogo son cosas distintas:
+    // el catálogo es del entrenador y lo comparten todos sus atletas. Juntas,
+    // parecía que crear un ejercicio era parte de armar este programa.
+    responder();
+    montarEditor();
+    await userEvent.click(await screen.findByRole("tab", { name: "Ejercicios" }));
+
+    expect(screen.getByRole("heading", { name: "Crear un ejercicio" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Semana 1" })).not.toBeInTheDocument();
+  });
+
+  it("el patrón de movimiento se elige del catálogo que manda el API", async () => {
+    // Ni una lista escrita a mano ni un texto libre: son once filas cerradas, y
+    // que sean cerradas es lo que hace contestable la pregunta por volumen.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) => {
+        const u = String(url);
+        if (u.includes("movement-patterns")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify([
+                { code: "rodilla_dominante", label_es: "Rodilla dominante" },
+                { code: "pliometria", label_es: "PLIOMETRIA" },
+              ]),
+            ),
+          );
+        }
+        return Promise.resolve(new Response(JSON.stringify(cuerpoPara(u))));
+      }),
+    );
+    montarEditor();
+    await userEvent.click(await screen.findByRole("tab", { name: "Ejercicios" }));
+
+    const patron = await screen.findByLabelText("Patrón de movimiento");
+    expect([...patron.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+      "— patrón de movimiento —",
+      "Rodilla dominante",
+      "PLIOMETRIA",
+    ]);
+  });
+});

@@ -543,3 +543,33 @@ form { margin: 0 0 var(--paso); }
 @media (max-width: 640px) {
   .semanas { grid-template-columns: 1fr; }
 }
+
+/* --- Pestañas ------------------------------------------------------------------- */
+
+.pestanas {
+  display: flex;
+  gap: calc(var(--paso) * 0.5);
+  border-bottom: 1px solid var(--borde);
+  margin-bottom: calc(var(--paso) * 2);
+}
+.pestanas__boton {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tinta-suave);
+  padding: calc(var(--paso) * 0.75) calc(var(--paso) * 1.5);
+  margin-bottom: -1px;
+}
+.pestanas__boton:hover:not(:disabled) { background: transparent; color: var(--tinta); }
+/* Subrayado y peso, no sólo color: la pestaña activa tiene que distinguirse sin
+   depender de ver la diferencia entre dos tonos. */
+.pestanas__boton--activa {
+  color: var(--tinta);
+  border-bottom-color: var(--hecho);
+  font-weight: 650;
+}
+/* El panel es enfocable para que el teclado pueda llegar a su contenido, pero no
+   necesita anillo propio: el borde de la pestaña ya dice dónde se está. */
+[role="tabpanel"]:focus { outline: none; }
+[role="tabpanel"]:focus-visible { outline: 2px solid var(--hecho); outline-offset: 4px; }

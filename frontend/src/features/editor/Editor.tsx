@@ -15,6 +15,8 @@ import {
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
 import { Mas, Tacho } from "../../components/iconos";
+import { Pestanas } from "../../components/Pestanas";
+import { useNombreDePatron } from "../analytics/patrones";
 import { Selector } from "../../components/Selector";
 import { ListaOrdenable } from "../../components/ListaOrdenable";
 import { useAgenda } from "../../api/consultas";
@@ -291,48 +293,88 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
 
 // --- El catálogo ----------------------------------------------------------------
 
-function NuevoEjercicio() {
+function Catalogo() {
   const patrones = usePatrones();
+  const ejercicios = useEjercicios();
   const [nombre, setNombre] = useState("");
   const [patron, setPatron] = useState("");
   const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar("/api/exercises", { name: nombre.trim(), pattern_code: patron }),
   );
 
+  const nombreDe = useNombreDePatron();
+
   return (
-    <details className="tarjeta tarjeta--tenue">
-      <summary>Crear un ejercicio</summary>
-      <Consulta consulta={patrones} que="los patrones">
-        {(lista) => (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              crear.mutate(undefined, { onSuccess: () => setNombre("") });
-            }}
-          >
-            <input
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Nombre"
-              required
-            />{" "}
-            <select value={patron} onChange={(e) => setPatron(e.target.value)} required>
-              <option value="">— patrón de movimiento —</option>
-              {lista.map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.label_es}
-                </option>
+    <>
+      <section className="tarjeta">
+        <h3>Crear un ejercicio</h3>
+        <Consulta consulta={patrones} que="los patrones">
+          {(lista) => (
+            <form
+              className="fila"
+              onSubmit={(e) => {
+                e.preventDefault();
+                crear.mutate(undefined, { onSuccess: () => setNombre("") });
+              }}
+            >
+              <input
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Nombre"
+                aria-label="Nombre del ejercicio"
+                required
+              />
+              <select
+                value={patron}
+                onChange={(e) => setPatron(e.target.value)}
+                aria-label="Patrón de movimiento"
+                required
+              >
+                <option value="">— patrón de movimiento —</option>
+                {lista.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.label_es}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="submit"
+                className="principal"
+                disabled={!nombre.trim() || !patron || crear.isPending}
+              >
+                Crear
+              </button>
+            </form>
+          )}
+        </Consulta>
+        <small>El patrón es obligatorio: sin él no hay análisis de volumen.</small>
+        <Aviso de={crear} />
+      </section>
+
+      <section className="tarjeta">
+        <h3>El catálogo</h3>
+        <Consulta
+          consulta={ejercicios}
+          que="el catálogo"
+          vacio={{
+            cuando: (lista) => lista.length === 0,
+            motivo: "No hay ejercicios todavía. Creá el primero acá arriba.",
+          }}
+        >
+          {(lista) => (
+            <ul className="lista">
+              {lista.map((ej) => (
+                <li key={ej.id}>
+                  {ej.name}
+                  <span className="chip">{nombreDe(ej.pattern_code)}</span>
+                  {ej.coach_id === null ? <small className="empuja">global</small> : null}
+                </li>
               ))}
-            </select>{" "}
-            <button type="submit" disabled={!nombre.trim() || !patron || crear.isPending}>
-              Crear
-            </button>
-            <small> — el patrón es obligatorio: sin él no hay análisis de volumen.</small>
-            <Aviso de={crear} />
-          </form>
-        )}
-      </Consulta>
-    </details>
+            </ul>
+          )}
+        </Consulta>
+      </section>
+    </>
   );
 }
 
@@ -513,15 +555,9 @@ export function Editor() {
     programas.data.find((p) => p.id === programa) ?? programas.data[0];
   if (elegido && elegido.id !== programa) setPrograma(elegido.id);
 
-  return (
+  const bloques = (
     <>
-      <p>
-        <Link to={`/atletas/${atletaId}`}>← Panel del atleta</Link>
-      </p>
-      <h2>Editor de rutinas</h2>
       <NuevoPrograma atletaId={atletaId} />
-      <NuevoEjercicio />
-
       {programas.data.length > 1 ? (
         <label>
           Programa{" "}
@@ -538,10 +574,7 @@ export function Editor() {
       {elegido ? (
         <>
           <h3>{elegido.name}</h3>
-          <NuevoMesociclo
-            programaId={elegido.id}
-            siguiente={(mesociclos.data?.length ?? 0) + 1}
-          />
+          <NuevoMesociclo programaId={elegido.id} siguiente={(mesociclos.data?.length ?? 0) + 1} />
           <Consulta
             consulta={mesociclos}
             que="los mesociclos"
@@ -558,6 +591,25 @@ export function Editor() {
       ) : (
         <p>Este atleta no tiene programas. Creá el primero.</p>
       )}
+    </>
+  );
+
+  return (
+    <>
+      <p>
+        <Link to={`/atletas/${atletaId}`}>← Panel del atleta</Link>
+      </p>
+      <h2>Editor de rutinas</h2>
+      {/* Dos cosas distintas que estaban una encima de la otra: armar el bloque
+          de este atleta, y mantener el catálogo, que es del entrenador y lo
+          comparten todos sus atletas. Verlas juntas hacía parecer que crear un
+          ejercicio era parte de armar este programa. */}
+      <Pestanas
+        pestanas={[
+          { id: "mesociclos", titulo: "Mesociclos", contenido: bloques },
+          { id: "ejercicios", titulo: "Ejercicios", contenido: <Catalogo /> },
+        ]}
+      />
     </>
   );
 }

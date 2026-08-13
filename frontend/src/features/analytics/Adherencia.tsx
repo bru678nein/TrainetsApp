@@ -1,17 +1,16 @@
 import { type AdherenciaDePatron, useAdherenciaPorPatron } from "../../api/consultas";
 import { Consulta } from "../../components/estados";
+import { useNombreDePatron } from "./patrones";
 
 const porcentaje = (n: number) => `${Math.round(n * 100)}%`;
 
-/** `bisagra_de_cadera_isquios` no es algo que un entrenador quiera leer. */
-const legible = (patron: string) => patron.replaceAll("_", " ");
-
 function Fila({ dato }: { dato: AdherenciaDePatron }) {
+  const nombreDe = useNombreDePatron();
   const flojo = dato.completion_rate < 0.9;
   return (
     <li className="adherencia__fila">
       <span className={`adherencia__nombre${flojo ? " adherencia__nombre--flojo" : ""}`}>
-        {legible(dato.pattern)}
+        {nombreDe(dato.pattern)}
       </span>
       <span className="adherencia__pista">
         <span
