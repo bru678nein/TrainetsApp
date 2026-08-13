@@ -1,7 +1,5 @@
-import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
 import type { ReactNode } from "react";
-
-import { SelectorDeRol } from "./Rol";
 
 /**
  * The gate. Nothing that talks to the API renders outside it.
@@ -17,15 +15,14 @@ export function Sesion({ children }: { children: ReactNode }) {
   return (
     <>
       <SignedOut>
-        <SignIn />
+        {/* Centrado acá y no en el marco: el marco vive adentro del portón, así
+            que la pantalla de ingreso —que es la primera que ve cualquiera— se
+            quedaba sin ninguna maquetación, pegada a la esquina. */}
+        <div className="portada">
+          <SignIn />
+        </div>
       </SignedOut>
-      <SignedIn>
-        <header>
-          <UserButton />
-          <SelectorDeRol />
-        </header>
-        {children}
-      </SignedIn>
+      <SignedIn>{children}</SignedIn>
     </>
   );
 }

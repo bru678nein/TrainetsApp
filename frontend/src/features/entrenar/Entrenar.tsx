@@ -45,40 +45,52 @@ function Serie({ serie, sesionId }: { serie: SerieDelDia; sesionId: string }) {
     });
 
   return (
-    <li>
-      <span>
-        Serie {serie.set_number} · pedían {serie.reps_min ?? "?"}
+    <li className={`entrenar__serie${hecha ? " entrenar__serie--hecha" : ""}`}>
+      <p className="entrenar__objetivo">
+        <strong>Serie {serie.set_number}</strong> · pedían {serie.reps_min ?? "?"}
         {serie.reps_max && serie.reps_max !== serie.reps_min ? `-${serie.reps_max}` : ""} reps, RIR{" "}
         {serie.rir_min ?? "?"}
         {serie.target_load_kg != null ? `, ${serie.target_load_kg} kg` : ", peso a elección"}
-      </span>
-      <div>
-        <input
-          size={3}
-          inputMode="numeric"
-          value={reps}
-          onChange={(e) => setReps(e.target.value)}
-          aria-label={`Repeticiones de la serie ${serie.set_number}`}
-        />{" "}
-        <input
-          size={4}
-          inputMode="decimal"
-          value={carga}
-          onChange={(e) => setCarga(e.target.value)}
-          aria-label={`Carga de la serie ${serie.set_number}`}
-        />{" "}
-        kg{" "}
-        <input
-          size={3}
-          inputMode="decimal"
-          value={rir}
-          onChange={(e) => setRir(e.target.value)}
-          aria-label={`RIR de la serie ${serie.set_number}`}
-        />{" "}
-        RIR{" "}
-        <button type="button" onClick={() => mandar()} disabled={registrar.isPending}>
+        {hecha ? " · ✓ registrada" : ""}
+      </p>
+      <div className="entrenar__campos">
+        <label className="entrenar__campo">
+          <span>Reps</span>
+          <input
+            inputMode="numeric"
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
+            aria-label={`Repeticiones de la serie ${serie.set_number}`}
+          />
+        </label>
+        <label className="entrenar__campo">
+          <span>Kg</span>
+          <input
+            inputMode="decimal"
+            value={carga}
+            onChange={(e) => setCarga(e.target.value)}
+            aria-label={`Carga de la serie ${serie.set_number}`}
+          />
+        </label>
+        <label className="entrenar__campo">
+          <span>RIR</span>
+          <input
+            inputMode="decimal"
+            value={rir}
+            onChange={(e) => setRir(e.target.value)}
+            aria-label={`RIR de la serie ${serie.set_number}`}
+          />
+        </label>
+      </div>
+      <div className="fila entrenar__acciones">
+        <button
+          type="button"
+          className="principal"
+          onClick={() => mandar()}
+          disabled={registrar.isPending}
+        >
           {registrar.isPending ? "…" : hecha ? "Corregir" : "Listo"}
-        </button>{" "}
+        </button>
         <button
           type="button"
           onClick={() => mandar({ was_skipped: true })}
@@ -86,7 +98,6 @@ function Serie({ serie, sesionId }: { serie: SerieDelDia; sesionId: string }) {
         >
           La salté
         </button>
-        {hecha ? <strong> ✓</strong> : null}
       </div>
       {registrar.isError ? (
         <p className="estado estado--falla" role="alert">
@@ -114,11 +125,11 @@ export function SesionDelDia() {
               {datos.mesocycle} · semana {datos.week_number}, día {datos.day_number}
             </h2>
             {datos.blocks.map((bloque) => (
-              <section key={bloque.prescription_id}>
+              <section key={bloque.prescription_id} className="tarjeta">
                 <h3>{bloque.exercise}</h3>
                 {bloque.coach_note ? <p>{bloque.coach_note}</p> : null}
-                {bloque.rest_seconds ? <p>Descanso: {bloque.rest_seconds}s</p> : null}
-                <ul>
+                {bloque.rest_seconds ? <small>Descanso: {bloque.rest_seconds}s</small> : null}
+                <ul className="lista" style={{ listStyle: "none", padding: 0 }}>
                   {bloque.sets.map((serie) => (
                     <Serie key={serie.id} serie={serie} sesionId={sesionId} />
                   ))}
@@ -160,7 +171,7 @@ export function MisSesiones() {
 function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
   const agenda = useAgenda(atletaId, "athlete");
   return (
-    <section>
+    <section className="tarjeta">
       <h2>Mis sesiones</h2>
       <Consulta
         consulta={agenda}
@@ -171,7 +182,7 @@ function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
         }}
       >
         {(lista) => (
-          <ul>
+          <ul className="lista">
             {lista.map((s) => (
               <li key={s.id}>
                 <Link to={`/entrenar/${s.id}`}>

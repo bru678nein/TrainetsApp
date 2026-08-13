@@ -33,7 +33,7 @@ export function Invitar({ atletaId }: { atletaId: string }) {
   const invitacion = useGenerarInvitacion();
 
   return (
-    <section>
+    <section className="tarjeta">
       <h3>Invitación</h3>
 
       {invitacion.isSuccess ? (
@@ -56,6 +56,7 @@ export function Invitar({ atletaId }: { atletaId: string }) {
 
       <button
         type="button"
+        className={invitacion.isSuccess ? undefined : "principal"}
         onClick={() => invitacion.mutate(atletaId)}
         disabled={invitacion.isPending}
       >

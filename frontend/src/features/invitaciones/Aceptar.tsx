@@ -60,7 +60,7 @@ export function Aceptar() {
 
   if (!token) {
     return (
-      <section>
+      <section className="tarjeta">
         <h2>Falta el link</h2>
         <p>Abrí el link que te mandó tu entrenador, entero y tal como te llegó.</p>
         <Link to="/">Ir al inicio</Link>
@@ -72,7 +72,7 @@ export function Aceptar() {
 
   if (aceptar.isError) {
     return (
-      <section>
+      <section className="tarjeta">
         <h2>No pudimos asociarte</h2>
         <p className="estado estado--falla" role="alert">
           {mensajeDe(aceptar.error)}
@@ -83,7 +83,7 @@ export function Aceptar() {
   }
 
   return (
-    <section>
+    <section className="tarjeta">
       <h2>Listo, ya estás asociado</h2>
       <p>Tu entrenador ya puede ver tu entrenamiento y vos el programa que te armó.</p>
       <Link to="/">Ir al inicio</Link>

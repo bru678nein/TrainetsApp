@@ -65,6 +65,7 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
 
   return (
     <form
+      className="tarjeta tarjeta--tenue"
       onSubmit={(e) => {
         e.preventDefault();
         crear.mutate(undefined, { onSuccess: () => setLabel("") });
@@ -88,7 +89,7 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
         Progresión de RIR{" "}
         <input value={progresion} onChange={(e) => setProgresion(e.target.value)} />
       </label>{" "}
-      <button type="submit" disabled={crear.isPending || !label.trim()}>
+      <button type="submit" className="principal" disabled={crear.isPending || !label.trim()}>
         Crear
       </button>
       <Aviso de={crear} />
@@ -105,7 +106,7 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
 
   const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
   return (
-    <div>
+    <div className="fila">
       <strong>Duplicar semana</strong>{" "}
       <select value={desde} onChange={(e) => setDesde(Number(e.target.value))}>
         {semanas.map((n) => (
@@ -122,7 +123,12 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
           </option>
         ))}
       </select>{" "}
-      <button type="button" onClick={() => duplicar.mutate()} disabled={duplicar.isPending}>
+      <button
+        type="button"
+        className="principal"
+        onClick={() => duplicar.mutate()}
+        disabled={duplicar.isPending}
+      >
         {duplicar.isPending ? "Duplicando…" : "Duplicar"}
       </button>
       {meso.rir_progression ? (
@@ -143,6 +149,7 @@ function NuevaSesion({ meso }: { meso: Mesociclo }) {
   );
   return (
     <form
+      className="fila"
       onSubmit={(e) => {
         e.preventDefault();
         crear.mutate();
@@ -197,6 +204,7 @@ function NuevaSerie({ prescripcionId }: { prescripcionId: string }) {
 
   return (
     <form
+      className="fila"
       onSubmit={(e) => {
         e.preventDefault();
         crear.mutate();
@@ -270,17 +278,19 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
                     <strong>{bloque.exercise}</strong>{" "}
                     <button
                       type="button"
+                      className="sutil"
                       onClick={() => duplicarEjercicio.mutate(bloque.prescription_id)}
                     >
                       duplicar
                     </button>{" "}
                     <button
                       type="button"
+                      className="peligro"
                       onClick={() => borrarEjercicio.mutate(bloque.prescription_id)}
                     >
                       borrar
                     </button>
-                    <ul>
+                    <ul className="lista">
                       {bloque.sets.map((serie) => (
                         <li key={serie.id}>
                           {serie.reps_min ?? "?"}
@@ -291,7 +301,12 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
                           {serie.target_load_kg != null
                             ? `${serie.target_load_kg} kg`
                             : "autorregulada"}{" "}
-                          <button type="button" onClick={() => borrarSerie.mutate(serie.id)}>
+                          <button
+                            type="button"
+                            className="sutil"
+                            onClick={() => borrarSerie.mutate(serie.id)}
+                            aria-label={`Borrar la serie ${serie.set_number}`}
+                          >
                             ×
                           </button>
                         </li>
@@ -347,7 +362,7 @@ function NuevoEjercicio() {
   );
 
   return (
-    <details>
+    <details className="tarjeta tarjeta--tenue">
       <summary>Crear un ejercicio</summary>
       <Consulta consulta={patrones} que="los patrones">
         {(lista) => (
@@ -392,6 +407,7 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
   );
   return (
     <form
+      className="fila"
       onSubmit={(e) => {
         e.preventDefault();
         crear.mutate(undefined, { onSuccess: () => setNombre("") });
@@ -403,7 +419,7 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
         placeholder="Nombre del programa"
         required
       />{" "}
-      <button type="submit" disabled={!nombre.trim() || crear.isPending}>
+      <button type="submit" className="principal" disabled={!nombre.trim() || crear.isPending}>
         Crear programa
       </button>
       <Aviso de={crear} />
@@ -416,7 +432,7 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
   const [abierta, setAbierta] = useState<string | null>(null);
 
   return (
-    <section>
+    <section className="tarjeta">
       <h3>
         {meso.ordinal}. {meso.label} — {meso.week_count} semanas
       </h3>
@@ -435,6 +451,8 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
                   <li key={s.id}>
                     <button
                       type="button"
+                      className="sutil"
+                      aria-expanded={abierta === s.id}
                       onClick={() => setAbierta(abierta === s.id ? null : s.id)}
                     >
                       Semana {s.week_number}, día {s.day_number}

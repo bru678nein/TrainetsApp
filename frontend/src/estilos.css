@@ -1,56 +1,281 @@
 /*
- * Lo mínimo para que el panel exista, y nada más.
+ * El lenguaje visual, y por qué es éste.
  *
- * Dos colores de dato y no una paleta: `--prescrito` es lo que el entrenador
- * planificó y `--hecho` lo que el atleta registró. Toda la feature se trata de
- * comparar esas dos cosas, así que son los únicos dos que cargan significado —
- * el resto es tinta y papel.
+ * **Dos colores cargan significado y el resto es tinta y papel.** `--prescrito`
+ * es lo que el entrenador planificó; `--hecho`, lo que el atleta registró. Todo
+ * el producto se trata de comparar esas dos cosas, así que darle color a
+ * cualquier otra las diluye. Una paleta de siete no ayuda a leer: compite.
  *
- * El lenguaje visual de la app del atleta no se decide acá. Se decidiría sin el
- * caso que importa, que es alguien con el celular en la mano entre dos series.
+ * **Las dos mitades no son la misma aplicación estirada.** El entrenador
+ * planifica sentado, con densidad y muchas filas a la vista. El atleta registra
+ * parado en el gimnasio, con una mano, transpirado y con treinta segundos de
+ * descanso — ahí los números son grandes, los blancos son objetivos de 44px y no
+ * hay nada que leer que no sea el número. Es la misma paleta con otra escala.
+ *
+ * **Modo oscuro por preferencia del sistema**, y no por un interruptor. La luz de
+ * un gimnasio no la elige nadie desde una pantalla de ajustes.
  */
+
 :root {
+  color-scheme: light dark;
+
   --tinta: #1a1a18;
   --tinta-suave: #6b6b66;
+  /* Medido contra `--papel`: 4.55:1. El valor anterior daba 2.80 y lo usa el
+     chip de «archivado», que es texto y no decoración. */
+  --tinta-tenue: #767369;
   --papel: #fbfaf8;
+  --papel-hundido: #f2f0ec;
+  --papel-elevado: #ffffff;
   --borde: #dcd9d2;
+  --borde-fuerte: #b9b5ac;
+
   --prescrito: #ebe9e4;
-  --hecho: #5b7c99;
-  --alerta: #c0392b;
+  --hecho: #3d6b8f;
+  --hecho-tenue: #dbe6ef;
+  --alerta: #b0392b;
+  --alerta-tenue: #f7e4e1;
+  --aviso: #8a6d1f;
 
   --paso: 8px;
-  --radio: 3px;
+  --radio: 6px;
+  --radio-chico: 4px;
+  --sombra: 0 1px 2px rgb(26 26 24 / 6%), 0 1px 8px rgb(26 26 24 / 4%);
+  --foco: 0 0 0 3px color-mix(in srgb, var(--hecho) 35%, transparent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tinta: #ece9e3;
+    --tinta-suave: #9c988f;
+    /* 4.63:1 sobre el papel oscuro, medido igual que el claro. */
+    --tinta-tenue: #8b8880;
+    --papel: #15161a;
+    --papel-hundido: #101115;
+    --papel-elevado: #1d1f24;
+    --borde: #2e3038;
+    --borde-fuerte: #43464f;
+
+    --prescrito: #2a2d34;
+    --hecho: #7aa9cf;
+    --hecho-tenue: #23303c;
+    --alerta: #e0776a;
+    --alerta-tenue: #33211f;
+    --aviso: #d4b25e;
+    --sombra: 0 1px 2px rgb(0 0 0 / 30%), 0 1px 10px rgb(0 0 0 / 20%);
+  }
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: calc(var(--paso) * 3);
-  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--tinta);
-  background: var(--papel);
-  line-height: 1.5;
+  background: var(--papel-hundido);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
 }
 
-h1 { font-size: 1.5rem; letter-spacing: -0.01em; }
-h2 { font-size: 1.125rem; }
-h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
+/* El anillo de foco se muestra siempre que el navegador diga que hace falta, y
+   nunca se apaga: es la única señal de dónde está parado quien navega con
+   teclado. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--hecho);
+  outline-offset: 2px;
+  border-radius: var(--radio-chico);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.25;
+  letter-spacing: -0.011em;
+  margin: 0 0 calc(var(--paso) * 1.5);
+}
+h1 { font-size: 1.375rem; }
+h2 { font-size: 1.1875rem; }
+h3 { font-size: 1rem; }
+h4 { font-size: 0.875rem; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: 0.04em; }
+
+p { margin: 0 0 var(--paso); }
+small { color: var(--tinta-suave); font-size: 0.8125rem; }
+
+a {
+  color: var(--hecho);
+  text-underline-offset: 2px;
+}
+
+/* --- El marco ---------------------------------------------------------------- */
+
+.marco__barra {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--paso) * 1.5);
+  flex-wrap: wrap;
+  padding: var(--paso) calc(var(--paso) * 2);
+  background: var(--papel-elevado);
+  border-bottom: 1px solid var(--borde);
+}
+.marco__marca {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-right: auto;
+  color: var(--tinta);
+  text-decoration: none;
+}
+.marco__contenido {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: calc(var(--paso) * 3) calc(var(--paso) * 2) calc(var(--paso) * 8);
+}
+
+/* --- Superficies -------------------------------------------------------------- */
+
+.tarjeta {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: calc(var(--paso) * 2);
+  margin-bottom: calc(var(--paso) * 2);
+  box-shadow: var(--sombra);
+}
+.tarjeta--tenue {
+  background: transparent;
+  box-shadow: none;
+  border-style: dashed;
+}
+
+.fila {
+  display: flex;
+  align-items: center;
+  gap: var(--paso);
+  flex-wrap: wrap;
+}
+.fila--separada { justify-content: space-between; }
+.empuja { margin-left: auto; }
+
+/* --- Controles ---------------------------------------------------------------- */
+
+button,
+.boton {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--tinta);
+  background: var(--papel-elevado);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-chico);
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+button:hover:not(:disabled) { background: var(--papel-hundido); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+button.principal {
+  color: var(--papel-elevado);
+  background: var(--hecho);
+  border-color: var(--hecho);
+}
+button.principal:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--hecho);
+}
+/* Destructivo con borde y no relleno: borrar no debería ser el botón más
+   llamativo de la pantalla. */
+button.peligro { color: var(--alerta); border-color: var(--alerta); }
+button.peligro:hover:not(:disabled) { background: var(--alerta-tenue); }
+button.sutil {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tinta-suave);
+  padding: 0.2rem 0.4rem;
+}
+button.sutil:hover:not(:disabled) { background: var(--papel-hundido); color: var(--tinta); }
+
+input,
+select,
+textarea {
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--tinta);
+  background: var(--papel-elevado);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-chico);
+  padding: 0.4rem 0.5rem;
+}
+label { font-size: 0.875rem; color: var(--tinta-suave); }
+label > input,
+label > select { margin-left: 0.25rem; }
+
+form { margin: 0 0 var(--paso); }
+
+/* --- Estados ------------------------------------------------------------------ */
 
 .estado {
-  padding: calc(var(--paso) * 3);
+  padding: calc(var(--paso) * 2.5);
   border: 1px dashed var(--borde);
   border-radius: var(--radio);
   color: var(--tinta-suave);
   font-size: 0.875rem;
+  text-align: center;
 }
-.estado--falla { border-style: solid; border-color: var(--alerta); color: var(--alerta); }
+.estado--falla {
+  border-style: solid;
+  border-color: var(--alerta);
+  background: var(--alerta-tenue);
+  color: var(--alerta);
+  text-align: left;
+  padding: var(--paso) calc(var(--paso) * 1.5);
+}
 
-/* Adherencia. Barras proporcionales y nada más: es la vista que contesta la
-   pregunta del panel, y lo que la hace legible es el orden y el contraste, no
-   una librería de gráficos. */
+/* La etiqueta de estado del vínculo lleva texto y no sólo color: quien no
+   distingue los tonos tiene que poder leer «pausado». */
+.chip {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--borde-fuerte);
+  color: var(--tinta-suave);
+  background: var(--papel-hundido);
+}
+.chip--activo { color: var(--hecho); border-color: var(--hecho); background: var(--hecho-tenue); }
+.chip--pausado { color: var(--aviso); border-color: var(--aviso); }
+.chip--archivado { color: var(--tinta-tenue); }
+
+/* --- Listas ------------------------------------------------------------------- */
+
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista > li {
+  display: flex;
+  align-items: center;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  padding: calc(var(--paso) * 1.25) 0;
+  border-bottom: 1px solid var(--borde);
+}
+.lista > li:last-child { border-bottom: 0; }
+
+/* --- Adherencia ---------------------------------------------------------------- */
+
 .adherencia { list-style: none; margin: 0; padding: 0; }
 .adherencia__fila {
   display: grid;
-  grid-template-columns: 190px 1fr 3rem 4rem;
+  grid-template-columns: minmax(9rem, 190px) 1fr 3rem 4.5rem;
   align-items: center;
   gap: var(--paso);
   margin-bottom: calc(var(--paso) * 0.75);
@@ -62,48 +287,116 @@ h3 { font-size: 0.9375rem; color: var(--tinta-suave); font-weight: 600; }
   position: relative;
   height: 18px;
   background: var(--prescrito);
-  border-radius: var(--radio);
+  border-radius: var(--radio-chico);
   overflow: hidden;
 }
 .adherencia__hecho {
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--hecho);
-  border-radius: var(--radio);
+  border-radius: var(--radio-chico);
 }
 .adherencia__hecho--flojo { background: var(--alerta); }
-.adherencia__cifra { font-variant-numeric: tabular-nums; }
+.adherencia__cifra { font-variant-numeric: tabular-nums; font-weight: 600; }
 .adherencia__base { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
 
-/* El link de invitación se muestra una sola vez: tiene que entrar entero y ser
-   seleccionable de un toque, no truncarse con puntos suspensivos. */
+/* --- La invitación -------------------------------------------------------------- */
+
 .link-de-invitacion {
   width: 100%;
   max-width: 34rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
-  padding: 0.4rem 0.5rem;
+  font-size: 0.8125rem;
 }
 
-/* Reordenar arrastrando. Lo mínimo para que el gesto se entienda: qué agarré y
-   dónde va a caer. Sin la señal de destino, arrastrar es adivinar. */
+/* --- Reordenar ------------------------------------------------------------------ */
+
 .ordenable {
   list-style: none;
   padding-left: 0;
+  margin: 0;
 }
 .ordenable > li {
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  padding: calc(var(--paso) * 1.25);
+  margin-bottom: var(--paso);
+  background: var(--papel-elevado);
 }
-.ordenable > li.agarrado {
-  opacity: 0.45;
-}
+.ordenable > li.agarrado { opacity: 0.4; }
+/* La señal de destino es una línea gruesa arriba y no un borde punteado
+   alrededor: dice *dónde va a caer*, que es la pregunta, en vez de sólo «acá». */
 .ordenable > li.encima {
-  border-color: currentColor;
-  border-style: dashed;
+  border-color: var(--hecho);
+  box-shadow: inset 0 3px 0 0 var(--hecho);
 }
 .asa {
   cursor: grab;
+  color: var(--tinta-tenue);
   letter-spacing: -0.15em;
+  user-select: none;
+}
+.asa:active { cursor: grabbing; }
+
+/* --- Entrenar: la pantalla que se usa parado ------------------------------------- */
+
+.entrenar__objetivo {
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+  margin-bottom: calc(var(--paso) * 0.75);
+}
+.entrenar__serie {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: calc(var(--paso) * 1.5);
+  margin-bottom: var(--paso);
+  background: var(--papel-elevado);
+  list-style: none;
+}
+.entrenar__serie--hecha {
+  border-color: var(--hecho);
+  background: var(--hecho-tenue);
+}
+.entrenar__campos {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--paso) * 1.5);
+  flex-wrap: wrap;
+  margin-bottom: var(--paso);
+}
+.entrenar__campo { display: flex; flex-direction: column; gap: 2px; }
+.entrenar__campo > span { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tinta-suave); }
+/* Números grandes y tabulares. Se leen de reojo, con el celular apoyado en el
+   banco y la vista todavía puesta en la barra. */
+.entrenar__campo > input {
+  width: 4.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 0.35rem;
+}
+/* 44px es el mínimo con el que un dedo acierta sin mirar. Debajo de eso, entre
+   series, se falla y se abandona. */
+.entrenar__acciones button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+}
+
+@media (max-width: 640px) {
+  .marco__contenido { padding: calc(var(--paso) * 2) var(--paso) calc(var(--paso) * 8); }
+  .adherencia__fila { grid-template-columns: 1fr 3rem 4.5rem; }
+  .adherencia__nombre { grid-column: 1 / -1; text-align: left; }
+  .entrenar__acciones button { flex: 1; }
+}
+
+/* La pantalla de ingreso. Vive fuera del marco —el marco está adentro del
+   portón— así que su maquetación es propia. */
+.portada {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--paso) * 3);
 }

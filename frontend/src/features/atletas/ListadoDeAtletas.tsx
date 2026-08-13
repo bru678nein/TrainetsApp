@@ -22,10 +22,10 @@ import { Cargando, Falla, Vacio } from "../../components/estados";
 function PrimeraVez() {
   const alta = useCrearCoach();
   return (
-    <section>
+    <section className="tarjeta">
       <h2>Todavía no tenés un espacio de entrenador</h2>
       <p>Creá el tuyo y empezá a cargar atletas.</p>
-      <button type="button" onClick={() => alta.mutate()} disabled={alta.isPending}>
+      <button type="button" className="principal" onClick={() => alta.mutate()} disabled={alta.isPending}>
         {alta.isPending ? "Creando…" : "Crear mi espacio"}
       </button>
       {alta.isError ? (
@@ -43,6 +43,7 @@ function NuevoAtleta() {
 
   return (
     <form
+      className="fila"
       onSubmit={(e) => {
         e.preventDefault();
         if (!nombre.trim()) return;
@@ -52,8 +53,8 @@ function NuevoAtleta() {
       <label>
         Nombre del atleta{" "}
         <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-      </label>{" "}
-      <button type="submit" disabled={crear.isPending || !nombre.trim()}>
+      </label>
+      <button type="submit" className="principal" disabled={crear.isPending || !nombre.trim()}>
         {crear.isPending ? "Creando…" : "Agregar"}
       </button>
       {crear.isError ? (
@@ -83,6 +84,7 @@ function Acciones({ atleta }: { atleta: Atleta }) {
         <button
           key={accion}
           type="button"
+          className={accion === "archivar" ? "peligro" : "sutil"}
           onClick={() => cambiar.mutate(accion)}
           disabled={cambiar.isPending}
         >
@@ -117,19 +119,26 @@ export function ListadoDeAtletas() {
   if (consulta.isError) return <Falla que="los atletas" />;
 
   return (
-    <section>
+    <section className="tarjeta">
       <h2>Atletas</h2>
       <NuevoAtleta />
       {consulta.data.length === 0 ? (
         <Vacio motivo="Todavía no cargaste ningún atleta." />
       ) : (
-        <ul>
-          {consulta.data.map((atleta) => (
-            <li key={atleta.id}>
-              <Link to={`/atletas/${atleta.id}`}>{atleta.full_name}</Link>{" "}
-              <small>{atleta.estado ?? "activo"}</small> <Acciones atleta={atleta} />
-            </li>
-          ))}
+        <ul className="lista">
+          {consulta.data.map((atleta) => {
+            const estado = atleta.estado ?? "activo";
+            return (
+              <li key={atleta.id}>
+                <Link to={`/atletas/${atleta.id}`}>{atleta.full_name}</Link>
+                {/* Texto y no sólo color: quien no distingue los tonos tiene que
+                    poder leer «pausado». */}
+                <span className={`chip chip--${estado}`}>{estado}</span>
+                <span className="empuja" />
+                <Acciones atleta={atleta} />
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

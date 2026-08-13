@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 
+import { Marco } from "./lib/Marco";
 import { ProveedorDeRol } from "./lib/Rol";
 import { Sesion } from "./lib/Sesion";
 import { Rutas } from "./rutas";
@@ -23,7 +24,9 @@ export function App() {
       <BrowserRouter>
         <ProveedorDeRol>
           <Sesion>
-            <Rutas />
+            <Marco>
+              <Rutas />
+            </Marco>
           </Sesion>
         </ProveedorDeRol>
       </BrowserRouter>
