@@ -13,6 +13,7 @@ import {
   type Programa,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
+import { Deslizador } from "../../components/Deslizador";
 import { ListaOrdenable } from "../../components/ListaOrdenable";
 import { useAgenda } from "../../api/consultas";
 
@@ -75,16 +76,7 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
       <label>
         Nombre <input value={label} onChange={(e) => setLabel(e.target.value)} required />
       </label>{" "}
-      <label>
-        Semanas{" "}
-        <input
-          type="number"
-          min={1}
-          max={16}
-          value={semanas}
-          onChange={(e) => setSemanas(Number(e.target.value))}
-        />
-      </label>{" "}
+      <Deslizador etiqueta="Semanas" valor={semanas} onCambio={setSemanas} max={16} />
       <label title="Cuánto se mueve el RIR en cada semana, respecto de la primera">
         Progresión de RIR{" "}
         <input value={progresion} onChange={(e) => setProgresion(e.target.value)} />
@@ -104,25 +96,11 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
     enviar(`/api/mesocycles/${meso.id}/duplicate-week`, { from_week: desde, to_week: hasta }),
   );
 
-  const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
   return (
     <div className="fila">
-      <strong>Duplicar semana</strong>{" "}
-      <select value={desde} onChange={(e) => setDesde(Number(e.target.value))}>
-        {semanas.map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>{" "}
-      sobre{" "}
-      <select value={hasta} onChange={(e) => setHasta(Number(e.target.value))}>
-        {semanas.map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>{" "}
+      <strong>Duplicar semana</strong>
+      <Deslizador etiqueta="De la" valor={desde} onCambio={setDesde} max={meso.week_count} />
+      <Deslizador etiqueta="a la" valor={hasta} onCambio={setHasta} max={meso.week_count} />
       <button
         type="button"
         className="principal"
@@ -155,26 +133,13 @@ function NuevaSesion({ meso }: { meso: Mesociclo }) {
         crear.mutate();
       }}
     >
-      <label>
-        Semana{" "}
-        <input
-          type="number"
-          min={1}
-          max={meso.week_count}
-          value={semana}
-          onChange={(e) => setSemana(Number(e.target.value))}
-        />
-      </label>{" "}
-      <label>
-        Día{" "}
-        <input
-          type="number"
-          min={1}
-          max={7}
-          value={dia}
-          onChange={(e) => setDia(Number(e.target.value))}
-        />
-      </label>{" "}
+      <Deslizador
+        etiqueta="Semana"
+        valor={Math.min(semana, meso.week_count)}
+        onCambio={setSemana}
+        max={meso.week_count}
+      />
+      <Deslizador etiqueta="Día" valor={dia} onCambio={setDia} max={7} />
       <button type="submit" disabled={crear.isPending}>
         Agregar sesión
       </button>
