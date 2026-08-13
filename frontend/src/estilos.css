@@ -476,6 +476,66 @@ form { margin: 0 0 var(--paso); }
 .revelar[aria-expanded="true"] .revelar__flecha { transform: rotate(90deg); }
 .revelar[aria-expanded="true"] { font-weight: 600; }
 
+/* El tachito aparece al pasar el mouse **y al llegar con el teclado**.
+ *
+ * Sólo con el mouse sería un control que para quien navega con teclado no
+ * existe: se puede enfocar y no se ve dónde está parado. Por eso `focus-within`
+ * al lado de `:hover`, y por eso no se oculta con `display: none` — lo que no
+ * está en el árbol tampoco se puede enfocar.
+ *
+ * Y en un dispositivo sin mouse queda siempre visible: `hover: none` es la
+ * consulta que distingue un dedo de un puntero. Sin eso, en una tablet el botón
+ * es inalcanzable.
+ */
+.dia__cabecera {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--paso) * 0.5);
+}
+.dia__cabecera > .revelar { flex: 1; min-width: 0; }
+.dia__borrar {
+  flex: none;
+  border-color: transparent;
+  background: transparent;
+  padding: 0.2rem 0.35rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.dia:hover .dia__borrar,
+.dia:focus-within .dia__borrar {
+  opacity: 1;
+}
+/* El ícono hereda color y tamaño, así que el botón se pone de alerta y el trazo
+   lo sigue solo. */
+.dia__borrar:hover:not(:disabled) { background: var(--alerta-tenue); color: var(--alerta); }
+.dia__borrar svg { display: block; font-size: 1rem; }
+
+@media (hover: none) {
+  .dia__borrar { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dia__borrar { transition: none; }
+}
+
+/* El "+" cierra el panel: la lista se lee de arriba abajo y esto es su final. */
+.semana__agregar {
+  display: block;
+  width: 100%;
+  margin-top: var(--paso);
+  border-style: dashed;
+  border-color: var(--borde);
+  background: transparent;
+  color: var(--tinta-suave);
+  font-size: 0.8125rem;
+}
+.semana__agregar:hover:not(:disabled) {
+  border-color: var(--hecho);
+  color: var(--hecho);
+  background: transparent;
+}
+.semana__agregar svg { vertical-align: -0.13em; }
+
 @media (prefers-reduced-motion: reduce) {
   .revelar__flecha { transition: none; }
 }

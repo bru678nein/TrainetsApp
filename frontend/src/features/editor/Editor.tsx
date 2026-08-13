@@ -14,6 +14,7 @@ import {
   type SesionDeLaAgenda,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
+import { Mas, Tacho } from "../../components/iconos";
 import { Selector } from "../../components/Selector";
 import { ListaOrdenable } from "../../components/ListaOrdenable";
 import { useAgenda } from "../../api/consultas";
@@ -117,35 +118,6 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
       )}
       <Aviso de={duplicar} />
     </div>
-  );
-}
-
-function NuevaSesion({ meso }: { meso: Mesociclo }) {
-  const [semana, setSemana] = useState(1);
-  const [dia, setDia] = useState(1);
-  const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
-    enviar(`/api/mesocycles/${meso.id}/sessions`, { week_number: semana, day_number: dia }),
-  );
-  return (
-    <form
-      className="fila"
-      onSubmit={(e) => {
-        e.preventDefault();
-        crear.mutate();
-      }}
-    >
-      <Selector
-        etiqueta="Semana"
-        valor={Math.min(semana, meso.week_count)}
-        onCambio={setSemana}
-        max={meso.week_count}
-      />
-      <Selector etiqueta="Día" valor={dia} onCambio={setDia} max={7} />
-      <button type="submit" disabled={crear.isPending}>
-        Agregar sesión
-      </button>
-      <Aviso de={crear} />
-    </form>
   );
 }
 
@@ -405,16 +377,28 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
  * que falta no ocupa lugar.
  */
 function Semana({
+  meso,
   numero,
   sesiones,
   abierta,
   onAbrir,
 }: {
+  meso: Mesociclo;
   numero: number;
   sesiones: SesionDeLaAgenda[];
   abierta: string | null;
   onAbrir: (id: string | null) => void;
 }) {
+  const usados = new Set(sesiones.map((s) => s.day_number));
+  const siguiente = [1, 2, 3, 4, 5, 6, 7].find((d) => !usados.has(d));
+
+  const agregar = useEscrituraDelEditor<unknown, number>((enviar, _, dia) =>
+    enviar(`/api/mesocycles/${meso.id}/sessions`, { week_number: numero, day_number: dia }),
+  );
+  const borrar = useEscrituraDelEditor<unknown, string>((_, mutar, id) =>
+    mutar("DELETE", `/api/sessions/${id}`),
+  );
+
   return (
     <section className="semana">
       <h4 className="semana__titulo">Semana {numero}</h4>
@@ -425,27 +409,56 @@ function Semana({
           {sesiones.map((s) => {
             const abiertaEsta = abierta === s.id;
             return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className="revelar"
-                  aria-expanded={abiertaEsta}
-                  onClick={() => onAbrir(abiertaEsta ? null : s.id)}
-                >
-                  {/* La flecha gira con el estado y no cambia de carácter: así
-                      el movimiento cuenta qué pasó, en vez de aparecer un signo
-                      nuevo donde había otro. */}
-                  <span className="revelar__flecha" aria-hidden="true">
-                    ▸
-                  </span>
-                  Día {s.day_number}
-                </button>
+              <li key={s.id} className="dia">
+                <div className="dia__cabecera">
+                  <button
+                    type="button"
+                    className="revelar"
+                    aria-expanded={abiertaEsta}
+                    onClick={() => onAbrir(abiertaEsta ? null : s.id)}
+                  >
+                    {/* La flecha gira con el estado y no cambia de carácter: así
+                        el movimiento cuenta qué pasó, en vez de aparecer un
+                        signo nuevo donde había otro. */}
+                    <span className="revelar__flecha" aria-hidden="true">
+                      ▸
+                    </span>
+                    Día {s.day_number}
+                  </button>
+                  <button
+                    type="button"
+                    className="dia__borrar"
+                    onClick={() => {
+                      if (abiertaEsta) onAbrir(null);
+                      borrar.mutate(s.id);
+                    }}
+                    disabled={borrar.isPending}
+                    aria-label={`Borrar el día ${s.day_number} de la semana ${numero}`}
+                    title="Borrar este día"
+                  >
+                    <Tacho />
+                  </button>
+                </div>
                 {abiertaEsta ? <ContenidoDeSesion sesionId={s.id} /> : null}
               </li>
             );
           })}
         </ul>
       )}
+
+      {/* Al fondo del panel y después de todos los días, que es donde va lo que
+          se agrega: la lista se lee de arriba abajo y el botón es su final. */}
+      <button
+        type="button"
+        className="semana__agregar"
+        onClick={() => siguiente && agregar.mutate(siguiente)}
+        disabled={!siguiente || agregar.isPending}
+        title={siguiente ? `Agregar el día ${siguiente}` : "Esta semana ya tiene los siete días"}
+      >
+        <Mas /> {siguiente ? `Día ${siguiente}` : "Semana completa"}
+      </button>
+      <Aviso de={agregar} />
+      <Aviso de={borrar} />
     </section>
   );
 }
@@ -461,7 +474,6 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
         {meso.ordinal}. {meso.label} — {meso.week_count} semanas
       </h3>
       <DuplicarSemana meso={meso} />
-      <NuevaSesion meso={meso} />
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           const mias = todas.filter((s) => s.mesocycle === meso.label);
@@ -470,6 +482,7 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
               {semanas.map((numero) => (
                 <Semana
                   key={numero}
+                  meso={meso}
                   numero={numero}
                   sesiones={mias
                     .filter((s) => s.week_number === numero)

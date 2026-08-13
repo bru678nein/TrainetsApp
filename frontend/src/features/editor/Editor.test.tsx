@@ -117,3 +117,86 @@ describe("abrir una sesión", () => {
     expect(botones[1]).toHaveAttribute("aria-expanded", "true");
   });
 });
+
+describe("agregar y borrar días", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("el + de cada panel propone el primer día libre de esa semana", async () => {
+    // La semana 1 tiene los días 1 y 2, así que le toca el 3; la 2 tiene el 1,
+    // así que le toca el 2. El número sale del panel y no de un formulario
+    // suelto que hay que completar dos veces.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+
+    expect(screen.getByTitle("Agregar el día 3")).toBeInTheDocument();
+    expect(screen.getByTitle("Agregar el día 2")).toBeInTheDocument();
+  });
+
+  it("apretarlo crea la sesión en esa semana y ese día", async () => {
+    const pedido = responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+    await userEvent.click(screen.getByTitle("Agregar el día 3"));
+
+    const alta = pedido.mock.calls.find(
+      ([, o]) => o?.method === "POST" && String(o?.body).includes("week_number"),
+    );
+    expect(alta).toBeDefined();
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ week_number: 1, day_number: 3 });
+  });
+
+  it("una semana llena lo dice, en vez de ofrecer un botón que falla", async () => {
+    // Siete días es el tope de la semana. Un `+` que contesta 409 promete algo
+    // que no puede cumplir.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) => {
+        const u = String(url);
+        if (u.includes("/mesocycles")) return Promise.resolve(new Response(JSON.stringify([MESO])));
+        if (u.includes("/programs")) return Promise.resolve(new Response(JSON.stringify([PROGRAMA])));
+        if (u.match(/\/api\/sessions\//)) return Promise.resolve(new Response(JSON.stringify({})));
+        if (u.includes("/sessions")) {
+          const llena = [1, 2, 3, 4, 5, 6, 7].map((d) => ({
+            id: `s${d}`,
+            mesocycle: "Acumulación",
+            mesocycle_ordinal: 1,
+            week_number: 1,
+            day_number: d,
+          }));
+          return Promise.resolve(new Response(JSON.stringify(llena)));
+        }
+        return Promise.resolve(new Response("[]"));
+      }),
+    );
+    montarEditor();
+    expect(await screen.findByText("Semana completa")).toBeInTheDocument();
+    expect(screen.getByTitle("Esta semana ya tiene los siete días")).toBeDisabled();
+  });
+
+  it("cada día tiene su propio botón de borrar, nombrado", async () => {
+    // El nombre accesible dice cuál se borra. «🗑» a secas se anuncia igual en
+    // los tres días de la semana, y borrar no tiene deshacer.
+    responder();
+    montarEditor();
+    expect(
+      await screen.findByRole("button", { name: "Borrar el día 1 de la semana 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Borrar el día 2 de la semana 1" }),
+    ).toBeInTheDocument();
+  });
+
+  it("borrar el día abierto lo cierra antes de sacarlo", async () => {
+    // Si no, queda montado el contenido de una sesión que ya no existe y su
+    // consulta contesta 404 sobre una pantalla que la persona no está mirando.
+    responder();
+    montarEditor();
+    const dia = (await screen.findAllByRole("button", { name: /Día 1/ }))[0]!;
+    await userEvent.click(dia);
+    expect(dia).toHaveAttribute("aria-expanded", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Borrar el día 1 de la semana 1" }));
+    expect(dia).toHaveAttribute("aria-expanded", "false");
+  });
+});
