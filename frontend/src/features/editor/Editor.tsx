@@ -11,6 +11,7 @@ import {
   useSesion,
   type Mesociclo,
   type Programa,
+  type SesionDeLaAgenda,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
 import { Selector } from "../../components/Selector";
@@ -392,9 +393,67 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
   );
 }
 
+/**
+ * Las semanas del bloque, una al lado de la otra.
+ *
+ * En rejilla y no en una lista corrida, y no es decoración: un mesociclo es un
+ * bloque de semanas comparables entre sí — la 3 se entiende mirando la 2. En
+ * lista, la 4 queda a un scroll de la 1 y esa comparación deja de existir.
+ *
+ * **Se dibujan todas las semanas, incluidas las vacías.** Es lo que hace visible
+ * que la 3 no está armada todavía, que en una lista de lo que hay no se ve: lo
+ * que falta no ocupa lugar.
+ */
+function Semana({
+  numero,
+  sesiones,
+  abierta,
+  onAbrir,
+}: {
+  numero: number;
+  sesiones: SesionDeLaAgenda[];
+  abierta: string | null;
+  onAbrir: (id: string | null) => void;
+}) {
+  return (
+    <section className="semana">
+      <h4 className="semana__titulo">Semana {numero}</h4>
+      {sesiones.length === 0 ? (
+        <p className="semana__vacia">Sin sesiones</p>
+      ) : (
+        <ul className="semana__sesiones">
+          {sesiones.map((s) => {
+            const abiertaEsta = abierta === s.id;
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className="revelar"
+                  aria-expanded={abiertaEsta}
+                  onClick={() => onAbrir(abiertaEsta ? null : s.id)}
+                >
+                  {/* La flecha gira con el estado y no cambia de carácter: así
+                      el movimiento cuenta qué pasó, en vez de aparecer un signo
+                      nuevo donde había otro. */}
+                  <span className="revelar__flecha" aria-hidden="true">
+                    ▸
+                  </span>
+                  Día {s.day_number}
+                </button>
+                {abiertaEsta ? <ContenidoDeSesion sesionId={s.id} /> : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
   const agenda = useAgenda(atletaId, "coach");
   const [abierta, setAbierta] = useState<string | null>(null);
+  const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
 
   return (
     <section className="tarjeta">
@@ -406,26 +465,20 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           const mias = todas.filter((s) => s.mesocycle === meso.label);
-          if (mias.length === 0) return <p>Sin sesiones todavía.</p>;
           return (
-            <ul>
-              {mias
-                .slice()
-                .sort((a, b) => a.week_number - b.week_number || a.day_number - b.day_number)
-                .map((s) => (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      className="sutil"
-                      aria-expanded={abierta === s.id}
-                      onClick={() => setAbierta(abierta === s.id ? null : s.id)}
-                    >
-                      Semana {s.week_number}, día {s.day_number}
-                    </button>
-                    {abierta === s.id ? <ContenidoDeSesion sesionId={s.id} /> : null}
-                  </li>
-                ))}
-            </ul>
+            <div className="semanas">
+              {semanas.map((numero) => (
+                <Semana
+                  key={numero}
+                  numero={numero}
+                  sesiones={mias
+                    .filter((s) => s.week_number === numero)
+                    .sort((a, b) => a.day_number - b.day_number)}
+                  abierta={abierta}
+                  onAbrir={setAbierta}
+                />
+              ))}
+            </div>
           );
         }}
       </Consulta>

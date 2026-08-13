@@ -430,3 +430,56 @@ form { margin: 0 0 var(--paso); }
      motivo — un dedo que apunta sin mirar. */
   .selector select { min-height: 44px; }
 }
+
+/* --- Las semanas de un bloque ---------------------------------------------------
+ *
+ * Dos columnas y no una lista corrida: un mesociclo es un conjunto de semanas
+ * comparables entre sí, y la 3 se entiende mirando la 2. En lista, la 4 queda a
+ * un scroll de la 1 y esa comparación deja de existir. En pantalla chica no hay
+ * ancho para dos, y ahí la lista es lo correcto. */
+.semanas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--paso);
+  margin-top: calc(var(--paso) * 1.5);
+}
+.semana {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: calc(var(--paso) * 1.25);
+  background: var(--papel-elevado);
+  min-width: 0;
+}
+.semana__titulo { margin: 0 0 var(--paso); }
+.semana__vacia { color: var(--tinta-tenue); font-size: 0.8125rem; margin: 0; }
+.semana__sesiones { list-style: none; margin: 0; padding: 0; }
+.semana__sesiones > li + li { margin-top: calc(var(--paso) * 0.5); }
+
+/* La flecha gira en vez de cambiar de carácter: el movimiento cuenta qué pasó,
+   mientras que un signo nuevo donde había otro sólo se puede leer. */
+.revelar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--paso) * 0.75);
+  width: 100%;
+  text-align: left;
+  border-color: transparent;
+  background: transparent;
+  padding: 0.3rem 0.4rem;
+}
+.revelar:hover:not(:disabled) { background: var(--papel-hundido); }
+.revelar__flecha {
+  display: inline-block;
+  color: var(--tinta-suave);
+  transition: transform 140ms ease;
+}
+.revelar[aria-expanded="true"] .revelar__flecha { transform: rotate(90deg); }
+.revelar[aria-expanded="true"] { font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .revelar__flecha { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .semanas { grid-template-columns: 1fr; }
+}
