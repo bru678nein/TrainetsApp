@@ -35,6 +35,10 @@ PARAMETROS = {
     "mesocycle_id",
     "prescription_id",
     "exercise_id",
+    # El código de un patrón. No es un UUID como el resto, y por eso el
+    # recurso inexistente que arma el recorrido —el UUID de ceros— igual sirve:
+    # como código no existe, y contesta 404 igual que el de otro entrenador.
+    "code",
 }
 
 CUERPOS: dict[str, dict[str, object]] = {
@@ -138,6 +142,12 @@ def recursos_de_a(client, seeded) -> dict[str, str]:
         "prescription_id": detalle["blocks"][0]["prescription_id"],
         "exercise_id": str(
             next(e["id"] for e in client.get("/api/exercises").json() if e["coach_id"])
+        ),
+        # Uno propio y no de la base común: la base común contesta 403 —se lee,
+        # no se borra— y el recorrido compara contra un inexistente, que da 404.
+        # Con uno de la base la diferencia sería de la regla y no del dueño.
+        "code": str(
+            client.post("/api/movement-patterns", json={"label_es": "Propio de A"}).json()["code"]
         ),
     }
 

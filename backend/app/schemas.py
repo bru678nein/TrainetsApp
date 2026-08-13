@@ -441,19 +441,30 @@ class ExerciseOut(BaseModel):
     coach_id: uuid.UUID | None = None
     video_url: str | None = None
     cues: str | None = None
+    #: En cuántas prescripciones está. Viaja para que la confirmación de borrado
+    #: pueda decir qué se lleva puesto en vez de preguntar a ciegas: «esto no se
+    #: puede deshacer» sin un número no ayuda a decidir.
+    prescription_count: int = 0
 
 
 class PatternOut(BaseModel):
-    """Los once patrones, que el editor necesita para que el campo sea elegible.
+    """Los patrones que el entrenador puede elegir: la base común más los suyos.
 
-    Son un catálogo cerrado y no texto libre, que es lo que hace contestable la
-    pregunta por volumen por patrón.
+    Son un catálogo y no texto libre, que es lo que hace contestable la pregunta
+    por volumen por patrón. Dejó de ser cerrado —cada entrenador amplía el suyo—
+    pero sigue siendo un conjunto de valores y no una descripción escrita a mano
+    en cada ejercicio, que es lo que importaba.
+
+    `coach_id` viaja para que la pantalla sepa cuál puede borrar: la base común se
+    lee, y ofrecer el botón sobre ella sería prometer algo que el servidor
+    rechaza.
     """
 
     model_config = ConfigDict(from_attributes=True)
     code: str
     label_es: str
     is_compound: bool | None = None
+    coach_id: uuid.UUID | None = None
 
 
 class DuplicarSemanaIn(BaseModel):

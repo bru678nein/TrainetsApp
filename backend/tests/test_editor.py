@@ -872,3 +872,108 @@ class TestElCatalogoSeMantiene:
             json={"name": "Curl de muñeca", "pattern_code": codigo},
         )
         assert r.status_code == 201
+
+
+class TestBorrarSacaDeLosDias:
+    """Borrar un ejercicio lo saca de los días que lo incluyen, y el registro queda."""
+
+    @pytest.fixture
+    def prescrito(self, cliente, coach, programa, ejercicio):
+        """Un ejercicio en un día, con una serie que el atleta ya registró."""
+
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 8, "label": "M", "week_count": 1},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        serie = coach(
+            cliente, "POST", f"/api/prescriptions/{pres}/sets", json={"reps_min": 5}
+        ).json()["id"]
+        return sesion, pres, serie
+
+    def test_sin_confirmar_no_borra_y_dice_cuántos(self, cliente, coach, ejercicio, prescrito):
+        """La API queda a salvo por defecto: un cliente que no pregunte no arrasa
+        un programa por descuido. Y el número es lo que le da a la pantalla con
+        qué preguntar."""
+        r = coach(cliente, "DELETE", f"/api/exercises/{ejercicio}")
+        assert r.status_code == 409
+        assert "1 lugar" in r.json()["detail"]
+
+    def test_confirmando_lo_saca_de_los_dias(self, cliente, coach, ejercicio, prescrito):
+        sesion, _, _ = prescrito
+        r = coach(cliente, "DELETE", f"/api/exercises/{ejercicio}?confirmar=true")
+        assert r.status_code == 204
+
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
+        assert detalle["blocks"] == []
+
+    def test_lo_que_el_atleta_registro_sobrevive(
+        self, cliente, coach, escenario, mint, ejercicio, prescrito, db
+    ):
+        """Es lo que vuelve aceptable la cascada, y no era cierto antes de la
+        0016: `logged_set` quedó con `ON DELETE SET NULL` y con su copia
+        congelada de lo que se le pidió. El registro no se pierde; se queda sin
+        plan al que pertenecer, que es exactamente lo que pasó."""
+        import sqlalchemy as sa
+
+        _, _, serie = prescrito
+        cliente.put(
+            f"/api/sets/{serie}/log",
+            json={"reps": 5, "load_kg": 60, "rir": 2},
+            headers={"Authorization": f"Bearer {mint(escenario.sub_c)}", "Active-Role": "athlete"},
+        )
+        antes = db.execute(sa.text("SELECT count(*) FROM logged_set")).scalar()
+
+        assert (
+            coach(cliente, "DELETE", f"/api/exercises/{ejercicio}?confirmar=true").status_code
+            == 204
+        )
+
+        db.execute(sa.text("RESET ROLE"))
+        assert db.execute(sa.text("SELECT count(*) FROM logged_set")).scalar() == antes
+        huerfano = db.execute(
+            sa.text(
+                "SELECT prescribed_set_id, reps, prescribed_reps_min FROM logged_set "
+                "WHERE prescribed_set_id IS NULL ORDER BY performed_at DESC LIMIT 1"
+            )
+        ).first()
+        assert huerfano is not None
+        assert huerfano[1] == 5, "se perdió lo que hizo"
+
+    def test_un_patron_en_uso_no_se_borra(self, cliente, coach, ejercicio):
+        """Al revés que un ejercicio, y la diferencia es de escala: un patrón se
+        llevaría todos los ejercicios que lo usan y las prescripciones de todos
+        ellos. Demasiado para una confirmación."""
+        codigo = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "Para borrar"}
+        ).json()["code"]
+        coach(cliente, "PATCH", f"/api/exercises/{ejercicio}", json={"pattern_code": codigo})
+
+        r = coach(cliente, "DELETE", f"/api/movement-patterns/{codigo}")
+        assert r.status_code == 409
+        assert "1 ejercicio" in r.json()["detail"]
+
+    def test_un_patron_propio_sin_usar_se_borra(self, cliente, coach):
+        codigo = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "Sin usar"}
+        ).json()["code"]
+        assert coach(cliente, "DELETE", f"/api/movement-patterns/{codigo}").status_code == 204
+
+    def test_la_base_comun_no_se_borra(self, cliente, coach):
+        base = coach(cliente, "GET", "/api/movement-patterns").json()
+        comun = next(p for p in base if p["coach_id"] is None)
+        r = coach(cliente, "DELETE", f"/api/movement-patterns/{comun['code']}")
+        assert r.status_code == 403

@@ -55,6 +55,7 @@ ESCRITURAS = {
     # atleta archivado no toca nada de ese atleta.
     "/api/exercises/{exercise_id}": True,
     "/api/movement-patterns": True,
+    "/api/movement-patterns/{code}": True,
 }
 
 

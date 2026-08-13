@@ -31,7 +31,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
@@ -462,15 +462,33 @@ def reordenar_series(
 
 
 @editor.get("/exercises", response_model=list[ExerciseOut])
-def listar_ejercicios(ctx: TenantContext = Depends(require_tenant_context)) -> list[Exercise]:
-    """The global catalogue plus the caller's own.
+def listar_ejercicios(ctx: TenantContext = Depends(require_tenant_context)) -> list[ExerciseOut]:
+    """La base común más los propios, con cuánto se usa cada uno.
 
-    No filtering happens here: which exercises are visible is decided by the
-    policies — the global ones have no owner and are shared, and the rest belong
-    to whoever created them. Repeating that rule in Python would create a second
-    copy that drifts.
+    Qué ejercicios se ven lo deciden las policies: los de la base común no tienen
+    dueño y se comparten, el resto es de quien lo creó. Repetir esa regla acá
+    crearía una segunda copia que se desincroniza.
+
+    El conteo de prescripciones viaja con cada uno porque la pantalla lo necesita
+    **antes** de preguntar si borrar: una confirmación que no dice qué se lleva
+    puesto no es una decisión informada, es un trámite.
     """
-    return list(ctx.db.scalars(select(Exercise).order_by(Exercise.name)).all())
+    usos = (
+        select(Prescription.exercise_id, func.count().label("n"))
+        .group_by(Prescription.exercise_id)
+        .subquery()
+    )
+    filas = ctx.db.execute(
+        select(Exercise, func.coalesce(usos.c.n, 0))
+        .outerjoin(usos, usos.c.exercise_id == Exercise.id)
+        .order_by(Exercise.name)
+    ).all()
+    return [
+        ExerciseOut.model_validate(ej, from_attributes=True).model_copy(
+            update={"prescription_count": n}
+        )
+        for ej, n in filas
+    ]
 
 
 @editor.post("/exercises", response_model=ExerciseOut, status_code=status.HTTP_201_CREATED)
@@ -765,33 +783,74 @@ def editar_ejercicio(
 
 @editor.delete("/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
 def borrar_ejercicio(
-    exercise_id: uuid.UUID, ctx: TenantContext = Depends(require_tenant_context)
+    exercise_id: uuid.UUID,
+    confirmar: bool = False,
+    ctx: TenantContext = Depends(require_tenant_context),
 ) -> None:
-    """Un ejercicio que alguien prescribió no se borra, y se dice por qué.
+    """Borra el ejercicio y lo saca de los días que lo incluyen.
 
-    La clave foránea ya lo impide, pero lo hace con un error de integridad que
-    sube como 500 y no explica nada. Contarlo acá convierte "algo se rompió" en
-    "está en uso en 12 prescripciones", que es información con la que se puede
-    decidir.
+    Sin `confirmar`, uno que está prescrito contesta 409 diciendo en cuántos
+    lugares. Esa respuesta es la que le da a la pantalla el número para preguntar
+    con sentido — «esto no se puede deshacer» sin decir qué se lleva no es una
+    decisión, es un trámite. Y deja la API a salvo por defecto: un cliente que no
+    pregunte no arrasa un programa por descuido.
 
-    Y no se borra en cascada a propósito: llevarse las prescripciones sería
-    borrar el programa de alguien por limpiar un catálogo.
+    **Lo que el atleta registró sobrevive.** Al borrar la prescripción se van sus
+    series prescritas, pero `logged_set` quedó con `ON DELETE SET NULL` y con su
+    copia congelada de lo que se le pidió, así que el registro no se pierde:
+    queda sin plan al que pertenecer, que es exactamente lo que pasó. Sin ese
+    cambio esta cascada se llevaría el entrenamiento de una persona por limpiar
+    un catálogo.
     """
     db = _solo_entrenador(ctx)
     ejercicio = _o_404(db, Exercise, exercise_id, "ejercicio")
     if ejercicio.coach_id is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "el catálogo global se lee, no se borra")
+
     en_uso = db.scalar(
         select(func.count())
         .select_from(Prescription)
         .where(Prescription.exercise_id == ejercicio.id)
     )
+    if en_uso and not confirmar:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"está prescrito en {en_uso} lugar(es): confirmá para sacarlo de todos",
+        )
+    if en_uso:
+        db.execute(delete(Prescription).where(Prescription.exercise_id == ejercicio.id))
+    db.delete(ejercicio)
+    db.commit()
+
+
+@editor.delete("/movement-patterns/{code}", status_code=status.HTTP_204_NO_CONTENT)
+def borrar_patron(code: str, ctx: TenantContext = Depends(require_tenant_context)) -> None:
+    """Borra un patrón propio.
+
+    No se borra en cascada, al revés que un ejercicio, y la diferencia es de
+    escala: un ejercicio se lleva sus prescripciones, un patrón se llevaría todos
+    los ejercicios que lo usan **y** las prescripciones de todos ellos. Eso es
+    demasiado para una confirmación, así que se pide desarmarlo antes.
+
+    La base común no se toca desde acá: se cambia con una migración, que es una
+    decisión visible y revisada.
+    """
+    db = _solo_entrenador(ctx)
+    patron = db.get(MovementPattern, code)
+    if patron is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "patrón inexistente")
+    if patron.coach_id is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "la base común se lee, no se borra")
+
+    en_uso = db.scalar(
+        select(func.count()).select_from(Exercise).where(Exercise.pattern_code == code)
+    )
     if en_uso:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"está prescrito en {en_uso} lugar(es): sacalo de las rutinas antes de borrarlo",
+            f"{en_uso} ejercicio(s) lo usan: cambiales el patrón antes de borrarlo",
         )
-    db.delete(ejercicio)
+    db.delete(patron)
     db.commit()
 
 

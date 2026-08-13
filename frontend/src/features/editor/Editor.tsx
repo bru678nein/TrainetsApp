@@ -11,11 +11,13 @@ import {
   useSesion,
   type Ejercicio,
   type Mesociclo,
+  type Patron,
   type Programa,
   type SesionDeLaAgenda,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla, Vacio } from "../../components/estados";
 import { Mas, Tacho } from "../../components/iconos";
+import { Confirmar } from "../../components/Confirmar";
 import { Pestanas } from "../../components/Pestanas";
 import { useNombreDePatron } from "../analytics/patrones";
 import { Selector } from "../../components/Selector";
@@ -410,8 +412,12 @@ function FilaDeEjercicio({ ej, nombreDe }: { ej: Ejercicio; nombreDe: (c: string
   const guardar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
     mutar("PATCH", `/api/exercises/${ej.id}`, { name: nombre.trim(), pattern_code: patron }),
   );
+  const [confirmando, setConfirmando] = useState(false);
   const borrar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
-    mutar("DELETE", `/api/exercises/${ej.id}`),
+    // `confirmar` va en la llamada porque la API se niega por defecto a sacar un
+    // ejercicio de los días que lo incluyen: un cliente que no pregunte no
+    // arrasa un programa por descuido.
+    mutar("DELETE", `/api/exercises/${ej.id}?confirmar=true`),
   );
 
   // El catálogo global se lee y no se toca: es de todos y se modifica con una
@@ -476,17 +482,85 @@ function FilaDeEjercicio({ ej, nombreDe }: { ej: Ejercicio; nombreDe: (c: string
             <button
               type="button"
               className="sutil catalogo__accion"
-              onClick={() => borrar.mutate()}
+              onClick={() => setConfirmando(true)}
               disabled={borrar.isPending}
               aria-label={`Borrar ${ej.name}`}
             >
               <Tacho />
             </button>
+            <Confirmar
+              abierto={confirmando}
+              titulo={`Borrar «${ej.name}»`}
+              onCancelar={() => setConfirmando(false)}
+              onConfirmar={() => {
+                setConfirmando(false);
+                borrar.mutate();
+              }}
+            >
+              {ej.prescription_count > 0 ? (
+                <p>
+                  Está en <strong>{ej.prescription_count}</strong>{" "}
+                  {ej.prescription_count === 1 ? "día" : "días"} y se va a sacar de todos.{" "}
+                  {/* La mitad que tranquiliza, y es cierta por la 0016: el
+                      registro del atleta sobrevive con su copia de lo que se le
+                      pidió, aunque el plan ya no exista. */}
+                  Lo que tu atleta ya registró no se pierde.
+                </p>
+              ) : (
+                <p>No está prescrito en ningún día.</p>
+              )}
+            </Confirmar>
           </>
         ) : (
           <small>global</small>
         )}
       </div>
+      <Aviso de={borrar} />
+    </li>
+  );
+}
+
+function FilaDePatron({ patron }: { patron: Patron }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const borrar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
+    mutar("DELETE", `/api/movement-patterns/${patron.code}`),
+  );
+  // La base común se lee. Ofrecer el botón sería prometer un 403.
+  const propio = Boolean(patron.coach_id);
+
+  return (
+    <li className="catalogo__ficha">
+      <div className="fila">
+        <strong>{patron.label_es}</strong>
+        {/* La etiqueta dice qué es. En una lista mezclada, «Bíceps» suelto se
+            lee como un ejercicio. */}
+        <span className="chip chip--patron">patrón</span>
+        <span className="empuja" />
+        {propio ? (
+          <button
+            type="button"
+            className="sutil catalogo__accion"
+            onClick={() => setConfirmando(true)}
+            disabled={borrar.isPending}
+            aria-label={`Borrar el patrón ${patron.label_es}`}
+          >
+            <Tacho />
+          </button>
+        ) : (
+          <small>base común</small>
+        )}
+      </div>
+      <Confirmar
+        abierto={confirmando}
+        titulo={`Borrar el patrón «${patron.label_es}»`}
+        onCancelar={() => setConfirmando(false)}
+        onConfirmar={() => {
+          setConfirmando(false);
+          borrar.mutate();
+        }}
+      >
+        <p>Los ejercicios que lo usen tienen que cambiar de patrón antes.</p>
+      </Confirmar>
       <Aviso de={borrar} />
     </li>
   );
@@ -557,16 +631,7 @@ function Catalogo() {
                 <FilaDeEjercicio key={ej.id} ej={ej} nombreDe={nombreDe} />
               ))}
             {verPatrones &&
-              patronesFiltrados.map((p) => (
-                <li key={p.code} className="catalogo__ficha">
-                  <div className="fila">
-                    <strong>{p.label_es}</strong>
-                    {/* La etiqueta dice qué es. En una lista mezclada, «Bíceps»
-                        suelto se lee como un ejercicio. */}
-                    <span className="chip chip--patron">patrón</span>
-                  </div>
-                </li>
-              ))}
+              patronesFiltrados.map((p) => <FilaDePatron key={p.code} patron={p} />)}
           </ul>
         )}
       </section>

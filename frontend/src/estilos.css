@@ -620,3 +620,26 @@ form { margin: 0 0 var(--paso); }
 @media (max-width: 640px) {
   .catalogo { grid-template-columns: 1fr; }
 }
+
+/* --- Confirmar algo irreversible -------------------------------------------------
+ *
+ * Sobre `<dialog>` nativo: el navegador ya atrapa el foco, cierra con Escape y
+ * deja el fondo inerte. Acá sólo va la forma. */
+.confirmar {
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  background: var(--papel);
+  color: var(--tinta);
+  padding: calc(var(--paso) * 2.5);
+  max-width: 26rem;
+  box-shadow: 0 8px 40px rgb(0 0 0 / 22%);
+}
+.confirmar::backdrop { background: rgb(0 0 0 / 45%); }
+.confirmar h3 { margin-bottom: var(--paso); }
+.confirmar__cuerpo { font-size: 0.9375rem; }
+.confirmar__aviso {
+  color: var(--alerta);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+.confirmar__acciones { justify-content: flex-end; margin-top: calc(var(--paso) * 1.5); }

@@ -207,8 +207,20 @@ export type SeriePrescrita = {
   target_load_kg: number | null;
   target_pct_1rm: number | null;
 };
-export type Ejercicio = { id: string; name: string; pattern_code: string; coach_id: string | null };
-export type Patron = { code: string; label_es: string; is_compound?: boolean };
+export type Ejercicio = {
+  id: string;
+  name: string;
+  pattern_code: string;
+  coach_id: string | null;
+  /** En cuántos días está. Lo necesita la confirmación de borrado, antes de preguntar. */
+  prescription_count: number;
+};
+export type Patron = {
+  code: string;
+  label_es: string;
+  is_compound?: boolean;
+  coach_id?: string | null;
+};
 
 export function useProgramas(atletaId: string) {
   const pedir = useApi("coach");

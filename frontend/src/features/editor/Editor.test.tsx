@@ -258,14 +258,14 @@ describe("las dos pestañas del editor", () => {
 describe("el catálogo", () => {
   const CATALOGO = {
     ejercicios: [
-      { id: "e1", name: "Sentadilla", pattern_code: "rodilla_dominante", coach_id: "c1" },
-      { id: "e2", name: "Peso muerto", pattern_code: "bisagra", coach_id: "c1" },
-      { id: "e3", name: "Press militar", pattern_code: "empuje_vertical", coach_id: null },
+      { id: "e1", name: "Sentadilla", pattern_code: "rodilla_dominante", coach_id: "c1", prescription_count: 12 },
+      { id: "e2", name: "Peso muerto", pattern_code: "bisagra", coach_id: "c1", prescription_count: 0 },
+      { id: "e3", name: "Press militar", pattern_code: "empuje_vertical", coach_id: null, prescription_count: 3 },
     ],
     patrones: [
-      { code: "rodilla_dominante", label_es: "Rodilla dominante" },
-      { code: "bisagra", label_es: "Bisagra de cadera / isquios" },
-      { code: "empuje_vertical", label_es: "Empuje vertical" },
+      { code: "rodilla_dominante", label_es: "Rodilla dominante", coach_id: null },
+      { code: "bisagra", label_es: "Bisagra de cadera / isquios", coach_id: null },
+      { code: "antebrazo", label_es: "Antebrazo", coach_id: "c1" },
     ],
   };
 
@@ -324,7 +324,7 @@ describe("el catálogo", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Patrones" }));
     expect(enElCatalogo().queryByText("Sentadilla")).not.toBeInTheDocument();
-    expect(enElCatalogo().getAllByText("Empuje vertical").length).toBeGreaterThan(0);
+    expect(enElCatalogo().getAllByText("Antebrazo").length).toBeGreaterThan(0);
 
     await userEvent.click(screen.getByRole("button", { name: "Ejercicios" }));
     expect(enElCatalogo().getByText("Sentadilla")).toBeInTheDocument();
@@ -397,5 +397,119 @@ describe("el catálogo", () => {
       ([u, o]) => o?.method === "POST" && String(u).includes("movement-patterns"),
     );
     expect(JSON.parse(String(alta![1]!.body))).toEqual({ label_es: "Antebrazo" });
+  });
+});
+
+describe("borrar del catálogo pide confirmación", () => {
+  const CAT = {
+    ejercicios: [
+      { id: "e1", name: "Sentadilla", pattern_code: "rd", coach_id: "c1", prescription_count: 12 },
+      { id: "e2", name: "Remo", pattern_code: "rd", coach_id: "c1", prescription_count: 0 },
+    ],
+    patrones: [
+      { code: "rd", label_es: "Rodilla dominante", coach_id: null },
+      { code: "antebrazo", label_es: "Antebrazo", coach_id: "c1" },
+    ],
+  };
+
+  function conCat() {
+    const pedido = vi.fn<typeof fetch>((url) => {
+      const u = String(url);
+      if (u.includes("movement-patterns")) {
+        return Promise.resolve(new Response(JSON.stringify(CAT.patrones)));
+      }
+      if (u.includes("/exercises")) {
+        return Promise.resolve(new Response(JSON.stringify(CAT.ejercicios)));
+      }
+      return Promise.resolve(new Response(JSON.stringify(cuerpoPara(u))));
+    });
+    vi.stubGlobal("fetch", pedido);
+    return pedido;
+  }
+
+  async function abrir() {
+    montarEditor();
+    await userEvent.click(await screen.findByRole("tab", { name: "Ejercicios" }));
+    await screen.findByText("Sentadilla");
+  }
+
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("apretar el tacho no borra: abre el diálogo", async () => {
+    const pedido = conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Sentadilla" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(pedido.mock.calls.some(([, o]) => o?.method === "DELETE")).toBe(false);
+  });
+
+  it("dice en cuántos días está y qué sobrevive", async () => {
+    // Una confirmación que no dice qué se lleva puesto no es una decisión, es un
+    // trámite. Y lo que tranquiliza es cierto: el registro del atleta sobrevive
+    // con su copia congelada de lo que se le pidió.
+    conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Sentadilla" }));
+
+    const dialogo = within(screen.getByRole("dialog"));
+    expect(dialogo.getByText(/12/)).toBeInTheDocument();
+    expect(dialogo.getByText(/no se pierde/i)).toBeInTheDocument();
+    expect(dialogo.getByText(/no se puede deshacer/i)).toBeInTheDocument();
+  });
+
+  it("uno sin usar lo dice, en vez de inventar un número", async () => {
+    conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Remo" }));
+    expect(within(screen.getByRole("dialog")).getByText(/ningún día/i)).toBeInTheDocument();
+  });
+
+  it("cancelar no borra", async () => {
+    const pedido = conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Sentadilla" }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(pedido.mock.calls.some(([, o]) => o?.method === "DELETE")).toBe(false);
+  });
+
+  it("confirmar manda el DELETE con la confirmación", async () => {
+    // La API se niega por defecto a sacarlo de los días: un cliente que no
+    // pregunte no arrasa un programa por descuido.
+    const pedido = conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Sentadilla" }));
+    await userEvent.click(screen.getByRole("button", { name: "Borrar" }));
+
+    const baja = pedido.mock.calls.find(([, o]) => o?.method === "DELETE");
+    expect(String(baja![0])).toContain("/api/exercises/e1?confirmar=true");
+  });
+
+  it("el que arranca enfocado es cancelar y no borrar", async () => {
+    // Confirmar tiene que costar un movimiento: con el foco en el botón que
+    // destruye, un Enter de más borra un ejercicio.
+    //
+    // Se afirma sobre el atributo y no sobre `document.activeElement` porque
+    // dónde queda el foco al abrir lo decide `showModal`, y en jsdom eso es un
+    // sustituto nuestro. Afirmarlo ahí sería verificar el sustituto.
+    conCat();
+    await abrir();
+    await userEvent.click(screen.getByRole("button", { name: "Borrar Sentadilla" }));
+
+    // React no renderiza el atributo: enfoca al montar. Por eso el contenido del
+    // diálogo se monta recién al abrirse — con los botones montados de entrada,
+    // el foco se lo llevaba la pantalla al cargar.
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar" }));
+  });
+
+  it("el patrón propio se puede borrar; el de la base común no", async () => {
+    conCat();
+    await abrir();
+    expect(screen.getByRole("button", { name: "Borrar el patrón Antebrazo" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Borrar el patrón Rodilla dominante" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("base común")).toBeInTheDocument();
   });
 });
