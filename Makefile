@@ -145,3 +145,6 @@ check: lint test front-lint front-test  ## Todo lo que corre en CI, más el fron
 seed:  ## Siembra la base de desarrollo con datos reales, nunca inventados
 	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m importer.from_spreadsheet \
 	  ../data/planilla.xlsx --reset
+
+demo:  ## Andamiaje para probar los flujos: atletas en cada estado, un bloque con progresión
+	cd backend && DATABASE_URL="$(DEV_DSN)" $(PY_RUN) -m scripts.demo
