@@ -147,36 +147,38 @@ function NuevaSerie({ prescripcionId }: { prescripcionId: string }) {
 
   return (
     <form
-      className="fila"
+      className="serie-nueva"
       onSubmit={(e) => {
         e.preventDefault();
         crear.mutate();
       }}
     >
-      <input
-        size={3}
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        aria-label="Repeticiones"
-        placeholder="reps"
-      />{" "}
-      <input
-        size={3}
-        value={rir}
-        onChange={(e) => setRir(e.target.value)}
-        aria-label="RIR"
-        placeholder="RIR"
-      />{" "}
-      <input
-        size={4}
-        value={carga}
-        onChange={(e) => setCarga(e.target.value)}
-        aria-label="Carga en kg"
-        placeholder="kg"
-      />{" "}
-      <button type="submit" disabled={crear.isPending}>
-        + serie
+      {/* Las etiquetas van arriba y visibles, no en el `placeholder`. Un
+          `placeholder` desaparece al escribir: después de tipear tres números
+          quedan tres cajas iguales y nadie sabe cuál era el RIR. */}
+      <label className="campo">
+        <span>Reps</span>
+        <input inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+      </label>
+      <label className="campo">
+        <span>RIR</span>
+        <input inputMode="decimal" value={rir} onChange={(e) => setRir(e.target.value)} />
+      </label>
+      <label className="campo">
+        <span>Kg</span>
+        <input
+          inputMode="decimal"
+          value={carga}
+          onChange={(e) => setCarga(e.target.value)}
+          placeholder="libre"
+        />
+      </label>
+      <button type="submit" className="principal" disabled={crear.isPending}>
+        Agregar serie
       </button>
+      {/* Dejar el peso vacío es una prescripción válida y no un olvido, así que
+          se dice acá en vez de que alguien lo descubra. */}
+      <small className="serie-nueva__nota">Sin kg, el peso lo elige el atleta.</small>
       <Aviso de={crear} />
     </form>
   );
@@ -227,32 +229,56 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
               >
                 {(bloque) => (
                   <>
-                    <strong>{bloque.exercise}</strong>{" "}
-                    <button
-                      type="button"
-                      className="sutil"
-                      onClick={() => duplicarEjercicio.mutate(bloque.prescription_id)}
-                    >
-                      duplicar
-                    </button>{" "}
-                    <button
-                      type="button"
-                      className="peligro"
-                      onClick={() => borrarEjercicio.mutate(bloque.prescription_id)}
-                    >
-                      borrar
-                    </button>
+                    <div className="ejercicio__cabecera">
+                      <strong className="ejercicio__nombre">{bloque.exercise}</strong>
+                      <span className="chip">{bloque.pattern}</span>
+                      <span className="empuja" />
+                      {/* Calladas y a la derecha: el nombre del ejercicio es lo
+                          que se lee, y dos botones con peso al lado se lo
+                          comen. */}
+                      <button
+                        type="button"
+                        className="sutil"
+                        onClick={() => duplicarEjercicio.mutate(bloque.prescription_id)}
+                      >
+                        Duplicar
+                      </button>
+                      <button
+                        type="button"
+                        className="sutil ejercicio__borrar"
+                        onClick={() => borrarEjercicio.mutate(bloque.prescription_id)}
+                        aria-label={`Sacar ${bloque.exercise} de este día`}
+                        title="Sacar de este día"
+                      >
+                        <Tacho />
+                      </button>
+                    </div>
                     <ul className="lista">
                       {bloque.sets.map((serie) => (
-                        <li key={serie.id}>
-                          {serie.reps_min ?? "?"}
-                          {serie.reps_max && serie.reps_max !== serie.reps_min
-                            ? `-${serie.reps_max}`
-                            : ""}{" "}
-                          reps · RIR {serie.rir_min ?? "?"} ·{" "}
-                          {serie.target_load_kg != null
-                            ? `${serie.target_load_kg} kg`
-                            : "autorregulada"}{" "}
+                        <li key={serie.id} className="serie">
+                          <span className="serie__numero">{serie.set_number}</span>
+                          <span className="serie__dato">
+                            <strong>
+                              {serie.reps_min ?? "?"}
+                              {serie.reps_max && serie.reps_max !== serie.reps_min
+                                ? `-${serie.reps_max}`
+                                : ""}
+                            </strong>{" "}
+                            reps
+                          </span>
+                          <span className="serie__dato">
+                            RIR <strong>{serie.rir_min ?? "?"}</strong>
+                          </span>
+                          <span className="serie__dato">
+                            {serie.target_load_kg != null ? (
+                              <>
+                                <strong>{serie.target_load_kg}</strong> kg
+                              </>
+                            ) : (
+                              "peso a elección"
+                            )}
+                          </span>
+                          <span className="empuja" />
                           <button
                             type="button"
                             className="sutil"
@@ -726,6 +752,10 @@ function Semana({
   abierta: string | null;
   onAbrir: (id: string | null) => void;
 }) {
+  // La semana que se está editando ocupa el ancho entero. Media pantalla alcanza
+  // para leer qué días tiene, y no para armar un ejercicio con sus series: ahí
+  // todo se parte en tres renglones y deja de entenderse.
+  const editando = sesiones.some((s) => s.id === abierta);
   const usados = new Set(sesiones.map((s) => s.day_number));
   const siguiente = [1, 2, 3, 4, 5, 6, 7].find((d) => !usados.has(d));
 
@@ -737,7 +767,7 @@ function Semana({
   );
 
   return (
-    <section className="semana">
+    <section className={`semana${editando ? " semana--editando" : ""}`}>
       <h4 className="semana__titulo">Semana {numero}</h4>
       {sesiones.length === 0 ? (
         <p className="semana__vacia">Sin sesiones</p>

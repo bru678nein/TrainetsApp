@@ -317,12 +317,20 @@ form { margin: 0 0 var(--paso); }
   margin: 0;
 }
 .ordenable > li {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--paso) * 0.5);
   border: 1px solid var(--borde);
   border-radius: var(--radio-chico);
   padding: calc(var(--paso) * 1.25);
   margin-bottom: var(--paso);
   background: var(--papel-elevado);
 }
+/* `min-width: 0` no es adorno: sin él un nombre largo estira la fila y el resto
+   se desborda en vez de partirse. */
+.ordenable__contenido { flex: 1; min-width: 0; }
+.ordenable > li > .asa,
+.ordenable > li > button { flex: none; margin-top: 2px; }
 .ordenable > li.agarrado { opacity: 0.4; }
 /* La señal de destino es una línea gruesa arriba y no un borde punteado
    alrededor: dice *dónde va a caer*, que es la pregunta, en vez de sólo «acá». */
@@ -450,6 +458,9 @@ form { margin: 0 0 var(--paso); }
   background: var(--papel-elevado);
   min-width: 0;
 }
+/* Ocupa las dos columnas mientras se edita: la rejilla sirve para comparar
+   semanas de un vistazo, no para armar adentro de media pantalla. */
+.semana--editando { grid-column: 1 / -1; }
 .semana__titulo { margin: 0 0 var(--paso); }
 .semana__vacia { color: var(--tinta-tenue); font-size: 0.8125rem; margin: 0; }
 .semana__sesiones { list-style: none; margin: 0; padding: 0; }
@@ -643,3 +654,78 @@ form { margin: 0 0 var(--paso); }
   font-size: 0.875rem;
 }
 .confirmar__acciones { justify-content: flex-end; margin-top: calc(var(--paso) * 1.5); }
+
+/* --- Una serie prescrita, dentro del editor -------------------------------------
+ *
+ * El problema que esto arregla: eran cuatro cajas iguales con el nombre metido
+ * en el `placeholder`. Un `placeholder` desaparece al escribir, así que después
+ * de tipear tres números quedaban tres cajas idénticas y ninguna decía cuál era
+ * el RIR. La etiqueta va arriba y se queda.
+ */
+.campo {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.campo > span {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+.campo > input {
+  width: 4.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.serie-nueva {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  padding: calc(var(--paso) * 1.25);
+  border: 1px dashed var(--borde);
+  border-radius: var(--radio-chico);
+  background: var(--papel-hundido);
+  margin-top: var(--paso);
+}
+.serie-nueva__nota { flex-basis: 100%; }
+
+/* Las series ya prescritas se leen como una frase: «3 · 8-10 reps · RIR 2 · 80
+   kg». El número en negrita y la unidad al lado, para que el ojo agarre la cifra
+   sin leer la línea entera. */
+.serie {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--paso) * 1.5);
+  padding: calc(var(--paso) * 0.5) 0;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--borde);
+}
+.serie:last-child { border-bottom: 0; }
+.serie__numero {
+  min-width: 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tinta-suave);
+  background: var(--papel-hundido);
+  border-radius: var(--radio-chico);
+  padding: 0.05rem 0.3rem;
+}
+.serie__dato { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
+.serie__dato strong { color: var(--tinta); font-size: 1rem; }
+
+/* La cabecera del ejercicio. El nombre es lo que se lee; las acciones van
+   calladas y a la derecha, para no competir con él. */
+.ejercicio__cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  margin-bottom: calc(var(--paso) * 0.5);
+}
+.ejercicio__nombre { font-size: 1rem; }
+.ejercicio__borrar:hover:not(:disabled) { color: var(--alerta); background: var(--alerta-tenue); }

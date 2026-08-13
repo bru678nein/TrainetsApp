@@ -100,7 +100,11 @@ export function ListaOrdenable<T extends Ordenable>({
           >
             ↓
           </button>{" "}
-          {children(elemento, indice)}
+          {/* El contenido va envuelto para que el asa y las flechas queden a su
+              izquierda en la misma fila. Suelto, cada elemento que devuelva
+              `children` sería un hijo más del renglón y lo que venga después del
+              primero se va abajo. */}
+          <div className="ordenable__contenido">{children(elemento, indice)}</div>
         </li>
       ))}
     </ol>
