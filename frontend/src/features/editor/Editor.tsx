@@ -185,7 +185,16 @@ function NuevaSerie({ prescripcionId }: { prescripcionId: string }) {
 function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
   const detalle = useSesion(sesionId, "coach");
   const ejercicios = useEjercicios();
+  const patrones = usePatrones();
   const [elegido, setElegido] = useState("");
+  // El patrón acá **no se guarda**: la prescripción sólo apunta al ejercicio, y
+  // el ejercicio ya trae el suyo. Pedir los dos sería pedir dos veces el mismo
+  // dato y dejar que se contradigan — una sentadilla cargada como empuje
+  // vertical rompe el análisis de volumen sin que nada avise.
+  //
+  // Sirve para encontrar: son cincuenta y nueve ejercicios en un desplegable
+  // plano, y el patrón es la forma en que el entrenador ya los piensa.
+  const [patronFiltro, setPatronFiltro] = useState("");
 
   const agregar = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar(`/api/sessions/${sesionId}/prescriptions`, { exercise_id: elegido }),
@@ -267,20 +276,45 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
       <Consulta consulta={ejercicios} que="el catálogo">
         {(lista) => (
           <form
+            className="fila"
             onSubmit={(e) => {
               e.preventDefault();
               if (elegido) agregar.mutate();
             }}
           >
-            <select value={elegido} onChange={(e) => setElegido(e.target.value)}>
-              <option value="">— elegí un ejercicio —</option>
-              {lista.map((ej) => (
-                <option key={ej.id} value={ej.id}>
-                  {ej.name}
+            <select
+              value={patronFiltro}
+              aria-label="Filtrar por patrón de movimiento"
+              onChange={(e) => {
+                setPatronFiltro(e.target.value);
+                // Lo elegido puede no estar en el patrón nuevo, y un `select`
+                // con un valor que no figura entre sus opciones se dibuja vacío
+                // pero manda el viejo al enviar.
+                setElegido("");
+              }}
+            >
+              <option value="">Todos los patrones</option>
+              {(patrones.data ?? []).map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.label_es}
                 </option>
               ))}
-            </select>{" "}
-            <button type="submit" disabled={!elegido || agregar.isPending}>
+            </select>
+            <select
+              value={elegido}
+              aria-label="Ejercicio"
+              onChange={(e) => setElegido(e.target.value)}
+            >
+              <option value="">— elegí un ejercicio —</option>
+              {lista
+                .filter((ej) => !patronFiltro || ej.pattern_code === patronFiltro)
+                .map((ej) => (
+                  <option key={ej.id} value={ej.id}>
+                    {ej.name}
+                  </option>
+                ))}
+            </select>
+            <button type="submit" className="principal" disabled={!elegido || agregar.isPending}>
               Agregar ejercicio
             </button>
             <Aviso de={agregar} />

@@ -513,3 +513,87 @@ describe("borrar del catálogo pide confirmación", () => {
     expect(screen.getByText("base común")).toBeInTheDocument();
   });
 });
+
+describe("elegir el ejercicio de una sesión", () => {
+  const EJERCICIOS = [
+    { id: "e1", name: "Sentadilla", pattern_code: "rd", coach_id: "c1", prescription_count: 0 },
+    { id: "e2", name: "Prensa", pattern_code: "rd", coach_id: "c1", prescription_count: 0 },
+    { id: "e3", name: "Peso muerto", pattern_code: "bisagra", coach_id: "c1", prescription_count: 0 },
+  ];
+  const PATRONES = [
+    { code: "rd", label_es: "Rodilla dominante", coach_id: null },
+    { code: "bisagra", label_es: "Bisagra de cadera / isquios", coach_id: null },
+  ];
+
+  function conCatalogo() {
+    const pedido = vi.fn<typeof fetch>((url) => {
+      const u = String(url);
+      if (u.includes("movement-patterns")) {
+        return Promise.resolve(new Response(JSON.stringify(PATRONES)));
+      }
+      if (u.includes("/exercises")) return Promise.resolve(new Response(JSON.stringify(EJERCICIOS)));
+      return Promise.resolve(new Response(JSON.stringify(cuerpoPara(u))));
+    });
+    vi.stubGlobal("fetch", pedido);
+    return pedido;
+  }
+
+  async function abrirUnDia() {
+    montarEditor();
+    await userEvent.click((await screen.findAllByRole("button", { name: /Día 1/ }))[0]!);
+    await screen.findByLabelText("Ejercicio");
+  }
+
+  const opcionesDe = (etiqueta: string) =>
+    [...screen.getByLabelText<HTMLSelectElement>(etiqueta).querySelectorAll("option")].map(
+      (o) => o.textContent,
+    );
+
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("sin filtro están todos los ejercicios", async () => {
+    conCatalogo();
+    await abrirUnDia();
+    expect(opcionesDe("Ejercicio")).toEqual([
+      "— elegí un ejercicio —",
+      "Sentadilla",
+      "Prensa",
+      "Peso muerto",
+    ]);
+  });
+
+  it("el patrón acota la lista, no agrega un dato", async () => {
+    // La prescripción sólo apunta al ejercicio, y el ejercicio ya trae su
+    // patrón. Guardarlo dos veces sería dejar que se contradigan: una sentadilla
+    // cargada como empuje vertical rompe el volumen sin que nada avise.
+    conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Filtrar por patrón de movimiento"), "rd");
+
+    expect(opcionesDe("Ejercicio")).toEqual(["— elegí un ejercicio —", "Sentadilla", "Prensa"]);
+  });
+
+  it("cambiar de patrón limpia lo elegido", async () => {
+    // Un `select` cuyo valor no figura entre sus opciones se dibuja vacío y
+    // manda el viejo al enviar: se agregaría un ejercicio que la pantalla ya no
+    // muestra.
+    conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e3");
+    await userEvent.selectOptions(screen.getByLabelText("Filtrar por patrón de movimiento"), "rd");
+
+    expect(screen.getByLabelText<HTMLSelectElement>("Ejercicio").value).toBe("");
+  });
+
+  it("lo que se manda es el ejercicio y nada más", async () => {
+    const pedido = conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    const alta = pedido.mock.calls.find(
+      ([u, o]) => o?.method === "POST" && String(u).includes("/prescriptions"),
+    );
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ exercise_id: "e1" });
+  });
+});
