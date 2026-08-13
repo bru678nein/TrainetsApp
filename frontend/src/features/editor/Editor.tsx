@@ -9,11 +9,12 @@ import {
   usePatrones,
   useProgramas,
   useSesion,
+  type Ejercicio,
   type Mesociclo,
   type Programa,
   type SesionDeLaAgenda,
 } from "../../api/consultas";
-import { Cargando, Consulta, Falla } from "../../components/estados";
+import { Cargando, Consulta, Falla, Vacio } from "../../components/estados";
 import { Mas, Tacho } from "../../components/iconos";
 import { Pestanas } from "../../components/Pestanas";
 import { useNombreDePatron } from "../analytics/patrones";
@@ -293,86 +294,281 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
 
 // --- El catálogo ----------------------------------------------------------------
 
-function Catalogo() {
+type Filtro = "todo" | "ejercicios" | "patrones";
+
+const FILTROS: { id: Filtro; titulo: string }[] = [
+  { id: "todo", titulo: "Todo" },
+  { id: "ejercicios", titulo: "Ejercicios" },
+  { id: "patrones", titulo: "Patrones" },
+];
+
+/** Sin acentos y en minúsculas, para que buscar "pliometria" encuentre "PLIOMETRIA". */
+const plano = (texto: string) =>
+  texto
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+function AgregarEjercicio() {
   const patrones = usePatrones();
-  const ejercicios = useEjercicios();
   const [nombre, setNombre] = useState("");
   const [patron, setPatron] = useState("");
   const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar("/api/exercises", { name: nombre.trim(), pattern_code: patron }),
   );
 
+  return (
+    <section className="tarjeta">
+      <h3>Agregar un ejercicio</h3>
+      <Consulta consulta={patrones} que="los patrones">
+        {(lista) => (
+          <form
+            className="fila"
+            onSubmit={(e) => {
+              e.preventDefault();
+              crear.mutate(undefined, { onSuccess: () => setNombre("") });
+            }}
+          >
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Nombre"
+              aria-label="Nombre del ejercicio"
+              required
+            />
+            <select
+              value={patron}
+              onChange={(e) => setPatron(e.target.value)}
+              aria-label="Patrón de movimiento"
+              required
+            >
+              <option value="">— patrón de movimiento —</option>
+              {lista.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.label_es}
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              className="principal"
+              disabled={!nombre.trim() || !patron || crear.isPending}
+            >
+              Agregar
+            </button>
+          </form>
+        )}
+      </Consulta>
+      <small>El patrón es obligatorio: sin él no hay análisis de volumen.</small>
+      <Aviso de={crear} />
+    </section>
+  );
+}
+
+function AgregarPatron() {
+  const [nombre, setNombre] = useState("");
+  const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
+    enviar("/api/movement-patterns", { label_es: nombre.trim() }),
+  );
+
+  return (
+    <section className="tarjeta">
+      <h3>Agregar un patrón de movimiento</h3>
+      <form
+        className="fila"
+        onSubmit={(e) => {
+          e.preventDefault();
+          crear.mutate(undefined, { onSuccess: () => setNombre("") });
+        }}
+      >
+        <input
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          placeholder="Aducción de cadera"
+          aria-label="Nombre del patrón"
+          required
+        />
+        <button type="submit" disabled={!nombre.trim() || crear.isPending}>
+          Agregar
+        </button>
+      </form>
+      {/* Conviene decirlo antes y no descubrirlo después: la tabla no tiene
+          dueño, y que sea compartida es lo que permite comparar volumen por
+          patrón entre atletas. */}
+      <small>Queda disponible para todos los entrenadores. El código sale del nombre.</small>
+      <Aviso de={crear} />
+    </section>
+  );
+}
+
+function FilaDeEjercicio({ ej, nombreDe }: { ej: Ejercicio; nombreDe: (c: string) => string }) {
+  const patrones = usePatrones();
+  const [editando, setEditando] = useState(false);
+  const [nombre, setNombre] = useState(ej.name);
+  const [patron, setPatron] = useState(ej.pattern_code);
+
+  const guardar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
+    mutar("PATCH", `/api/exercises/${ej.id}`, { name: nombre.trim(), pattern_code: patron }),
+  );
+  const borrar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
+    mutar("DELETE", `/api/exercises/${ej.id}`),
+  );
+
+  // El catálogo global se lee y no se toca: es de todos y se modifica con una
+  // migración. Ofrecer los botones sería prometer algo que el servidor rechaza.
+  const propio = ej.coach_id !== null;
+
+  if (editando) {
+    return (
+      <li className="catalogo__ficha">
+        <form
+          className="fila"
+          onSubmit={(e) => {
+            e.preventDefault();
+            guardar.mutate(undefined, { onSuccess: () => setEditando(false) });
+          }}
+        >
+          <input
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            aria-label={`Nombre de ${ej.name}`}
+            required
+          />
+          <select
+            value={patron}
+            onChange={(e) => setPatron(e.target.value)}
+            aria-label={`Patrón de ${ej.name}`}
+          >
+            {(patrones.data ?? []).map((p) => (
+              <option key={p.code} value={p.code}>
+                {p.label_es}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="principal" disabled={guardar.isPending}>
+            Guardar
+          </button>
+          <button type="button" className="sutil" onClick={() => setEditando(false)}>
+            Cancelar
+          </button>
+        </form>
+        <Aviso de={guardar} />
+      </li>
+    );
+  }
+
+  return (
+    <li className="catalogo__ficha">
+      <div className="fila">
+        <strong>{ej.name}</strong>
+        <span className="chip">{nombreDe(ej.pattern_code)}</span>
+        <span className="empuja" />
+        {propio ? (
+          <>
+            <button
+              type="button"
+              className="sutil catalogo__accion"
+              onClick={() => setEditando(true)}
+              aria-label={`Editar ${ej.name}`}
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              className="sutil catalogo__accion"
+              onClick={() => borrar.mutate()}
+              disabled={borrar.isPending}
+              aria-label={`Borrar ${ej.name}`}
+            >
+              <Tacho />
+            </button>
+          </>
+        ) : (
+          <small>global</small>
+        )}
+      </div>
+      <Aviso de={borrar} />
+    </li>
+  );
+}
+
+function Catalogo() {
+  const patrones = usePatrones();
+  const ejercicios = useEjercicios();
   const nombreDe = useNombreDePatron();
+  const [filtro, setFiltro] = useState<Filtro>("todo");
+  const [busqueda, setBusqueda] = useState("");
+
+  const coincide = (texto: string) => plano(texto).includes(plano(busqueda.trim()));
+  const ejercisFiltrados = (ejercicios.data ?? []).filter((e) => coincide(e.name));
+  const patronesFiltrados = (patrones.data ?? []).filter((p) => coincide(p.label_es));
+
+  const verEjercicios = filtro !== "patrones";
+  const verPatrones = filtro !== "ejercicios";
+  const vacio =
+    (verEjercicios ? ejercisFiltrados.length : 0) + (verPatrones ? patronesFiltrados.length : 0) ===
+    0;
 
   return (
     <>
-      <section className="tarjeta">
-        <h3>Crear un ejercicio</h3>
-        <Consulta consulta={patrones} que="los patrones">
-          {(lista) => (
-            <form
-              className="fila"
-              onSubmit={(e) => {
-                e.preventDefault();
-                crear.mutate(undefined, { onSuccess: () => setNombre("") });
-              }}
-            >
-              <input
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Nombre"
-                aria-label="Nombre del ejercicio"
-                required
-              />
-              <select
-                value={patron}
-                onChange={(e) => setPatron(e.target.value)}
-                aria-label="Patrón de movimiento"
-                required
-              >
-                <option value="">— patrón de movimiento —</option>
-                {lista.map((p) => (
-                  <option key={p.code} value={p.code}>
-                    {p.label_es}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="submit"
-                className="principal"
-                disabled={!nombre.trim() || !patron || crear.isPending}
-              >
-                Crear
-              </button>
-            </form>
-          )}
-        </Consulta>
-        <small>El patrón es obligatorio: sin él no hay análisis de volumen.</small>
-        <Aviso de={crear} />
-      </section>
+      <AgregarEjercicio />
+      <AgregarPatron />
 
       <section className="tarjeta">
         <h3>El catálogo</h3>
-        <Consulta
-          consulta={ejercicios}
-          que="el catálogo"
-          vacio={{
-            cuando: (lista) => lista.length === 0,
-            motivo: "No hay ejercicios todavía. Creá el primero acá arriba.",
-          }}
-        >
-          {(lista) => (
-            <ul className="lista">
-              {lista.map((ej) => (
-                <li key={ej.id}>
-                  {ej.name}
-                  <span className="chip">{nombreDe(ej.pattern_code)}</span>
-                  {ej.coach_id === null ? <small className="empuja">global</small> : null}
+        <div className="fila catalogo__controles">
+          <input
+            type="search"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar…"
+            aria-label="Buscar en el catálogo"
+          />
+          <div className="fila" role="group" aria-label="Filtrar el catálogo">
+            {FILTROS.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={filtro === f.id}
+                className={filtro === f.id ? "principal" : undefined}
+                onClick={() => setFiltro(f.id)}
+              >
+                {f.titulo}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {vacio ? (
+          <Vacio
+            motivo={
+              busqueda.trim()
+                ? `No hay nada que coincida con «${busqueda.trim()}».`
+                : "El catálogo está vacío. Agregá el primer ejercicio acá arriba."
+            }
+          />
+        ) : (
+          // Con nombre: en la pestaña hay dos formularios cuyos desplegables
+          // repiten los mismos textos, y sin él la lista no se puede nombrar
+          // ni desde un lector de pantalla ni desde un test.
+          <ul className="catalogo" aria-label="Catálogo">
+            {verEjercicios &&
+              ejercisFiltrados.map((ej) => (
+                <FilaDeEjercicio key={ej.id} ej={ej} nombreDe={nombreDe} />
+              ))}
+            {verPatrones &&
+              patronesFiltrados.map((p) => (
+                <li key={p.code} className="catalogo__ficha">
+                  <div className="fila">
+                    <strong>{p.label_es}</strong>
+                    {/* La etiqueta dice qué es. En una lista mezclada, «Bíceps»
+                        suelto se lee como un ejercicio. */}
+                    <span className="chip chip--patron">patrón</span>
+                  </div>
                 </li>
               ))}
-            </ul>
-          )}
-        </Consulta>
+          </ul>
+        )}
       </section>
     </>
   );

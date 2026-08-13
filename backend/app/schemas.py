@@ -474,3 +474,23 @@ class DuplicarSemanaIn(BaseModel):
 class DuplicarSesionIn(BaseModel):
     to_week: int = Field(ge=1)
     to_day: int = Field(ge=1, le=7)
+
+
+class ExercisePatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    pattern_code: str | None = Field(default=None, min_length=1, max_length=64)
+    is_competition_lift: bool | None = None
+    video_url: str | None = Field(default=None, max_length=500)
+    cues: str | None = Field(default=None, max_length=500)
+
+
+class PatternIn(BaseModel):
+    """Un patrón nuevo. El código se deriva del nombre, no se pide.
+
+    Pedirlo sería pedir dos veces lo mismo y dejar que se contradigan: un
+    «Antebrazo» con código `bíceps` es un dato roto que nadie mira hasta que el
+    análisis de volumen sale mal.
+    """
+
+    label_es: str = Field(min_length=1, max_length=80)
+    is_compound: bool = False

@@ -51,6 +51,10 @@ ESCRITURAS = {
     "/api/mesocycles/{mesocycle_id}/duplicate-week": False,
     "/api/sessions/{session_id}/duplicate": False,
     "/api/prescriptions/{prescription_id}/duplicate": False,
+    # El catálogo es del entrenador, no del vínculo: editarlo o borrarlo con un
+    # atleta archivado no toca nada de ese atleta.
+    "/api/exercises/{exercise_id}": True,
+    "/api/movement-patterns": True,
 }
 
 

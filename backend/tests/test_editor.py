@@ -731,3 +731,97 @@ class TestLoQueElAtletaHizoNoSeToca:
         )
         detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
         assert detalle["blocks"][0]["sets"][0]["reps_min"] == 12
+
+
+class TestElCatalogoSeMantiene:
+    """Editar, borrar y ampliar el vocabulario de patrones."""
+
+    def test_editar_un_ejercicio_propio(self, cliente, coach, ejercicio) -> None:
+        r = coach(cliente, "PATCH", f"/api/exercises/{ejercicio}", json={"name": "Otro nombre"})
+        assert r.status_code == 200
+        assert r.json()["name"] == "Otro nombre"
+
+    def test_el_global_no_se_edita(self, cliente, coach, db, escenario) -> None:
+        """Lo ve todo el mundo y no es de nadie.
+
+        La policy ya lo impide; el endpoint lo dice con un motivo en vez de dejar
+        que suba un rechazo sin sujeto.
+        """
+        import sqlalchemy as sa
+
+        global_id = db.execute(
+            sa.text(
+                "INSERT INTO exercise (coach_id, pattern_code, name) "
+                "SELECT NULL, code, 'Compartido' FROM movement_pattern LIMIT 1 RETURNING id"
+            )
+        ).scalar_one()
+        db.flush()
+        r = coach(cliente, "PATCH", f"/api/exercises/{global_id}", json={"name": "Robado"})
+        assert r.status_code == 403
+        assert "global" in r.json()["detail"]
+
+    def test_borrar_uno_sin_usar(self, cliente, coach, ejercicio) -> None:
+        assert coach(cliente, "DELETE", f"/api/exercises/{ejercicio}").status_code == 204
+
+    def test_uno_prescrito_no_se_borra_y_dice_dónde_está(
+        self, cliente, coach, programa, ejercicio
+    ) -> None:
+        """Borrarlo en cascada sería borrar el programa de alguien por limpiar un
+        catálogo. La clave foránea ya lo impide, pero con un 500 que no explica."""
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 7, "label": "M", "week_count": 1},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        )
+
+        r = coach(cliente, "DELETE", f"/api/exercises/{ejercicio}")
+        assert r.status_code == 409
+        assert "1 lugar" in r.json()["detail"]
+
+    def test_crear_un_patron_deriva_el_codigo_del_nombre(self, cliente, coach) -> None:
+        """Pedir los dos es pedir dos veces lo mismo y dejar que se contradigan."""
+        r = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "Aducción de cadera"}
+        )
+        assert r.status_code == 201
+        assert r.json()["code"] == "aduccion_de_cadera"
+        assert r.json()["label_es"] == "Aducción de cadera"
+
+    def test_un_patron_repetido_es_409(self, cliente, coach) -> None:
+        coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "Rotación de tronco"})
+        r = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "rotación de tronco"}
+        )
+        assert r.status_code == 409
+
+    def test_un_nombre_sin_letras_ni_numeros_es_rechazado(self, cliente, coach) -> None:
+        """Sin código utilizable no hay fila: «///» daría una clave vacía."""
+        r = coach(cliente, "POST", "/api/movement-patterns", json={"label_es": "///"})
+        assert r.status_code == 422
+
+    def test_el_patron_nuevo_sirve_para_crear_un_ejercicio(self, cliente, coach) -> None:
+        """Es lo que hace que ampliarlo valga la pena: deja de ser obligatorio
+        elegir uno de los once que vinieron con la planilla."""
+        codigo = coach(
+            cliente, "POST", "/api/movement-patterns", json={"label_es": "Antebrazo"}
+        ).json()["code"]
+        r = coach(
+            cliente,
+            "POST",
+            "/api/exercises",
+            json={"name": "Curl de muñeca", "pattern_code": codigo},
+        )
+        assert r.status_code == 201

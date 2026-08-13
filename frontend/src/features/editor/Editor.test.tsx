@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -208,7 +208,7 @@ describe("las dos pestañas del editor", () => {
     responder();
     montarEditor();
     expect(await screen.findByRole("heading", { name: "Semana 1" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Crear un ejercicio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Agregar un ejercicio" })).not.toBeInTheDocument();
   });
 
   it("el catálogo vive en su propia pestaña", async () => {
@@ -219,7 +219,7 @@ describe("las dos pestañas del editor", () => {
     montarEditor();
     await userEvent.click(await screen.findByRole("tab", { name: "Ejercicios" }));
 
-    expect(screen.getByRole("heading", { name: "Crear un ejercicio" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Agregar un ejercicio" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Semana 1" })).not.toBeInTheDocument();
   });
 
@@ -252,5 +252,150 @@ describe("las dos pestañas del editor", () => {
       "Rodilla dominante",
       "PLIOMETRIA",
     ]);
+  });
+});
+
+describe("el catálogo", () => {
+  const CATALOGO = {
+    ejercicios: [
+      { id: "e1", name: "Sentadilla", pattern_code: "rodilla_dominante", coach_id: "c1" },
+      { id: "e2", name: "Peso muerto", pattern_code: "bisagra", coach_id: "c1" },
+      { id: "e3", name: "Press militar", pattern_code: "empuje_vertical", coach_id: null },
+    ],
+    patrones: [
+      { code: "rodilla_dominante", label_es: "Rodilla dominante" },
+      { code: "bisagra", label_es: "Bisagra de cadera / isquios" },
+      { code: "empuje_vertical", label_es: "Empuje vertical" },
+    ],
+  };
+
+  function conCatalogo() {
+    const pedido = vi.fn<typeof fetch>((url) => {
+      const u = String(url);
+      if (u.includes("movement-patterns")) {
+        return Promise.resolve(new Response(JSON.stringify(CATALOGO.patrones)));
+      }
+      if (u.includes("/exercises")) {
+        return Promise.resolve(new Response(JSON.stringify(CATALOGO.ejercicios)));
+      }
+      return Promise.resolve(new Response(JSON.stringify(cuerpoPara(u))));
+    });
+    vi.stubGlobal("fetch", pedido);
+    return pedido;
+  }
+
+  async function abrirCatalogo() {
+    montarEditor();
+    await userEvent.click(await screen.findByRole("tab", { name: "Ejercicios" }));
+  }
+
+  beforeEach(() => vi.unstubAllGlobals());
+
+  /** Acotado a la lista: los desplegables de los formularios repiten los textos. */
+  const enElCatalogo = () => within(screen.getByRole("list", { name: "Catálogo" }));
+
+  it("muestra los ejercicios y los patrones juntos", async () => {
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    // «Rodilla dominante» aparece dos veces adentro del catálogo y está bien:
+    // como etiqueta de la sentadilla y como fila propia. Lo que se afirma es que
+    // están las dos cosas, no cuántas veces se lee el texto.
+    const filas = enElCatalogo()
+      .getAllByRole("listitem")
+      .map((f) => f.textContent ?? "");
+    expect(filas.some((f) => f.includes("Sentadilla"))).toBe(true);
+    expect(filas.some((f) => f.includes("Rodilla dominante") && f.includes("patrón"))).toBe(true);
+  });
+
+  it("los patrones llevan su etiqueta", async () => {
+    // En una lista mezclada, «Bíceps» suelto se lee como un ejercicio.
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+    expect(screen.getAllByText("patrón")).toHaveLength(3);
+  });
+
+  it("el filtro deja ver sólo una de las dos cosas", async () => {
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    await userEvent.click(screen.getByRole("button", { name: "Patrones" }));
+    expect(enElCatalogo().queryByText("Sentadilla")).not.toBeInTheDocument();
+    expect(enElCatalogo().getAllByText("Empuje vertical").length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Ejercicios" }));
+    expect(enElCatalogo().getByText("Sentadilla")).toBeInTheDocument();
+    expect(enElCatalogo().queryByText("patrón")).not.toBeInTheDocument();
+  });
+
+  it("el buscador ignora acentos y mayúsculas", async () => {
+    // Buscar "presion" tiene que encontrar "Presión": si hay que escribir el
+    // acento, el buscador sirve sólo cuando ya sabés qué escribir.
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    await userEvent.type(screen.getByLabelText("Buscar en el catálogo"), "PESO");
+    expect(screen.getByText("Peso muerto")).toBeInTheDocument();
+    expect(screen.queryByText("Sentadilla")).not.toBeInTheDocument();
+  });
+
+  it("una búsqueda sin resultados lo dice con lo que se buscó", async () => {
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+    await userEvent.type(screen.getByLabelText("Buscar en el catálogo"), "zancada");
+    expect(screen.getByText(/No hay nada que coincida con «zancada»/)).toBeInTheDocument();
+  });
+
+  it("los propios se pueden editar y borrar; el global no", async () => {
+    // El catálogo compartido se modifica con una migración, no desde la
+    // aplicación. Ofrecer los botones sería prometer algo que el servidor
+    // rechaza con 403.
+    conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    expect(screen.getByRole("button", { name: "Editar Sentadilla" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Borrar Sentadilla" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Editar Press militar" })).not.toBeInTheDocument();
+    expect(screen.getByText("global")).toBeInTheDocument();
+  });
+
+  it("editar manda PATCH con lo que quedó", async () => {
+    const pedido = conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    await userEvent.click(screen.getByRole("button", { name: "Editar Sentadilla" }));
+    const campo = screen.getByLabelText("Nombre de Sentadilla");
+    await userEvent.clear(campo);
+    await userEvent.type(campo, "Sentadilla frontal");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar" }));
+
+    const patch = pedido.mock.calls.find(([, o]) => o?.method === "PATCH");
+    expect(patch).toBeDefined();
+    expect(JSON.parse(String(patch![1]!.body)).name).toBe("Sentadilla frontal");
+  });
+
+  it("agregar un patrón manda sólo el nombre", async () => {
+    // El código lo deriva el servidor. Pedir los dos es pedir dos veces lo mismo
+    // y dejar que se contradigan.
+    const pedido = conCatalogo();
+    await abrirCatalogo();
+    await screen.findByText("Sentadilla");
+
+    await userEvent.type(screen.getByLabelText("Nombre del patrón"), "Antebrazo");
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Agregar" }).at(-1)!,
+    );
+
+    const alta = pedido.mock.calls.find(
+      ([u, o]) => o?.method === "POST" && String(u).includes("movement-patterns"),
+    );
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ label_es: "Antebrazo" });
   });
 });

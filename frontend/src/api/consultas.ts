@@ -208,7 +208,7 @@ export type SeriePrescrita = {
   target_pct_1rm: number | null;
 };
 export type Ejercicio = { id: string; name: string; pattern_code: string; coach_id: string | null };
-export type Patron = { code: string; label_es: string };
+export type Patron = { code: string; label_es: string; is_compound?: boolean };
 
 export function useProgramas(atletaId: string) {
   const pedir = useApi("coach");

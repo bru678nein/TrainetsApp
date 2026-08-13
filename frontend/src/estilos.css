@@ -573,3 +573,50 @@ form { margin: 0 0 var(--paso); }
    necesita anillo propio: el borde de la pestaña ya dice dónde se está. */
 [role="tabpanel"]:focus { outline: none; }
 [role="tabpanel"]:focus-visible { outline: 2px solid var(--hecho); outline-offset: 4px; }
+
+/* --- El catálogo ----------------------------------------------------------------
+ *
+ * Dos columnas: son sesenta ejercicios y once patrones, y en una sola columna
+ * buscar algo es hacer scroll. En pantalla chica no hay ancho para dos. */
+.catalogo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--paso);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.catalogo__ficha {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  padding: calc(var(--paso) * 1.25);
+  background: var(--papel-elevado);
+  min-width: 0;
+}
+.catalogo__controles { margin-bottom: calc(var(--paso) * 1.5); }
+.catalogo__controles input[type="search"] { flex: 1; min-width: 12rem; }
+
+/* Las acciones aparecen al pasar el mouse **y al llegar con el teclado**, igual
+   que el borrar de los días y por el mismo motivo: un control que sólo existe
+   bajo el puntero no existe para quien no lo tiene. */
+.catalogo__accion { opacity: 0; transition: opacity 120ms ease; }
+.catalogo__ficha:hover .catalogo__accion,
+.catalogo__ficha:focus-within .catalogo__accion { opacity: 1; }
+
+/* El patrón se distingue del ejercicio por la etiqueta y no por el color: en una
+   lista mezclada, «Bíceps» suelto se lee como un ejercicio. */
+.chip--patron {
+  color: var(--aviso);
+  border-color: var(--aviso);
+  background: transparent;
+}
+
+@media (hover: none) {
+  .catalogo__accion { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalogo__accion { transition: none; }
+}
+@media (max-width: 640px) {
+  .catalogo { grid-template-columns: 1fr; }
+}

@@ -34,6 +34,7 @@ PARAMETROS = {
     "program_id",
     "mesocycle_id",
     "prescription_id",
+    "exercise_id",
 }
 
 CUERPOS: dict[str, dict[str, object]] = {
@@ -54,6 +55,7 @@ CUERPOS: dict[str, dict[str, object]] = {
     "/api/prescribed-sets/{set_id}": {"reps_min": 5},
     "/api/mesocycles/{mesocycle_id}/duplicate-week": {"from_week": 1, "to_week": 2},
     "/api/sessions/{session_id}/duplicate": {"to_week": 2, "to_day": 1},
+    "/api/exercises/{exercise_id}": {"name": "otro nombre"},
 }
 
 # Routes that take no resource identifier, so "someone else's id" does not apply
@@ -134,6 +136,9 @@ def recursos_de_a(client, seeded) -> dict[str, str]:
         "program_id": programas[0]["id"],
         "mesocycle_id": mesociclos[0]["id"],
         "prescription_id": detalle["blocks"][0]["prescription_id"],
+        "exercise_id": str(
+            next(e["id"] for e in client.get("/api/exercises").json() if e["coach_id"])
+        ),
     }
 
 

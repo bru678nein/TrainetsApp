@@ -50,10 +50,12 @@ from app.schemas import (
     DuplicarSesionIn,
     ExerciseIn,
     ExerciseOut,
+    ExercisePatch,
     MesocycleIn,
     MesocycleOut,
     MesocyclePatch,
     OrderIn,
+    PatternIn,
     PatternOut,
     PrescribedSetIn,
     PrescribedSetOut,
@@ -728,3 +730,114 @@ def duplicar_prescripcion(
     )
     db.commit()
     return copia
+
+
+@editor.patch("/exercises/{exercise_id}", response_model=ExerciseOut)
+def editar_ejercicio(
+    exercise_id: uuid.UUID,
+    payload: ExercisePatch,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> Exercise:
+    """Corregir un ejercicio propio.
+
+    Uno del catálogo global contesta 404 y no 403, y eso no es esconder el
+    motivo: las policies lo dejan fuera del alcance de esta escritura, así que
+    para esta operación la fila no existe. Es la misma respuesta que da el
+    ejercicio de otro entrenador, que es exactamente lo que se quiere.
+    """
+    db = _solo_entrenador(ctx)
+    ejercicio = _o_404(db, Exercise, exercise_id, "ejercicio")
+    if ejercicio.coach_id is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "el catálogo global se lee, no se edita: duplicá el ejercicio y editá tu copia",
+        )
+    if payload.pattern_code is not None and db.get(MovementPattern, payload.pattern_code) is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"el patrón de movimiento '{payload.pattern_code}' no existe",
+        )
+    _aplicar(ejercicio, payload.model_dump())
+    db.commit()
+    return ejercicio
+
+
+@editor.delete("/exercises/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
+def borrar_ejercicio(
+    exercise_id: uuid.UUID, ctx: TenantContext = Depends(require_tenant_context)
+) -> None:
+    """Un ejercicio que alguien prescribió no se borra, y se dice por qué.
+
+    La clave foránea ya lo impide, pero lo hace con un error de integridad que
+    sube como 500 y no explica nada. Contarlo acá convierte "algo se rompió" en
+    "está en uso en 12 prescripciones", que es información con la que se puede
+    decidir.
+
+    Y no se borra en cascada a propósito: llevarse las prescripciones sería
+    borrar el programa de alguien por limpiar un catálogo.
+    """
+    db = _solo_entrenador(ctx)
+    ejercicio = _o_404(db, Exercise, exercise_id, "ejercicio")
+    if ejercicio.coach_id is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "el catálogo global se lee, no se borra")
+    en_uso = db.scalar(
+        select(func.count())
+        .select_from(Prescription)
+        .where(Prescription.exercise_id == ejercicio.id)
+    )
+    if en_uso:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"está prescrito en {en_uso} lugar(es): sacalo de las rutinas antes de borrarlo",
+        )
+    db.delete(ejercicio)
+    db.commit()
+
+
+@editor.post("/movement-patterns", response_model=PatternOut, status_code=status.HTTP_201_CREATED)
+def crear_patron(
+    payload: PatternIn, ctx: TenantContext = Depends(require_tenant_context)
+) -> MovementPattern:
+    """Un patrón de movimiento nuevo.
+
+    **Queda disponible para todos los entrenadores**, porque la tabla no tiene
+    dueño: es un catálogo compartido y esa es la razón por la que el volumen por
+    patrón se puede comparar entre atletas. Conviene que esté dicho — agregar uno
+    no es una preferencia personal, es ampliar un vocabulario común.
+
+    El código se deriva del nombre en vez de pedirse. Pedir los dos es pedir dos
+    veces lo mismo y dejar que se contradigan.
+    """
+    db = _solo_entrenador(ctx)
+    codigo = _codigo_de(payload.label_es)
+    if not codigo:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "el nombre no deja ningún código utilizable: usá letras o números",
+        )
+    if db.get(MovementPattern, codigo) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"el patrón '{codigo}' ya existe")
+
+    ultimo = db.scalar(select(func.max(MovementPattern.sort_order))) or 0
+    patron = MovementPattern(
+        code=codigo,
+        label_es=payload.label_es.strip(),
+        is_compound=payload.is_compound,
+        sort_order=ultimo + 1,
+    )
+    db.add(patron)
+    db.commit()
+    return patron
+
+
+def _codigo_de(nombre: str) -> str:
+    """El nombre, sin acentos ni signos, en minúsculas y con guiones bajos.
+
+    Sigue la forma de los once que ya existen —`bisagra_de_cadera_isquios`— para
+    que un catálogo mezclado no se lea como dos.
+    """
+    import re
+    import unicodedata
+
+    plano = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode()
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", plano.lower())).strip("_")[:64]
