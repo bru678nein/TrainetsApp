@@ -401,39 +401,32 @@ form { margin: 0 0 var(--paso); }
   padding: calc(var(--paso) * 3);
 }
 
-/* Elegir entre pocos números: semanas de un bloque, días de una semana.
-   Un campo numérico ahí obliga a apuntar a una flecha de doce píxeles y contar
-   clics; el rango es un gesto. Lo que hay que agregarle es el valor y los
-   extremos, que solo no muestra ninguno de los dos. */
-.deslizador {
+/* Elegir un número de una lista corta: semanas de un bloque, días de una semana.
+   El control es un `<select>` nativo —en el celular abre la rueda del sistema— y
+   lo único que se le agrega es la cápsula, para que la etiqueta y el valor se
+   lean como una sola cosa y no como dos campos sueltos. */
+.selector {
   display: inline-flex;
   align-items: center;
-  gap: calc(var(--paso) * 0.75);
-  padding: 0.25rem 0.6rem;
+  gap: calc(var(--paso) * 0.5);
+  padding: 0.15rem 0.15rem 0.15rem 0.6rem;
   border: 1px solid var(--borde);
   border-radius: 999px;
   background: var(--papel-elevado);
 }
-.deslizador__etiqueta { color: var(--tinta-suave); font-size: 0.8125rem; }
-.deslizador__extremo { color: var(--tinta-tenue); font-size: 0.6875rem; font-variant-numeric: tabular-nums; }
-.deslizador__valor {
-  min-width: 1.5rem;
-  text-align: center;
+.selector__etiqueta { color: var(--tinta-suave); font-size: 0.8125rem; }
+.selector__valor { font-weight: 650; font-variant-numeric: tabular-nums; }
+.selector select {
+  border-color: transparent;
+  background: transparent;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.35rem;
 }
-.deslizador input[type="range"] {
-  width: 7rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  accent-color: var(--hecho);
-}
-.deslizador--fijo { margin: 0; }
+.selector--fijo { margin: 0; display: inline-flex; gap: calc(var(--paso) * 0.5); }
 
 @media (max-width: 640px) {
-  /* El pulgar necesita más recorrido que el mouse, y en el celular sobra ancho
-     porque el control ocupa toda la fila. */
-  .deslizador { display: flex; }
-  .deslizador input[type="range"] { flex: 1; height: 32px; }
+  /* 44px de alto: el mismo mínimo que la pantalla de entrenar, por el mismo
+     motivo — un dedo que apunta sin mirar. */
+  .selector select { min-height: 44px; }
 }

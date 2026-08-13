@@ -13,7 +13,7 @@ import {
   type Programa,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla } from "../../components/estados";
-import { Deslizador } from "../../components/Deslizador";
+import { Selector } from "../../components/Selector";
 import { ListaOrdenable } from "../../components/ListaOrdenable";
 import { useAgenda } from "../../api/consultas";
 
@@ -76,7 +76,7 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
       <label>
         Nombre <input value={label} onChange={(e) => setLabel(e.target.value)} required />
       </label>{" "}
-      <Deslizador etiqueta="Semanas" valor={semanas} onCambio={setSemanas} max={16} />
+      <Selector etiqueta="Semanas" valor={semanas} onCambio={setSemanas} max={16} />
       <label title="Cuánto se mueve el RIR en cada semana, respecto de la primera">
         Progresión de RIR{" "}
         <input value={progresion} onChange={(e) => setProgresion(e.target.value)} />
@@ -99,8 +99,8 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
   return (
     <div className="fila">
       <strong>Duplicar semana</strong>
-      <Deslizador etiqueta="De la" valor={desde} onCambio={setDesde} max={meso.week_count} />
-      <Deslizador etiqueta="a la" valor={hasta} onCambio={setHasta} max={meso.week_count} />
+      <Selector etiqueta="De la" valor={desde} onCambio={setDesde} max={meso.week_count} />
+      <Selector etiqueta="a la" valor={hasta} onCambio={setHasta} max={meso.week_count} />
       <button
         type="button"
         className="principal"
@@ -133,13 +133,13 @@ function NuevaSesion({ meso }: { meso: Mesociclo }) {
         crear.mutate();
       }}
     >
-      <Deslizador
+      <Selector
         etiqueta="Semana"
         valor={Math.min(semana, meso.week_count)}
         onCambio={setSemana}
         max={meso.week_count}
       />
-      <Deslizador etiqueta="Día" valor={dia} onCambio={setDia} max={7} />
+      <Selector etiqueta="Día" valor={dia} onCambio={setDia} max={7} />
       <button type="submit" disabled={crear.isPending}>
         Agregar sesión
       </button>
