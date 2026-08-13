@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useRol } from "../lib/Rol";
 import { useApi, useEnviar, useMutar } from "./useApi";
 
 export type Atleta = {
@@ -18,13 +19,21 @@ export type Atleta = {
  * either rule in the browser creates a second copy that drifts, and the copy
  * that drifts is always the one nobody remembers writing.
  */
-export function useAtletas(rol?: "coach" | "athlete") {
+export function useAtletas(forzado?: "coach" | "athlete") {
+  const { rol: activo } = useRol();
+  // El rol **efectivo**, no el parámetro. La primera versión de esto miraba el
+  // argumento: llamada sin él, la clave quedaba `["atletas", undefined]` para los
+  // dos roles y TanStack Query servía al atleta la respuesta cacheada del
+  // entrenador. Cambiar de rol no cambiaba nada de lo que se veía.
+  const rol = forzado ?? activo;
   const pedir = useApi(rol);
   // El entrenador pide también los cerrados: un vínculo pausado que no aparece
   // en ninguna lista queda sin forma de reanudarse. El atleta pide los suyos, y
   // los suyos son los que son.
   const ruta = rol === "athlete" ? "/api/athletes" : "/api/athletes?incluir_cerrados=true";
   return useQuery({
+    // El rol es parte de la identidad de la consulta y no un detalle de cómo se
+    // pide: la misma ruta contesta cosas distintas según quién pregunte.
     queryKey: ["atletas", rol],
     queryFn: ({ signal }) => pedir(ruta, signal) as Promise<Atleta[]>,
   });

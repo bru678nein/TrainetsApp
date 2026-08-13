@@ -1,8 +1,8 @@
 import { Link, Route, Routes } from "react-router-dom";
 
-import { ListadoDeAtletas } from "./features/atletas/ListadoDeAtletas";
 import { Editor } from "./features/editor/Editor";
 import { MisSesiones, SesionDelDia } from "./features/entrenar/Entrenar";
+import { Inicio } from "./features/Inicio";
 import { PanelDelAtleta } from "./features/analytics/PanelDelAtleta";
 import { Aceptar } from "./features/invitaciones/Aceptar";
 
@@ -17,7 +17,7 @@ import { Aceptar } from "./features/invitaciones/Aceptar";
 export function Rutas() {
   return (
     <Routes>
-      <Route path="/" element={<ListadoDeAtletas />} />
+      <Route path="/" element={<Inicio />} />
       <Route path="/atletas/:atletaId" element={<PanelDelAtleta />} />
       <Route path="/atletas/:atletaId/programa" element={<Editor />} />
       <Route path="/entrenar" element={<MisSesiones />} />
