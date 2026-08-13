@@ -4,7 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { montar } from "../../lib/pruebas";
-import { Editor } from "./Editor";
+import { PanelDelAtleta } from "../atletas/PanelDelAtleta";
 
 vi.mock("@clerk/clerk-react", () => ({
   useAuth: () => ({ getToken: () => Promise.resolve("un-token") }),
@@ -50,12 +50,16 @@ function responder() {
   return pedido;
 }
 
+/**
+ * El editor dejó de tener dirección propia: vive como pestañas del panel del
+ * atleta, al lado de las gráficas. Los casos que siguen entran por ahí.
+ */
 function montarEditor() {
   return montar(
     <Routes>
-      <Route path="/atletas/:atletaId/programa" element={<Editor />} />
+      <Route path="/atletas/:atletaId" element={<PanelDelAtleta />} />
     </Routes>,
-    "/atletas/a1/programa",
+    "/atletas/a1",
   );
 }
 

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
 
 import { ErrorDelApi } from "../../api/cliente";
 import {
@@ -18,7 +17,6 @@ import {
 import { Cargando, Consulta, Falla, Vacio } from "../../components/estados";
 import { Mas, Tacho } from "../../components/iconos";
 import { Confirmar } from "../../components/Confirmar";
-import { Pestanas } from "../../components/Pestanas";
 import { useNombreDePatron } from "../analytics/patrones";
 import { Selector } from "../../components/Selector";
 import { ListaOrdenable } from "../../components/ListaOrdenable";
@@ -866,13 +864,19 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
   );
 }
 
-export function Editor() {
-  const { atletaId } = useParams();
-  const programas = useProgramas(atletaId ?? "");
+/**
+ * La rutina del atleta: sus bloques, sus semanas y lo que hay en cada día.
+ *
+ * Dejó de ser una pantalla propia. Vive como una pestaña del panel del atleta,
+ * al lado de las gráficas, porque son la misma conversación: se arma un bloque,
+ * se mira si se está cumpliendo, se corrige. Tenerlas en dos direcciones
+ * distintas obligaba a ir y volver para hacer una sola cosa.
+ */
+export function Rutina({ atletaId }: { atletaId: string }) {
+  const programas = useProgramas(atletaId);
   const [programa, setPrograma] = useState<string | undefined>();
   const mesociclos = useMesociclos(programa);
 
-  if (!atletaId) return null;
   if (programas.isPending) return <Cargando que="los programas" />;
   if (programas.isError) return <Falla que="los programas" />;
 
@@ -880,7 +884,7 @@ export function Editor() {
     programas.data.find((p) => p.id === programa) ?? programas.data[0];
   if (elegido && elegido.id !== programa) setPrograma(elegido.id);
 
-  const bloques = (
+  return (
     <>
       <NuevoPrograma atletaId={atletaId} />
       {programas.data.length > 1 ? (
@@ -918,23 +922,6 @@ export function Editor() {
       )}
     </>
   );
-
-  return (
-    <>
-      <p>
-        <Link to={`/atletas/${atletaId}`}>← Panel del atleta</Link>
-      </p>
-      <h2>Editor de rutinas</h2>
-      {/* Dos cosas distintas que estaban una encima de la otra: armar el bloque
-          de este atleta, y mantener el catálogo, que es del entrenador y lo
-          comparten todos sus atletas. Verlas juntas hacía parecer que crear un
-          ejercicio era parte de armar este programa. */}
-      <Pestanas
-        pestanas={[
-          { id: "mesociclos", titulo: "Mesociclos", contenido: bloques },
-          { id: "ejercicios", titulo: "Ejercicios", contenido: <Catalogo /> },
-        ]}
-      />
-    </>
-  );
 }
+
+export { Catalogo };

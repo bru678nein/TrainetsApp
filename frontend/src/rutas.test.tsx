@@ -1,4 +1,5 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { montar } from "./lib/pruebas";
@@ -12,9 +13,10 @@ vi.mock("./api/useApi", () => ({
     pedido = ruta;
     return Promise.resolve([]);
   },
-  // El panel monta el botón de invitar, que sale por la puerta de escritura.
-  // Acá no se ejercita: lo que se prueba es a dónde llega cada dirección.
+  // El panel monta formularios que escriben. Acá no se ejercitan: lo que se
+  // prueba es a dónde llega cada dirección.
   useEnviar: () => () => Promise.resolve({}),
+  useMutar: () => () => Promise.resolve({}),
 }));
 
 /**
@@ -38,16 +40,26 @@ describe("las rutas", () => {
     // en vez de en la URL: recargar vuelve al principio, y el link que mandaste
     // por mensaje abre otra cosa.
     en("/atletas/abc-123");
-    expect(await screen.findByRole("heading", { name: "Adherencia por patrón" })).toBeInTheDocument();
+    expect(await screen.findByRole("tab", { name: "Rutina" })).toBeInTheDocument();
+  });
+
+  it("las gráficas son una pestaña más y no otra dirección", async () => {
+    // Armar el bloque y mirar si se está cumpliendo son la misma conversación.
+    // En dos direcciones distintas había que ir y volver para hacer una sola
+    // cosa.
+    en("/atletas/abc-123");
+    await userEvent.click(await screen.findByRole("tab", { name: "Gráficas" }));
+    expect(
+      await screen.findByRole("heading", { name: "Adherencia por patrón" }),
+    ).toBeInTheDocument();
   });
 
   it("cada atleta tiene su propia dirección", async () => {
     // El control. Sin esto, una ruta que ignore el parámetro pasaría el test de
-    // arriba mostrando siempre el mismo panel.
-    // El id llega desde la URL hasta la consulta: sin eso, el panel de cualquier
-    // atleta mostraría los datos del mismo.
+    // arriba mostrando siempre el mismo panel: el id llega desde la URL hasta la
+    // consulta.
     en("/atletas/otro-999");
-    await screen.findByRole("heading", { name: "Adherencia por patrón" });
+    await screen.findByRole("tab", { name: "Rutina" });
     expect(pedido).toContain("otro-999");
   });
 
