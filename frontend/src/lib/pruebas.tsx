@@ -3,6 +3,8 @@ import { render } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 
+import { ProveedorDeRol } from "./Rol";
+
 /**
  * Monta un componente con lo que necesita para vivir: rutas y un cliente de
  * consultas nuevo por test.
@@ -18,7 +20,12 @@ export function montar(elemento: ReactElement, ruta = "/") {
   });
   const Envoltorio = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={cliente}>
-      <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
+      {/* El rol activo es parte de lo que un componente necesita para vivir,
+          igual que el router: sin él, `useApi` no sabe qué `Active-Role` mandar
+          y el backend se niega a adivinarlo. */}
+      <ProveedorDeRol>
+        <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
+      </ProveedorDeRol>
     </QueryClientProvider>
   );
   return render(elemento, { wrapper: Envoltorio });

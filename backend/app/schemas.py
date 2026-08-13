@@ -12,6 +12,10 @@ class AthleteOut(BaseModel):
     id: uuid.UUID
     full_name: str
     level: str | None = None
+    #: Viaja porque la interfaz tiene que ofrecer acciones distintas según el
+    #: estado, y derivarlo de que la ficha aparezca o no en el listado dejaría a
+    #: un vínculo pausado sin forma de reanudarse: invisible y sin botón.
+    estado: str = "activo"
 
 
 class AthleteIn(BaseModel):

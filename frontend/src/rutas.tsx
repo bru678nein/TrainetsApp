@@ -1,6 +1,8 @@
 import { Link, Route, Routes } from "react-router-dom";
 
-import { ListadoDeAtletas } from "./features/analytics/ListadoDeAtletas";
+import { ListadoDeAtletas } from "./features/atletas/ListadoDeAtletas";
+import { Editor } from "./features/editor/Editor";
+import { MisSesiones, SesionDelDia } from "./features/entrenar/Entrenar";
 import { PanelDelAtleta } from "./features/analytics/PanelDelAtleta";
 import { Aceptar } from "./features/invitaciones/Aceptar";
 
@@ -17,6 +19,9 @@ export function Rutas() {
     <Routes>
       <Route path="/" element={<ListadoDeAtletas />} />
       <Route path="/atletas/:atletaId" element={<PanelDelAtleta />} />
+      <Route path="/atletas/:atletaId/programa" element={<Editor />} />
+      <Route path="/entrenar" element={<MisSesiones />} />
+      <Route path="/entrenar/:sesionId" element={<SesionDelDia />} />
       {/* El token viaja en la ruta y no en la query: una query string se pierde
           en más redirecciones, y ésta atraviesa la del proveedor de identidad. */}
       <Route path="/invitacion/:token" element={<Aceptar />} />

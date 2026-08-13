@@ -1,4 +1,6 @@
 import { render, screen } from "@testing-library/react";
+
+import { ProveedorDeRol } from "./Rol";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,9 +41,11 @@ describe("la puerta de sesión", () => {
     // en cada carga, y eso le enseña a cualquiera que mire la consola que los
     // 401 de esta aplicación son normales.
     render(
+      <ProveedorDeRol>
       <Sesion>
         <PideDatos />
-      </Sesion>,
+      </Sesion>
+      </ProveedorDeRol>,
     );
 
     expect(fetch).not.toHaveBeenCalled();
@@ -49,9 +53,11 @@ describe("la puerta de sesión", () => {
 
   it("sin sesión muestra el ingreso y no el contenido", () => {
     render(
+      <ProveedorDeRol>
       <Sesion>
         <PideDatos />
-      </Sesion>,
+      </Sesion>
+      </ProveedorDeRol>,
     );
 
     expect(screen.getByText("Ingresar")).toBeInTheDocument();
@@ -64,9 +70,11 @@ describe("la puerta de sesión", () => {
     sesionIniciada.valor = true;
 
     render(
+      <ProveedorDeRol>
       <Sesion>
         <PideDatos />
-      </Sesion>,
+      </Sesion>
+      </ProveedorDeRol>,
     );
 
     expect(screen.getByText("datos")).toBeInTheDocument();

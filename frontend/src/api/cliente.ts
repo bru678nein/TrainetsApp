@@ -55,7 +55,7 @@ export async function pedirAlApi(
   opciones: {
     obtenerToken: ObtenerToken;
     rol: Rol | null;
-    metodo?: "GET" | "POST";
+    metodo?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     cuerpo?: unknown;
     signal?: AbortSignal;
   },
@@ -78,6 +78,9 @@ export async function pedirAlApi(
   });
 
   if (!respuesta.ok) throw new ErrorDelApi(respuesta.status, await _detalle(respuesta));
+  // `204 No Content` no trae cuerpo, y pedirle `json()` explota con un error de
+  // parser que no tiene nada que ver con lo que pasó. Los borrados contestan así.
+  if (respuesta.status === 204) return null;
   return respuesta.json();
 }
 

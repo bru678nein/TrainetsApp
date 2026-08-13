@@ -1,6 +1,8 @@
 import { SignedIn, SignedOut, SignIn, UserButton } from "@clerk/clerk-react";
 import type { ReactNode } from "react";
 
+import { SelectorDeRol } from "./Rol";
+
 /**
  * The gate. Nothing that talks to the API renders outside it.
  *
@@ -20,6 +22,7 @@ export function Sesion({ children }: { children: ReactNode }) {
       <SignedIn>
         <header>
           <UserButton />
+          <SelectorDeRol />
         </header>
         {children}
       </SignedIn>

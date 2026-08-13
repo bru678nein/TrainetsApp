@@ -1,8 +1,13 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { useApi, useEnviar } from "./useApi";
+import { useApi, useEnviar, useMutar } from "./useApi";
 
-export type Atleta = { id: string; full_name: string; level: string | null };
+export type Atleta = {
+  id: string;
+  full_name: string;
+  level: string | null;
+  estado?: string;
+};
 
 /**
  * The coach's athletes.
@@ -13,11 +18,15 @@ export type Atleta = { id: string; full_name: string; level: string | null };
  * either rule in the browser creates a second copy that drifts, and the copy
  * that drifts is always the one nobody remembers writing.
  */
-export function useAtletas() {
-  const pedir = useApi();
+export function useAtletas(rol?: "coach" | "athlete") {
+  const pedir = useApi(rol);
+  // El entrenador pide también los cerrados: un vínculo pausado que no aparece
+  // en ninguna lista queda sin forma de reanudarse. El atleta pide los suyos, y
+  // los suyos son los que son.
+  const ruta = rol === "athlete" ? "/api/athletes" : "/api/athletes?incluir_cerrados=true";
   return useQuery({
-    queryKey: ["atletas"],
-    queryFn: ({ signal }) => pedir("/api/athletes", signal) as Promise<Atleta[]>,
+    queryKey: ["atletas", rol],
+    queryFn: ({ signal }) => pedir(ruta, signal) as Promise<Atleta[]>,
   });
 }
 
@@ -111,5 +120,224 @@ export function useAceptarInvitacion() {
   return useMutation({
     mutationFn: (token: string) =>
       enviar("/api/me/invitation", { token }) as Promise<{ resultado: "aceptada" }>,
+  });
+}
+
+// --- El espacio del entrenador --------------------------------------------------
+
+export type Coach = { id: string; display_name: string; athlete_count: number };
+
+/**
+ * El alta de entrenador, que es el agujero que hacía que entrar por primera vez
+ * terminara en 403 y punto muerto.
+ */
+export function useCrearCoach() {
+  const enviar = useEnviar(null);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => enviar("/api/me/coach") as Promise<Coach>,
+    // Todo lo que estaba en 403 pasa a poder resolverse. Sin esto la pantalla
+    // muestra "ya sos entrenador" con el listado todavía en su error viejo.
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useCrearAtleta() {
+  const enviar = useEnviar();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (datos: { full_name: string; email?: string; level?: string }) =>
+      enviar("/api/athletes", datos) as Promise<Atleta>,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["atletas"] }),
+  });
+}
+
+export type Accion = "pausar" | "reanudar" | "archivar" | "reactivar";
+
+export function useCambiarEstado(atletaId: string) {
+  const enviar = useEnviar();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (accion: Accion) =>
+      enviar(`/api/athletes/${atletaId}/estado`, { accion }) as Promise<{ estado: string }>,
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+// --- El editor de rutinas -------------------------------------------------------
+
+export type Programa = { id: string; name: string; starts_on: string | null };
+export type Mesociclo = {
+  id: string;
+  ordinal: number;
+  label: string;
+  week_count: number;
+  focus: string | null;
+  rir_progression: number[] | null;
+};
+export type Sesion = {
+  id: string;
+  week_number: number;
+  day_number: number;
+  label: string | null;
+};
+export type Prescripcion = {
+  id: string;
+  exercise_id: string;
+  position: number;
+  rest_seconds: number | null;
+  coach_note: string | null;
+};
+export type SeriePrescrita = {
+  id: string;
+  set_number: number;
+  reps_min: number | null;
+  reps_max: number | null;
+  rir_min: number | null;
+  rir_max: number | null;
+  target_load_kg: number | null;
+  target_pct_1rm: number | null;
+};
+export type Ejercicio = { id: string; name: string; pattern_code: string; coach_id: string | null };
+export type Patron = { code: string; label_es: string };
+
+export function useProgramas(atletaId: string) {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["programas", atletaId],
+    queryFn: ({ signal }) =>
+      pedir(`/api/athletes/${atletaId}/programs`, signal) as Promise<Programa[]>,
+  });
+}
+
+export function useMesociclos(programaId: string | undefined) {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["mesociclos", programaId],
+    enabled: Boolean(programaId),
+    queryFn: ({ signal }) =>
+      pedir(`/api/programs/${programaId}/mesocycles`, signal) as Promise<Mesociclo[]>,
+  });
+}
+
+export function useEjercicios() {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["ejercicios"],
+    queryFn: ({ signal }) => pedir("/api/exercises", signal) as Promise<Ejercicio[]>,
+  });
+}
+
+export function usePatrones() {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["patrones"],
+    // Once filas que no cambian nunca: no tiene sentido volver a pedirlas.
+    staleTime: Infinity,
+    queryFn: ({ signal }) => pedir("/api/movement-patterns", signal) as Promise<Patron[]>,
+  });
+}
+
+/** Una sola fábrica para todas las escrituras del editor, que son quince variantes
+ *  del mismo gesto: mandar algo y volver a pedir lo que quedó. */
+export function useEscrituraDelEditor<T, V>(
+  hacer: (
+    enviar: (ruta: string, cuerpo?: unknown) => Promise<unknown>,
+    mutar: (metodo: "PUT" | "PATCH" | "DELETE", ruta: string, cuerpo?: unknown) => Promise<unknown>,
+    variables: V,
+  ) => Promise<T>,
+) {
+  const enviar = useEnviar("coach");
+  const mutar = useMutar("coach");
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (variables: V) => hacer(enviar, mutar, variables),
+    // Invalida todo y no una clave puntual: el editor toca un árbol, y una
+    // duplicación de semana cambia sesiones, prescripciones y series de una vez.
+    // Afinar esto antes de que exista la pantalla sería adivinar.
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+// --- Lo que entrena el atleta ---------------------------------------------------
+
+export type SesionDeLaAgenda = {
+  id: string;
+  mesocycle: string;
+  mesocycle_ordinal: number;
+  week_number: number;
+  day_number: number;
+};
+
+export type SerieDelDia = {
+  id: string;
+  set_number: number;
+  reps_min: number | null;
+  reps_max: number | null;
+  rir_min: number | null;
+  rir_max: number | null;
+  target_load_kg: number | null;
+  reps_done: number | null;
+  load_done_kg: number | null;
+  rir_done: number | null;
+};
+
+export type BloqueDelDia = {
+  prescription_id: string;
+  exercise: string;
+  pattern: string;
+  rest_seconds: number | null;
+  coach_note: string | null;
+  sets: SerieDelDia[];
+};
+
+export type DetalleDeSesion = {
+  id: string;
+  mesocycle: string;
+  week_number: number;
+  day_number: number;
+  blocks: BloqueDelDia[];
+};
+
+export function useAgenda(atletaId: string, rol?: "coach" | "athlete") {
+  const pedir = useApi(rol);
+  return useQuery({
+    queryKey: ["agenda", atletaId, rol],
+    queryFn: ({ signal }) =>
+      pedir(`/api/athletes/${atletaId}/sessions`, signal) as Promise<SesionDeLaAgenda[]>,
+  });
+}
+
+export function useSesion(sesionId: string, rol?: "coach" | "athlete") {
+  const pedir = useApi(rol);
+  return useQuery({
+    queryKey: ["sesion", sesionId, rol],
+    queryFn: ({ signal }) => pedir(`/api/sessions/${sesionId}`, signal) as Promise<DetalleDeSesion>,
+  });
+}
+
+export type LoQueHizo = {
+  reps?: number | null;
+  load_kg?: number | null;
+  rir?: number | null;
+  was_skipped?: boolean;
+  note?: string | null;
+};
+
+/**
+ * El gesto central del producto: el atleta registra una serie.
+ *
+ * Va con rol `athlete` fijo y no con el del contexto. Registrar es del atleta —
+ * la policy rechaza al entrenador— y dejar que el interruptor lo cambie sería
+ * ofrecer un botón que contesta 409 según cómo quedó un `select` en otra
+ * pantalla.
+ */
+export function useRegistrarSerie(sesionId: string) {
+  const mutar = useMutar("athlete");
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serieId, ...hizo }: LoQueHizo & { serieId: string }) =>
+      mutar("PUT", `/api/sets/${serieId}/log`, hizo),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["sesion", sesionId] }),
   });
 }

@@ -12,7 +12,7 @@ export function PanelDelAtleta() {
   return (
     <>
       <p>
-        <Link to="/">← Atletas</Link>
+        <Link to="/">← Atletas</Link> · <Link to={`/atletas/${atletaId}/programa`}>Editar rutina</Link>
       </p>
       <Adherencia atletaId={atletaId} />
       <Volumen atletaId={atletaId} />

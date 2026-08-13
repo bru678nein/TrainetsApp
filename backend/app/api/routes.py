@@ -214,8 +214,24 @@ def crear_atleta(
 
 
 @router.get("/athletes", response_model=list[AthleteOut])
-def list_athletes(db: OrmSession = Depends(tenant_session)) -> Sequence[Athlete]:
-    return db.scalars(select(Athlete).where(Athlete.estado == "activo")).all()
+def list_athletes(
+    incluir_cerrados: bool = False, db: OrmSession = Depends(tenant_session)
+) -> Sequence[Athlete]:
+    """Los vínculos vigentes, y bajo pedido también los que no lo están.
+
+    El default sigue siendo sólo los activos: es la lista con la que el
+    entrenador trabaja todos los días, y meter ahí a los archivados la convierte
+    en un registro histórico. Pero pausar tiene que poder deshacerse, y un
+    listado que nunca los muestra deja al vínculo pausado invisible y sin botón
+    para reanudarlo.
+
+    Explícito y no automático, porque son dos preguntas distintas: "¿con quién
+    estoy trabajando?" y "¿a quién entrené alguna vez?".
+    """
+    stmt = select(Athlete)
+    if not incluir_cerrados:
+        stmt = stmt.where(Athlete.estado == "activo")
+    return db.scalars(stmt.order_by(Athlete.estado, Athlete.full_name)).all()
 
 
 @router.get("/athletes/{athlete_id}/sessions", response_model=list[SessionSummary])

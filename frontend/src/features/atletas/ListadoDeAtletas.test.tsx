@@ -5,7 +5,13 @@ import { montar } from "../../lib/pruebas";
 import { ListadoDeAtletas } from "./ListadoDeAtletas";
 
 const pedir = vi.hoisted(() => vi.fn());
-vi.mock("../../api/useApi", () => ({ useApi: () => pedir }));
+vi.mock("../../api/useApi", () => ({
+  useApi: () => pedir,
+  // El listado estrena escrituras —crear ficha, pausar, archivar— y sin estos
+  // el módulo mockeado no las tiene y el componente muere al montarse.
+  useEnviar: () => vi.fn(),
+  useMutar: () => vi.fn(),
+}));
 
 const ATLETAS = [
   { id: "a1", full_name: "Primero", level: "intermedio" },
