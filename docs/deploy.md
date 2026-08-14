@@ -120,7 +120,13 @@ Tres cosas que cuestan tiempo si no están dichas:
   cierra.
 - **`nc -z` sobre el endpoint sigue contestando después de borrar el proxy.** El
   handshake lo completa el borde de Railway. Lo único que dice la verdad es
-  intentar autenticarse.
+  intentar autenticarse: si el proxy no está, la conexión se corta antes de que
+  Postgres pida contraseña.
+- **`railway tcp-proxy list --json` devuelve `{"proxies": [...]}`, no una
+  lista.** Tratarlo como lista falla al sacar el id, y si el borrado va en la
+  misma línea que el mensaje de éxito, el mensaje se imprime igual y el proxy
+  queda abierto. Confirmá contra `list` después de borrar, no contra el eco del
+  comando.
 
 Cerrar el proxy no afecta a la aplicación: nunca lo usó.
 
