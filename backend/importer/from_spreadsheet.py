@@ -46,7 +46,49 @@ from app.models import (
 # app_user has to be here even though CASCADE from coach does not reach it: the
 # foreign key points the other way, coach -> app_user. Leaving it out let the
 # identity survive a --reset, and the next seed hit the UNIQUE on auth_user_id.
-_SEEDED_TABLES = "app_user, coach, movement_pattern, exercise"
+#
+# movement_pattern is not listed, and that changes nothing on its own: TRUNCATE
+# ... CASCADE empties every table holding a foreign key into the named ones, and
+# since 0018 movement_pattern.coach_id points at coach. Measured — dropping it
+# from this list still left zero rows. The shared base is restored explicitly
+# below instead.
+_SEEDED_TABLES = "app_user, coach, exercise"
+
+
+def borrar_conservando_la_base(db: OrmSession) -> None:
+    """What `--reset` deletes, minus the shared pattern vocabulary.
+
+    Reading the rows out and putting them back is not belt and braces. TRUNCATE
+    ... CASCADE empties every table with a foreign key into the named ones, and
+    since 0018 `movement_pattern.coach_id` points at `coach` — so the base goes
+    whether or not the table is listed. Measured, not assumed.
+
+    Losing it is not recoverable by re-running anything: migration 0019 puts the
+    eleven there and no migration runs twice. The database would be left where
+    production was before 0019 — unable to create a single exercise, because
+    `exercise.pattern_code` is NOT NULL and references this table.
+
+    It restores whatever the database held as shared, never a hardcoded copy of
+    the eleven. The migration stays the only place that decides what the base is.
+    """
+    base = [
+        dict(fila._mapping)
+        for fila in db.execute(
+            text(
+                "SELECT code, label_es, is_compound, sort_order "
+                "FROM movement_pattern WHERE coach_id IS NULL"
+            )
+        )
+    ]
+    db.execute(text(f"TRUNCATE {_SEEDED_TABLES} RESTART IDENTITY CASCADE"))
+    if base:
+        db.execute(
+            text(
+                "INSERT INTO movement_pattern (code, label_es, is_compound, sort_order) "
+                "VALUES (:code, :label_es, :is_compound, :sort_order)"
+            ),
+            base,
+        )
 
 
 def slug(raw: str) -> str:
@@ -115,7 +157,7 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
                     "La base ya tiene datos. Pasá --reset para borrarlos, o apuntá a "
                     "otra base. No borro nada sin que me lo pidan."
                 )
-            db.execute(text(f"TRUNCATE {_SEEDED_TABLES} RESTART IDENTITY CASCADE"))
+            borrar_conservando_la_base(db)
             db.commit()
 
         user = AppUser(auth_user_id="seed-coach", email="coach@example.com", display_name="Coach")
@@ -125,12 +167,20 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
         athlete = Athlete(coach=coach, full_name=athlete_name, level="intermedio")
         db.add_all([user, coach, athlete])
 
+        # Reuse before creating. The shared base ships in migration 0019, so on
+        # any migrated database these eleven already exist; inserting them blind
+        # hits the primary key. They also survive `--reset` — they belong to the
+        # schema, not to this import — so this branch is the normal path, not
+        # the edge case.
         patterns: dict[str, MovementPattern] = {}
         for i, label in enumerate(sorted({r["Patrón"] for r in rows if r["Patrón"]})):
-            mp = MovementPattern(code=slug(label), label_es=label, sort_order=i)
+            code = slug(label)
+            mp = db.get(MovementPattern, code)
+            if mp is None:
+                mp = MovementPattern(code=code, label_es=label, sort_order=i)
+                db.add(mp)
+                stats["patterns"] += 1
             patterns[label] = mp
-            db.add(mp)
-            stats["patterns"] += 1
 
         exercises: dict[str, Exercise] = {}
         for r in rows:

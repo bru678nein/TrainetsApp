@@ -158,6 +158,23 @@ def engine() -> Iterator[Engine]:
     cfg.set_main_option("sqlalchemy.url", dsn.replace("%", "%%"))
     command.upgrade(cfg, "head")
 
+    # Photographed here, between migrating and importing, and nowhere else. The
+    # importer creates the same movement patterns the migration does, so after
+    # it runs there is no way to tell which of the two put them there — and on a
+    # machine without the spreadsheet the question never even comes up. Asking
+    # afterwards is how a test claims the schema ships a shared vocabulary while
+    # really observing the seed.
+    global _PATRONES_TRAS_MIGRAR
+    with eng.connect() as conn:
+        _PATRONES_TRAS_MIGRAR = [
+            fila[0]
+            for fila in conn.execute(
+                sa.text(
+                    "SELECT code FROM movement_pattern WHERE coach_id IS NULL ORDER BY sort_order"
+                )
+            )
+        ]
+
     if SPREADSHEET.exists():
         from importer.from_spreadsheet import run
 
@@ -165,6 +182,15 @@ def engine() -> Iterator[Engine]:
 
     yield eng
     eng.dispose()
+
+
+_PATRONES_TRAS_MIGRAR: list[str] = []
+
+
+@pytest.fixture
+def patrones_tras_migrar(engine: Engine) -> list[str]:
+    """Codes present after `alembic upgrade head`, before any import."""
+    return list(_PATRONES_TRAS_MIGRAR)
 
 
 @pytest.fixture
