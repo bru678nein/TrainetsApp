@@ -75,6 +75,17 @@ sirve como estático; sus variables (`VITE_CLERK_PUBLISHABLE_KEY`, `VITE_API_URL
 se resuelven **en el build**, no al arrancar, así que cambiarlas exige construir
 de nuevo.
 
+`VITE_API_URL` va **sin barra al final**: el cliente arma la dirección como
+`${API_URL}${ruta}` y la ruta ya empieza con `/api/`.
+
+**Y el estático necesita que todas las direcciones caigan en `index.html`.** El
+router es de historial, así que `/invitacion/<token>` es una ruta del cliente y
+no un archivo. Un servidor de estáticos sin esa regla devuelve 404 justo ahí, que
+es la única dirección de la aplicación a la que se entra **pegando un link** en
+vez de navegando: el resto se alcanza desde adentro y nadie las escribe a mano.
+`frontend/vercel.json` lo declara para Vercel; en otro proveedor es la misma
+regla con otro nombre —«SPA fallback», «try_files»— y hay que ponerla igual.
+
 Las tres de auth son obligatorias y no tienen default. **La aplicación se niega a
 arrancar sin ellas**, y eso es deliberado: un deploy que levanta contento
 verificando tokens contra nada es peor que uno que no levanta.
