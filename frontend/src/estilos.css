@@ -693,6 +693,27 @@ form { margin: 0 0 var(--paso); }
 }
 .serie-nueva__nota { flex-basis: 100%; }
 
+/* El alta de un ejercicio: es la acción principal del editor, y desde que el
+   ejercicio nace con su esquema es también la única que se usa en el camino
+   normal. `flex-end` y no `center` como `.fila`: los campos llevan la etiqueta
+   arriba, así que alinearlos al medio deja el botón flotando por encima de las
+   cajas. */
+.alta-de-ejercicio {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  padding: calc(var(--paso) * 1.25);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-chico);
+  background: var(--papel-hundido);
+  margin-top: var(--paso);
+}
+/* Los dos desplegables son los que más se usan y los que más texto tienen, así
+   que se les deja crecer; los números quedan en su ancho fijo de 4.5rem. */
+.alta-de-ejercicio > select { flex: 1 1 10rem; min-width: 0; }
+.alta-de-ejercicio > .serie-nueva__nota { flex-basis: 100%; }
+
 /* Las series ya prescritas se leen como una frase: «3 · 8-10 reps · RIR 2 · 80
    kg». El número en negrita y la unidad al lado, para que el ojo agarre la cifra
    sin leer la línea entera. */

@@ -309,6 +309,18 @@ class PrescriptionIn(BaseModel):
     rest_seconds: int | None = Field(default=None, ge=0, le=3600)
     coach_note: str | None = Field(default=None, max_length=500)
     superset_key: str | None = Field(default=None, max_length=8)
+    # Las series del alta, en la misma transacción que la prescripción.
+    #
+    # Medido sobre la programación real: 473 de 473 ejercicios prescriptos
+    # tienen todas sus series idénticas. Crear el ejercicio vacío y después
+    # agregar de a una obligaba a repetir el mismo dato tres veces, y dejaba
+    # una ventana donde el ejercicio existe sin nada prescripto — si la segunda
+    # llamada falla, el atleta ve un ejercicio sin series.
+    #
+    # Es una lista y no "cantidad + esquema" a propósito: que sean todas
+    # iguales es un hecho de estos datos, no una regla. El día que una difiera,
+    # la API ya la acepta y no hay que cambiarla.
+    sets: list[PrescribedSetIn] = Field(default_factory=list, max_length=20)
 
 
 class PrescriptionPatch(BaseModel):

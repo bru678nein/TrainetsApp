@@ -977,3 +977,107 @@ class TestBorrarSacaDeLosDias:
         comun = next(p for p in base if p["coach_id"] is None)
         r = coach(cliente, "DELETE", f"/api/movement-patterns/{comun['code']}")
         assert r.status_code == 403
+
+
+class TestElEjercicioNaceConSusSeries:
+    """Medido sobre la programación real: 473 de 473 ejercicios prescriptos
+    tienen todas sus series idénticas. Crearlo vacío y después agregar de a una
+    obligaba a repetir el mismo dato tres veces por ejercicio."""
+
+    @pytest.fixture
+    def sesion(self, cliente, coach, programa) -> str:
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 1, "label": "Acumulación", "week_count": 4},
+        ).json()["id"]
+        return str(
+            coach(
+                cliente,
+                "POST",
+                f"/api/mesocycles/{meso}/sessions",
+                json={"week_number": 1, "day_number": 1},
+            ).json()["id"]
+        )
+
+    def cargar(self, cliente, coach, sesion, ejercicio, series):
+        return coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio, "sets": series},
+        )
+
+    def series_de(self, cliente, coach, sesion):
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
+        return [s for b in detalle["blocks"] for s in b["sets"]]
+
+    def test_tres_series_en_una_sola_llamada(self, cliente, coach, sesion, ejercicio) -> None:
+        esquema = {"reps_min": 8, "reps_max": 8, "rir_min": 2, "rir_max": 2}
+        r = self.cargar(cliente, coach, sesion, ejercicio, [esquema] * 3)
+        assert r.status_code == 201, r.text
+
+        series = self.series_de(cliente, coach, sesion)
+        assert len(series) == 3
+        assert [s["set_number"] for s in series] == [1, 2, 3]
+        assert {s["reps_min"] for s in series} == {8}
+        assert {s["rir_min"] for s in series} == {2}
+
+    def test_sin_series_sigue_siendo_valido(self, cliente, coach, sesion, ejercicio) -> None:
+        """El alta vacía es el camino viejo y algunos ejercicios se cargan así,
+        para llenarlos después. Sacarla rompería a quien ya la usa."""
+        r = self.cargar(cliente, coach, sesion, ejercicio, [])
+        assert r.status_code == 201, r.text
+        assert self.series_de(cliente, coach, sesion) == []
+
+    def test_el_esquema_rechaza_antes_de_tocar_la_base(
+        self, cliente, coach, sesion, ejercicio
+    ) -> None:
+        """Carga absoluta y relativa a la vez. Lo para Pydantic al parsear el
+        pedido, así que el endpoint no llega a correr — esto NO prueba
+        atomicidad, y por eso el que sí la prueba está abajo y usa otro fallo."""
+        mala = {"reps_min": 8, "target_load_kg": 80, "target_pct_1rm": 0.8}
+        r = self.cargar(cliente, coach, sesion, ejercicio, [{"reps_min": 8}, mala])
+        assert r.status_code == 422, r.text
+        assert coach(cliente, "GET", f"/api/sessions/{sesion}").json()["blocks"] == []
+
+    def test_una_serie_que_falla_en_la_base_no_deja_el_ejercicio_a_medio_cargar(
+        self, cliente, coach, sesion, ejercicio
+    ) -> None:
+        """La razón de que sea una sola transacción.
+
+        Dos series con el mismo `set_number` pasan el esquema —es un entero
+        válido— y chocan recién contra `pset_number_uq`, con la prescripción ya
+        insertada. Ese es el único momento en que la atomicidad se puede medir:
+        un fallo que el validador no ve.
+
+        Con dos llamadas separadas el equivalente deja el ejercicio creado y sin
+        series, y el atleta abre el día y ve un ejercicio que no le pide nada.
+        """
+        chocan = [{"reps_min": 8, "set_number": 1}, {"reps_min": 8, "set_number": 1}]
+        r = self.cargar(cliente, coach, sesion, ejercicio, chocan)
+        # 500 y no 409: una restricción rota no es "el vínculo está archivado",
+        # y el manejador de `errores.py` sólo traduce el código de permisos.
+        assert r.status_code == 500, r.text
+
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
+        assert detalle["blocks"] == [], "quedó un ejercicio sin series"
+
+    def test_el_tope_de_series_se_respeta(self, cliente, coach, sesion, ejercicio) -> None:
+        r = self.cargar(cliente, coach, sesion, ejercicio, [{"reps_min": 8}] * 21)
+        assert r.status_code == 422
+        assert coach(cliente, "GET", f"/api/sessions/{sesion}").json()["blocks"] == []
+
+    def test_las_series_son_del_ejercicio_que_se_creo(
+        self, cliente, coach, sesion, ejercicio
+    ) -> None:
+        """Numerar desde 1 por prescripción y no por sesión: dos ejercicios en
+        el mismo día tienen los dos su serie 1."""
+        self.cargar(cliente, coach, sesion, ejercicio, [{"reps_min": 5}] * 2)
+        self.cargar(cliente, coach, sesion, ejercicio, [{"reps_min": 10}] * 2)
+
+        detalle = coach(cliente, "GET", f"/api/sessions/{sesion}").json()
+        assert len(detalle["blocks"]) == 2
+        for bloque in detalle["blocks"]:
+            assert [s["set_number"] for s in bloque["sets"]] == [1, 2]

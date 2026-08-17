@@ -589,15 +589,71 @@ describe("elegir el ejercicio de una sesión", () => {
     expect(screen.getByLabelText<HTMLSelectElement>("Ejercicio").value).toBe("");
   });
 
-  it("lo que se manda es el ejercicio y nada más", async () => {
+  const altaDe = (pedido: ReturnType<typeof conCatalogo>) =>
+    JSON.parse(
+      String(
+        pedido.mock.calls.find(
+          ([u, o]) => o?.method === "POST" && String(u).includes("/prescriptions"),
+        )![1]!.body,
+      ),
+    );
+
+  it("el ejercicio nace con sus series, en un solo pedido", async () => {
+    // 473 de 473 ejercicios prescriptos de la programación real tienen todas
+    // sus series idénticas. Pedirlas de a una eran 84 de las 105 interacciones
+    // de un día.
     const pedido = conCatalogo();
     await abrirUnDia();
     await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
     await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
 
-    const alta = pedido.mock.calls.find(
-      ([u, o]) => o?.method === "POST" && String(u).includes("/prescriptions"),
+    const cuerpo = altaDe(pedido);
+    expect(cuerpo.exercise_id).toBe("e1");
+    expect(cuerpo.sets).toHaveLength(3);
+    expect(cuerpo.sets[0]).toEqual({
+      reps_min: 8,
+      reps_max: 8,
+      rir_min: 2,
+      rir_max: 2,
+      target_load_kg: null,
+    });
+
+    // Un solo POST. Con uno por serie, un fallo a la mitad deja el ejercicio
+    // creado y vacío, que es lo que el atleta ve como un día roto.
+    const posts = pedido.mock.calls.filter(
+      ([u, o]) => o?.method === "POST" && String(u).includes("/prescription"),
     );
-    expect(JSON.parse(String(alta![1]!.body))).toEqual({ exercise_id: "e1" });
+    expect(posts).toHaveLength(1);
+  });
+
+  it("la cantidad de series elegida es la que se manda", async () => {
+    const pedido = conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.selectOptions(screen.getByLabelText("Series"), "5");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(altaDe(pedido).sets).toHaveLength(5);
+  });
+
+  it("sin kg la serie va autorregulada, no en cero", async () => {
+    // Cero no es "sin peso": cero es una barra vacía y cuenta como carga en el
+    // tonelaje. La diferencia se ve en el análisis, no en la pantalla.
+    const pedido = conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(altaDe(pedido).sets[0].target_load_kg).toBeNull();
+  });
+
+  it("con kg la serie lleva la carga", async () => {
+    const pedido = conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.type(screen.getByLabelText("Kg"), "80");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(altaDe(pedido).sets[0].target_load_kg).toBe(80);
   });
 });

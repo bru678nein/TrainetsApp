@@ -303,6 +303,31 @@ def borrar_sesion(
 # --- Prescripción ---------------------------------------------------------------
 
 
+def _serie_desde(
+    payload: PrescribedSetIn, prescription_id: uuid.UUID, numero: int
+) -> PrescribedSet:
+    """Una serie desde su carga útil, con el número que le toca.
+
+    Vive acá y no repetida en el alta suelta y en la del lote: los `_dec` no son
+    decoración —la columna es `numeric` y un `float` deja que Postgres redondee
+    el binario— y una segunda copia es donde se olvida uno.
+    """
+    from app.api.routes import _dec
+
+    return PrescribedSet(
+        prescription_id=prescription_id,
+        set_number=numero,
+        reps_min=payload.reps_min,
+        reps_max=payload.reps_max,
+        rir_min=_dec(payload.rir_min),
+        rir_max=_dec(payload.rir_max),
+        target_load_kg=_dec(payload.target_load_kg),
+        target_pct_1rm=_dec(payload.target_pct_1rm),
+        tempo=payload.tempo,
+        is_amrap=payload.is_amrap,
+    )
+
+
 @editor.post(
     "/sessions/{session_id}/prescriptions",
     response_model=PrescriptionOut,
@@ -326,6 +351,15 @@ def crear_prescripcion(
         superset_key=payload.superset_key,
     )
     db.add(pres)
+
+    # Un `flush` y no un `commit`: hace falta el id de la prescripción para
+    # colgarle las series, y las dos cosas tienen que caer o quedar juntas. Con
+    # dos commits, una serie que viola el CHECK de intensidad deja el ejercicio
+    # creado y vacío, que es exactamente lo que el atleta ve como un día roto.
+    db.flush()
+    for i, serie in enumerate(payload.sets, start=1):
+        db.add(_serie_desde(serie, pres.id, serie.set_number or i))
+
     db.commit()
     return pres
 
@@ -379,24 +413,15 @@ def crear_serie(
     payload: PrescribedSetIn,
     ctx: TenantContext = Depends(require_tenant_context),
 ) -> PrescribedSet:
-    from app.api.routes import _dec
-
     db = _solo_entrenador(ctx)
     _o_404(db, Prescription, prescription_id, "prescripción")
-    serie = PrescribedSet(
-        prescription_id=prescription_id,
-        set_number=payload.set_number
+    serie = _serie_desde(
+        payload,
+        prescription_id,
+        payload.set_number
         or _siguiente(
             db, PrescribedSet.set_number, PrescribedSet.prescription_id == prescription_id
         ),
-        reps_min=payload.reps_min,
-        reps_max=payload.reps_max,
-        rir_min=_dec(payload.rir_min),
-        rir_max=_dec(payload.rir_max),
-        target_load_kg=_dec(payload.target_load_kg),
-        target_pct_1rm=_dec(payload.target_pct_1rm),
-        tempo=payload.tempo,
-        is_amrap=payload.is_amrap,
     )
     db.add(serie)
     db.commit()

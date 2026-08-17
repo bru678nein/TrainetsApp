@@ -196,8 +196,30 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
   // plano, y el patrón es la forma en que el entrenador ya los piensa.
   const [patronFiltro, setPatronFiltro] = useState("");
 
+  // El esquema con el que nace el ejercicio. Medido sobre la programación real:
+  // 473 de 473 ejercicios prescriptos tienen todas sus series idénticas, y 324
+  // de ellos son de tres series. Así que el formulario pide el esquema una vez
+  // y no una fila por serie — eran 84 de las 105 interacciones de un día.
+  const [series, setSeries] = useState(3);
+  const [reps, setReps] = useState("8");
+  const [rir, setRir] = useState("2");
+  const [carga, setCarga] = useState("");
+
   const agregar = useEscrituraDelEditor<unknown, void>((enviar) =>
-    enviar(`/api/sessions/${sesionId}/prescriptions`, { exercise_id: elegido }),
+    enviar(`/api/sessions/${sesionId}/prescriptions`, {
+      exercise_id: elegido,
+      // La misma serie repetida N veces, y no un "cantidad + esquema": que sean
+      // todas iguales es un hecho de estos datos y no una regla, y el día que
+      // una difiera la API ya lo acepta.
+      sets: Array.from({ length: series }, () => ({
+        reps_min: reps ? Number(reps) : null,
+        reps_max: reps ? Number(reps) : null,
+        rir_min: rir ? Number(rir) : null,
+        rir_max: rir ? Number(rir) : null,
+        // Sin carga es autorregulada: el peso lo elige el atleta ese día.
+        target_load_kg: carga ? Number(carga) : null,
+      })),
+    }),
   );
   const borrarSerie = useEscrituraDelEditor<unknown, string>((_, mutar, id) =>
     mutar("DELETE", `/api/prescribed-sets/${id}`),
@@ -300,7 +322,7 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
       <Consulta consulta={ejercicios} que="el catálogo">
         {(lista) => (
           <form
-            className="fila"
+            className="alta-de-ejercicio"
             onSubmit={(e) => {
               e.preventDefault();
               if (elegido) agregar.mutate();
@@ -338,9 +360,33 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
                   </option>
                 ))}
             </select>
+            {/* Las etiquetas arriba y visibles, no en el `placeholder`: un
+                `placeholder` desaparece al escribir y quedan cuatro cajas de
+                números iguales sin saber cuál era el RIR. */}
+            <Selector etiqueta="Series" valor={series} onCambio={setSeries} max={8} />
+            <label className="campo">
+              <span>Reps</span>
+              <input inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} />
+            </label>
+            <label className="campo">
+              <span>RIR</span>
+              <input inputMode="decimal" value={rir} onChange={(e) => setRir(e.target.value)} />
+            </label>
+            <label className="campo">
+              <span>Kg</span>
+              <input
+                inputMode="decimal"
+                value={carga}
+                onChange={(e) => setCarga(e.target.value)}
+                placeholder="libre"
+              />
+            </label>
             <button type="submit" className="principal" disabled={!elegido || agregar.isPending}>
               Agregar ejercicio
             </button>
+            <small className="serie-nueva__nota">
+              Se crean {series} series iguales. Sin kg, el peso lo elige el atleta.
+            </small>
             <Aviso de={agregar} />
           </form>
         )}
