@@ -656,4 +656,47 @@ describe("elegir el ejercicio de una sesión", () => {
 
     expect(altaDe(pedido).sets[0].target_load_kg).toBe(80);
   });
+
+  it("agregar un ejercicio avisa, y dice cuántas series creó", async () => {
+    // El aviso no es decoración: el editor vuelve a pedir el árbol entero
+    // después de guardar, y cuando el cambio cae fuera de la pantalla no queda
+    // ninguna señal de que algo pasó. La duda lleva a apretar de nuevo.
+    conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(await screen.findByText("Ejercicio agregado con 3 series")).toBeInTheDocument();
+  });
+
+  it("el aviso sigue a lo elegido, no al texto del botón", async () => {
+    conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+    await userEvent.selectOptions(screen.getByLabelText("Series"), "5");
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(await screen.findByText("Ejercicio agregado con 5 series")).toBeInTheDocument();
+  });
+
+  it("un guardado que falla no dice que salió bien", async () => {
+    // El aviso cuelga de `onSuccess`. Colgarlo del click confirmaría escrituras
+    // que el servidor rechazó, que es peor que no avisar nada.
+    conCatalogo();
+    await abrirUnDia();
+    await userEvent.selectOptions(screen.getByLabelText("Ejercicio"), "e1");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url, opciones) =>
+        (opciones as RequestInit | undefined)?.method === "POST"
+          ? Promise.resolve(new Response(JSON.stringify({ detail: "no" }), { status: 409 }))
+          : Promise.resolve(new Response(JSON.stringify(cuerpoPara(String(url))), { status: 200 })),
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Agregar ejercicio" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText(/Ejercicio agregado/)).not.toBeInTheDocument();
+  });
 });

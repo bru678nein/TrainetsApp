@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { useAvisar } from "../components/Avisos";
 import { useRol } from "../lib/Rol";
 import { useApi, useEnviar, useMutar } from "./useApi";
 
@@ -267,16 +268,31 @@ export function useEscrituraDelEditor<T, V>(
     mutar: (metodo: "PUT" | "PATCH" | "DELETE", ruta: string, cuerpo?: unknown) => Promise<unknown>,
     variables: V,
   ) => Promise<T>,
+  /**
+   * Qué decir cuando salió bien: «Serie agregada», «Semana duplicada».
+   *
+   * Se declara acá, al lado de la llamada, y no en el botón: hay acciones que
+   * se disparan desde más de un lugar, y el aviso tiene que describir lo que
+   * pasó en la base, no lo que decía el botón que se apretó.
+   *
+   * Opcional porque no toda escritura merece uno. Renombrar un ejercicio se ve
+   * en el mismo campo que se acaba de editar, y avisarlo es ruido.
+   */
+  aviso?: string,
 ) {
   const enviar = useEnviar("coach");
   const mutar = useMutar("coach");
   const qc = useQueryClient();
+  const avisar = useAvisar();
   return useMutation({
     mutationFn: (variables: V) => hacer(enviar, mutar, variables),
     // Invalida todo y no una clave puntual: el editor toca un árbol, y una
     // duplicación de semana cambia sesiones, prescripciones y series de una vez.
     // Afinar esto antes de que exista la pantalla sería adivinar.
-    onSuccess: () => qc.invalidateQueries(),
+    onSuccess: () => {
+      qc.invalidateQueries();
+      if (aviso) avisar(aviso);
+    },
   });
 }
 

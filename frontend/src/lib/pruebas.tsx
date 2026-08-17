@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 
+import { ProveedorDeAvisos } from "../components/Avisos";
 import { ProveedorDeRol } from "./Rol";
 
 /**
@@ -23,9 +24,14 @@ export function montar(elemento: ReactElement, ruta = "/") {
       {/* El rol activo es parte de lo que un componente necesita para vivir,
           igual que el router: sin él, `useApi` no sabe qué `Active-Role` mandar
           y el backend se niega a adivinarlo. */}
-      <ProveedorDeRol>
-        <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
-      </ProveedorDeRol>
+      {/* Los avisos van acá porque en `App` van ahí. Un envoltorio de prueba que
+          no tiene lo que la aplicación tiene deja pasar lo que sólo se rompe
+          fuera de los tests. */}
+      <ProveedorDeAvisos>
+        <ProveedorDeRol>
+          <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
+        </ProveedorDeRol>
+      </ProveedorDeAvisos>
     </QueryClientProvider>
   );
   return render(elemento, { wrapper: Envoltorio });

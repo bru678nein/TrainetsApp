@@ -67,6 +67,7 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
         ? progresion.split(",").map((n) => Number(n.trim()))
         : null,
     }),
+    "Mesociclo creado",
   );
 
   return (
@@ -99,6 +100,7 @@ function DuplicarSemana({ meso }: { meso: Mesociclo }) {
   const [hasta, setHasta] = useState(2);
   const duplicar = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar(`/api/mesocycles/${meso.id}/duplicate-week`, { from_week: desde, to_week: hasta }),
+    "Semana duplicada",
   );
 
   return (
@@ -141,6 +143,7 @@ function NuevaSerie({ prescripcionId }: { prescripcionId: string }) {
       // manda cero, que sería una barra vacía y cuenta como carga en el tonelaje.
       target_load_kg: carga ? Number(carga) : null,
     }),
+    "Serie agregada",
   );
 
   return (
@@ -220,18 +223,25 @@ function ContenidoDeSesion({ sesionId }: { sesionId: string }) {
         target_load_kg: carga ? Number(carga) : null,
       })),
     }),
+    // Nombra las dos cosas que pasaron. «Ejercicio agregado» a secas dejaría
+    // dudando de si las series se crearon, que es justo lo que cambió.
+    `Ejercicio agregado con ${series} series`,
   );
   const borrarSerie = useEscrituraDelEditor<unknown, string>((_, mutar, id) =>
     mutar("DELETE", `/api/prescribed-sets/${id}`),
+    "Serie borrada",
   );
   const borrarEjercicio = useEscrituraDelEditor<unknown, string>((_, mutar, id) =>
     mutar("DELETE", `/api/prescriptions/${id}`),
+    "Ejercicio sacado del día",
   );
   const duplicarEjercicio = useEscrituraDelEditor<unknown, string>((enviar, _, id) =>
     enviar(`/api/prescriptions/${id}/duplicate`),
+    "Ejercicio duplicado",
   );
   const reordenar = useEscrituraDelEditor<unknown, string[]>((_, mutar, ids) =>
     mutar("PUT", `/api/sessions/${sesionId}/prescriptions/order`, { ids }),
+    "Orden guardado",
   );
 
   return (
@@ -421,6 +431,7 @@ function AgregarEjercicio() {
   const [patron, setPatron] = useState("");
   const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar("/api/exercises", { name: nombre.trim(), pattern_code: patron }),
+    "Ejercicio agregado al catálogo",
   );
 
   return (
@@ -475,6 +486,7 @@ function AgregarPatron() {
   const [nombre, setNombre] = useState("");
   const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar("/api/movement-patterns", { label_es: nombre.trim() }),
+    "Patrón creado",
   );
 
   return (
@@ -515,6 +527,7 @@ function FilaDeEjercicio({ ej, nombreDe }: { ej: Ejercicio; nombreDe: (c: string
 
   const guardar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
     mutar("PATCH", `/api/exercises/${ej.id}`, { name: nombre.trim(), pattern_code: patron }),
+    "Ejercicio guardado",
   );
   const [confirmando, setConfirmando] = useState(false);
   const borrar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
@@ -522,6 +535,7 @@ function FilaDeEjercicio({ ej, nombreDe }: { ej: Ejercicio; nombreDe: (c: string
     // ejercicio de los días que lo incluyen: un cliente que no pregunte no
     // arrasa un programa por descuido.
     mutar("DELETE", `/api/exercises/${ej.id}?confirmar=true`),
+    "Ejercicio borrado",
   );
 
   // El catálogo global se lee y no se toca: es de todos y se modifica con una
@@ -628,6 +642,7 @@ function FilaDePatron({ patron }: { patron: Patron }) {
   const [confirmando, setConfirmando] = useState(false);
   const borrar = useEscrituraDelEditor<unknown, void>((_, mutar) =>
     mutar("DELETE", `/api/movement-patterns/${patron.code}`),
+    "Patrón borrado",
   );
   // La base común se lee. Ofrecer el botón sería prometer un 403.
   const propio = Boolean(patron.coach_id);
@@ -749,6 +764,7 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
   const [nombre, setNombre] = useState("");
   const crear = useEscrituraDelEditor<unknown, void>((enviar) =>
     enviar(`/api/athletes/${atletaId}/programs`, { name: nombre.trim() }),
+    "Programa creado",
   );
   return (
     <form
@@ -805,9 +821,11 @@ function Semana({
 
   const agregar = useEscrituraDelEditor<unknown, number>((enviar, _, dia) =>
     enviar(`/api/mesocycles/${meso.id}/sessions`, { week_number: numero, day_number: dia }),
+    "Día agregado",
   );
   const borrar = useEscrituraDelEditor<unknown, string>((_, mutar, id) =>
     mutar("DELETE", `/api/sessions/${id}`),
+    "Día borrado",
   );
 
   return (

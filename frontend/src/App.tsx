@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 
+import { ProveedorDeAvisos } from "./components/Avisos";
 import { Marco } from "./lib/Marco";
 import { ProveedorDeRol } from "./lib/Rol";
 import { Sesion } from "./lib/Sesion";
@@ -22,13 +23,18 @@ export function App() {
   return (
     <QueryClientProvider client={cliente}>
       <BrowserRouter>
-        <ProveedorDeRol>
-          <Sesion>
-            <Marco>
-              <Rutas />
-            </Marco>
-          </Sesion>
-        </ProveedorDeRol>
+        {/* Por fuera del portón de sesión: los avisos también tienen que poder
+            aparecer en las pantallas que se ven sin haber entrado, como aceptar
+            una invitación. */}
+        <ProveedorDeAvisos>
+          <ProveedorDeRol>
+            <Sesion>
+              <Marco>
+                <Rutas />
+              </Marco>
+            </Sesion>
+          </ProveedorDeRol>
+        </ProveedorDeAvisos>
       </BrowserRouter>
     </QueryClientProvider>
   );

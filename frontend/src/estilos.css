@@ -693,6 +693,62 @@ form { margin: 0 0 var(--paso); }
 }
 .serie-nueva__nota { flex-basis: 100%; }
 
+/* Avisos abajo a la izquierda. Confirman lo que se acaba de guardar, sobre todo
+   cuando el cambio cae fuera de la pantalla — duplicar la semana 1 en la 3 no
+   mueve nada de lo que se está mirando.
+
+   El contenedor no recibe clics (`pointer-events: none`) y cada aviso sí: la
+   franja ocupa una esquina entera, y sin eso taparía lo que haya debajo aunque
+   esté vacía. Con `bottom` en unidades del paso y no en píxeles sueltos para
+   que acompañe al resto. */
+.avisos {
+  position: fixed;
+  left: var(--paso);
+  bottom: var(--paso);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--paso) * 0.75);
+  pointer-events: none;
+  max-width: min(24rem, calc(100vw - var(--paso) * 2));
+}
+.aviso {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--paso);
+  padding: calc(var(--paso) * 0.75) var(--paso);
+  border: 1px solid var(--borde);
+  border-left-width: 3px;
+  border-radius: var(--radio-chico);
+  background: var(--papel-elevado);
+  box-shadow: var(--sombra);
+  font-size: 0.875rem;
+  animation: aviso-entra 160ms ease-out;
+}
+.aviso--bien { border-left-color: var(--hecho); }
+.aviso--mal { border-left-color: var(--alerta); color: var(--alerta); }
+.aviso__texto { flex: 1 1 auto; }
+.aviso__cerrar {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--tinta-suave);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+@keyframes aviso-entra {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+/* Aparecer sin desplazarse. El movimiento lateral es de lo que peor cae a quien
+   tiene sensibilidad al movimiento, y el aviso no pierde nada sin él. */
+@media (prefers-reduced-motion: reduce) {
+  .aviso { animation: none; }
+}
+
 /* El alta de un ejercicio: es la acción principal del editor, y desde que el
    ejercicio nace con su esquema es también la única que se usa en el camino
    normal. `flex-end` y no `center` como `.fila`: los campos llevan la etiqueta
