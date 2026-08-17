@@ -29,6 +29,16 @@ repos:
         language: system
         types_or: [python, pyi]
         files: ^backend/
+      # Sólo en push, no en cada commit: son ~12 segundos y una base de datos
+      # levantada. En cada commit se vuelve un peaje que se termina esquivando
+      # con --no-verify, y un hook que se saltea siempre no protege nada.
+      - id: suite-como-ci
+        name: la suite como la ve CI (sin la planilla)
+        entry: backend/scripts/pre_push.sh
+        language: system
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:

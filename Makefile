@@ -43,7 +43,11 @@ setup:  ## Crea el venv e instala dependencias
 	cd backend && $(PY) -m venv .venv && \
 	  .venv/bin/pip install -q -U pip && \
 	  .venv/bin/pip install -q -r requirements-dev.txt
-	cd backend && .venv/bin/pre-commit install || true
+	chmod +x backend/scripts/pre_push.sh
+	# Los dos tipos: `install` a secas sólo pone el de commit, y el de push
+	# quedaría en el archivo de config sin instalarse nunca — presente en el
+	# repo, ausente en la máquina.
+	cd backend && .venv/bin/pre-commit install --hook-type pre-commit --hook-type pre-push || true
 
 db-up:  ## Levanta Postgres y se asegura de que exista coachapp_test
 	docker compose up -d --wait db
