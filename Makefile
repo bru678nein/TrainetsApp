@@ -102,6 +102,13 @@ api:  ## Servidor de desarrollo en :8000 (como rol de aplicación, no como dueñ
 test:  ## Corre los tests (contra coachapp_test)
 	cd backend && TEST_DATABASE_URL="$(TEST_DSN)" $(PY_RUN) -m pytest $(PYTEST_ARGS)
 
+# La planilla no está versionada, así que CI corre siempre sin ella y esta
+# máquina corre siempre con ella. Todo lo que dependa de los datos sembrados da
+# verde acá y rojo allá, y sólo se descubre pusheando. Este target es la única
+# forma de ver ese fallo antes.
+test-sin-planilla:  ## Corre los tests como CI: sin data/planilla.xlsx
+	cd backend && SIN_PLANILLA=1 TEST_DATABASE_URL="$(TEST_DSN)" $(PY_RUN) -m pytest $(PYTEST_ARGS)
+
 lint:  ## Linter y tipos
 	cd backend && $(PY_RUN) -m ruff check . && $(PY_RUN) -m mypy app importer
 

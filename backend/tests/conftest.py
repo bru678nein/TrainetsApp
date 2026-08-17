@@ -40,7 +40,21 @@ if TYPE_CHECKING:
 # tiempo de ejecución.
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-SPREADSHEET = BACKEND_DIR.parent / "data" / "planilla.xlsx"
+
+# `SIN_PLANILLA=1` hace de cuenta que el archivo no está, que es la única
+# diferencia entre esta máquina y CI. Sin eso no hay forma de ver acá un fallo
+# de allá: el importador siembra los mismos datos sobre los que después se
+# afirma, así que un test puede escribir una propiedad de los datos sembrados
+# creyendo que escribe una del esquema, y pasar. Dos lo hicieron y dejaron CI
+# en rojo siete runs seguidos mientras `make check` daba verde.
+#
+# Apunta a un nombre que no existe en vez de mover el archivo: `data/` tiene
+# datos personales y una corrida interrumpida no puede dejarlo fuera de lugar.
+SPREADSHEET = (
+    BACKEND_DIR.parent / "data" / "planilla.xlsx.oculta-por-SIN_PLANILLA"
+    if os.environ.get("SIN_PLANILLA")
+    else BACKEND_DIR.parent / "data" / "planilla.xlsx"
+)
 
 # Routes that legitimately touch neither the database nor a tenant. Explicit on
 # purpose: adding a route breaks every walk below until somebody consciously
