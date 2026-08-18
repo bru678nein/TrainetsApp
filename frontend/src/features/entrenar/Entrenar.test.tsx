@@ -217,7 +217,8 @@ describe("empujar el número en vez de escribirlo", () => {
     responderCon(SESION);
     montarSesion();
     const rir = await screen.findByLabelText<HTMLInputElement>("RIR");
-    for (const _ of [1, 2, 3, 4]) await userEvent.click(screen.getByLabelText("Bajar RIR"));
+    const bajar = screen.getByLabelText("Bajar RIR");
+    for (let i = 0; i < 4; i++) await userEvent.click(bajar);
     expect(rir.value).toBe("0");
   });
 

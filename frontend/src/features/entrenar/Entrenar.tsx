@@ -106,16 +106,19 @@ function Stepper({
  * apretar «iniciar descanso» con la barra todavía en la mano. No suena ni
  * vibra —eso necesita permisos y una decisión aparte—, sólo cuenta.
  */
-function Descanso({ segundos, desde }: { segundos: number; desde: number }) {
+function Descanso({ segundos }: { segundos: number }) {
   const [restan, setRestan] = useState(segundos);
 
+  // Sin reiniciar el estado acá dentro: quien lo usa le pasa `key`, así que un
+  // descanso nuevo es un componente nuevo y `useState` ya arranca donde va.
+  // Poner un `setState` sincrónico en el efecto encadena renders, y además
+  // duplica la fuente de verdad del valor inicial.
   useEffect(() => {
-    setRestan(segundos);
     const reloj = setInterval(() => {
       setRestan((previo) => (previo <= 1 ? 0 : previo - 1));
     }, 1000);
     return () => clearInterval(reloj);
-  }, [segundos, desde]);
+  }, []);
 
   if (restan <= 0) return <p className="descanso descanso--listo">Descanso terminado</p>;
   const mm = Math.floor(restan / 60);
@@ -217,7 +220,7 @@ function SerieActual({
       >
         La salté
       </button>
-      {descansando && descanso ? <Descanso segundos={descanso} desde={descansando} /> : null}
+      {descansando && descanso ? <Descanso key={descansando} segundos={descanso} /> : null}
       {registrar.isError ? (
         <p className="estado estado--falla" role="alert">
           No se pudo registrar.
