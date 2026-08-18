@@ -9,9 +9,9 @@
 --  por qué el modelo es como es; los comentarios son el registro de las
 --  decisiones. Para el DDL vigente: `alembic upgrade head --sql`.
 --
---  El RLS del final YA está aplicado: migraciones 0004 a 0013. Lo de abajo es
+--  El RLS del final YA está aplicado: migraciones 0004 a 0018. Lo de abajo es
 --  el bosquejo que explica la forma; el DDL vigente son las migraciones, que
---  traen 37 policies: 19 permisivas y 18 restrictivas. Ante una diferencia, manda la migración.
+--  traen 51 policies: 33 permisivas y 18 restrictivas. Ante una diferencia, manda la migración.
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -284,7 +284,7 @@ GROUP BY p.athlete_id, p.id, m.ordinal, s.week_number, e.pattern_code;
 -- Aislamiento por tenant con RLS. APLICADO: migraciones 0004 y 0005.
 --
 -- Este archivo no se aplica nunca, así que lo de abajo es el bosquejo que
--- explica la forma; el DDL vigente son las migraciones, que traen 37 policies: 19 permisivas y 18 restrictivas.
+-- explica la forma; el DDL vigente son las migraciones, que traen 51 policies: 33 permisivas y 18 restrictivas.
 -- Si las dos difieren, manda la migración y esto es un bug de documentación.
 --
 -- El contrato de la sesión son dos variables, siempre las dos, ninguna con

@@ -1,4 +1,4 @@
-# AppWeb Lean
+# Trainets
 
 A strength-coaching platform. The coach prescribes periodisation in mesocycles,
 the athlete logs sets from their phone, and the coach sees volume by movement
