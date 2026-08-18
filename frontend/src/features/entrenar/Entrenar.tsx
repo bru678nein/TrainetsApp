@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import {
@@ -6,6 +6,7 @@ import {
   useAtletas,
   useRegistrarSerie,
   useSesion,
+  type BloqueDelDia,
   type SerieDelDia,
 } from "../../api/consultas";
 import { Consulta } from "../../components/estados";
@@ -13,92 +14,210 @@ import { Consulta } from "../../components/estados";
 /**
  * Lo que el atleta ve y usa, parado en el gimnasio entre serie y serie.
  *
- * De acá sale la única restricción de diseño que esta versión sí respeta aunque
- * sea fea: **el gesto normal es confirmar, no escribir**. Los campos vienen
- * cargados con lo que le prescribieron, así que registrar una serie que salió
- * como estaba planificada es un botón. Un formulario en blanco con tres números
- * a tipear, con una mano y treinta segundos de descanso, no se usa — y si no se
- * usa, no hay datos y el resto del producto no existe.
+ * De acá sale la única restricción de diseño que manda sobre esta pantalla:
+ * **el gesto normal es confirmar, no escribir**. Medido sobre la programación
+ * real, 473 de 473 ejercicios prescriptos tienen todas sus series idénticas, y
+ * la carga se repite el 60% de las veces. O sea que casi siempre la persona hizo
+ * exactamente lo que le pidieron, y la pantalla tiene que cobrar eso barato.
+ *
+ * La versión anterior mostraba **las 21 series de un día abiertas a la vez**:
+ * 5.417px de alto, 6,7 pantallas de scroll y 105 controles, entre los que había
+ * que buscar cuál era la que seguía. Medido a 375px sobre un día real de siete
+ * ejercicios. Funcionaba y era un formulario de carga, no algo que se usa con
+ * una mano y treinta segundos de descanso.
+ *
+ * Ahora: lo hecho se colapsa a un renglón, lo que viene se insinúa, y **abierta
+ * queda una sola serie** — la próxima. Los números se empujan con `−` y `+` en
+ * vez de tipearse, porque el gesto real no es escribir «82», es «uno más que la
+ * vez pasada».
  *
  * Pide siempre con rol `athlete` y no con el del interruptor: registrar es del
  * atleta, la policy rechaza al entrenador, y dejar que un `select` de otra
  * pantalla cambie eso sería ofrecer un botón que contesta 409.
  */
 
-function Serie({ serie, sesionId }: { serie: SerieDelDia; sesionId: string }) {
-  const registrar = useRegistrarSerie(sesionId);
-  const hecha = serie.reps_done != null;
+const hecha = (s: SerieDelDia) => s.reps_done != null;
 
-  // Lo prescrito como valor inicial. Si ya se registró, lo registrado, para que
-  // corregir sea editar lo que hay y no volver a escribirlo entero.
+/** «3x8 @ 60kg», o «3x8 · peso a elección» cuando no hay carga prescrita. */
+function objetivoDe(bloque: BloqueDelDia): string {
+  const primera = bloque.sets[0];
+  if (!primera) return "sin series";
+  const reps =
+    primera.reps_max && primera.reps_max !== primera.reps_min
+      ? `${primera.reps_min}-${primera.reps_max}`
+      : `${primera.reps_min ?? "?"}`;
+  const carga =
+    primera.target_load_kg != null ? `@ ${primera.target_load_kg} kg` : "· peso a elección";
+  return `${bloque.sets.length}×${reps} ${carga}`;
+}
+
+/**
+ * Un número que se empuja, no que se escribe.
+ *
+ * El `input` sigue estando y acepta teclado: hay quien prefiere tipear, y un
+ * valor lejano al prescripto —cambiaste de mancuernas— son muchos toques. Los
+ * botones son el camino rápido, no el único.
+ */
+function Stepper({
+  etiqueta,
+  valor,
+  onCambio,
+  paso = 1,
+  decimales = false,
+}: {
+  etiqueta: string;
+  valor: string;
+  onCambio: (v: string) => void;
+  paso?: number;
+  decimales?: boolean;
+}) {
+  const mover = (signo: number) => {
+    const n = Number(valor === "" ? 0 : valor);
+    if (Number.isNaN(n)) return;
+    const siguiente = Math.max(0, n + signo * paso);
+    onCambio(String(decimales ? Math.round(siguiente * 10) / 10 : siguiente));
+  };
+
+  return (
+    <div className="stepper">
+      <span className="stepper__etiqueta">{etiqueta}</span>
+      <div className="stepper__control">
+        <button type="button" onClick={() => mover(-1)} aria-label={`Bajar ${etiqueta}`}>
+          −
+        </button>
+        <input
+          inputMode={decimales ? "decimal" : "numeric"}
+          value={valor}
+          onChange={(e) => onCambio(e.target.value)}
+          aria-label={etiqueta}
+        />
+        <button type="button" onClick={() => mover(1)} aria-label={`Subir ${etiqueta}`}>
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * El descanso, que hasta ahora era un número impreso y nada más.
+ *
+ * Arranca solo al registrar porque es exactamente cuando empieza: nadie va a
+ * apretar «iniciar descanso» con la barra todavía en la mano. No suena ni
+ * vibra —eso necesita permisos y una decisión aparte—, sólo cuenta.
+ */
+function Descanso({ segundos, desde }: { segundos: number; desde: number }) {
+  const [restan, setRestan] = useState(segundos);
+
+  useEffect(() => {
+    setRestan(segundos);
+    const reloj = setInterval(() => {
+      setRestan((previo) => (previo <= 1 ? 0 : previo - 1));
+    }, 1000);
+    return () => clearInterval(reloj);
+  }, [segundos, desde]);
+
+  if (restan <= 0) return <p className="descanso descanso--listo">Descanso terminado</p>;
+  const mm = Math.floor(restan / 60);
+  const ss = String(restan % 60).padStart(2, "0");
+  return (
+    <p className="descanso" aria-live="off">
+      Descanso <strong>{mm}:{ss}</strong>
+    </p>
+  );
+}
+
+/** Una serie ya registrada: un renglón, no un formulario. */
+function SerieHecha({ serie, onCorregir }: { serie: SerieDelDia; onCorregir: () => void }) {
+  return (
+    <li className="serie-fila serie-fila--hecha">
+      <span className="serie-fila__numero" aria-hidden="true">
+        {serie.set_number}
+      </span>
+      <span className="serie-fila__dato">{serie.reps_done} reps</span>
+      <span className="serie-fila__dato">
+        {serie.load_done_kg != null ? `${serie.load_done_kg} kg` : "—"}
+      </span>
+      <span className="serie-fila__dato">RIR {serie.rir_done ?? "—"}</span>
+      <button type="button" className="sutil" onClick={onCorregir}>
+        Corregir
+      </button>
+    </li>
+  );
+}
+
+/** Una que todavía no llegó: se insinúa para saber cuántas faltan. */
+function SeriePendiente({ serie }: { serie: SerieDelDia }) {
+  return (
+    <li className="serie-fila serie-fila--pendiente">
+      <span className="serie-fila__numero" aria-hidden="true">
+        {serie.set_number}
+      </span>
+      <span className="serie-fila__dato">
+        {serie.reps_min ?? "?"}
+        {serie.reps_max && serie.reps_max !== serie.reps_min ? `-${serie.reps_max}` : ""} reps
+      </span>
+      <span className="serie-fila__dato">
+        {serie.target_load_kg != null ? `${serie.target_load_kg} kg` : "libre"}
+      </span>
+      <span className="serie-fila__dato">RIR {serie.rir_min ?? "?"}</span>
+    </li>
+  );
+}
+
+/** La única abierta. */
+function SerieActual({
+  serie,
+  sesionId,
+  descanso,
+}: {
+  serie: SerieDelDia;
+  sesionId: string;
+  descanso: number | null;
+}) {
+  const registrar = useRegistrarSerie(sesionId);
   const [reps, setReps] = useState(String(serie.reps_done ?? serie.reps_min ?? ""));
   const [carga, setCarga] = useState(String(serie.load_done_kg ?? serie.target_load_kg ?? ""));
   const [rir, setRir] = useState(String(serie.rir_done ?? serie.rir_min ?? ""));
+  const [descansando, setDescansando] = useState<number | null>(null);
 
   const mandar = (extra: { was_skipped?: boolean } = {}) =>
-    registrar.mutate({
-      serieId: serie.id,
-      reps: reps === "" ? null : Number(reps),
-      load_kg: carga === "" ? null : Number(carga),
-      rir: rir === "" ? null : Number(rir),
-      ...extra,
-    });
+    registrar.mutate(
+      {
+        serieId: serie.id,
+        reps: reps === "" ? null : Number(reps),
+        load_kg: carga === "" ? null : Number(carga),
+        rir: rir === "" ? null : Number(rir),
+        ...extra,
+      },
+      { onSuccess: () => setDescansando(descanso ? Date.now() : null) },
+    );
 
   return (
-    <li className={`entrenar__serie${hecha ? " entrenar__serie--hecha" : ""}`}>
-      <p className="entrenar__objetivo">
-        <strong>Serie {serie.set_number}</strong> · pedían {serie.reps_min ?? "?"}
-        {serie.reps_max && serie.reps_max !== serie.reps_min ? `-${serie.reps_max}` : ""} reps, RIR{" "}
-        {serie.rir_min ?? "?"}
-        {serie.target_load_kg != null ? `, ${serie.target_load_kg} kg` : ", peso a elección"}
-        {hecha ? " · ✓ registrada" : ""}
-      </p>
-      <div className="entrenar__campos">
-        <label className="entrenar__campo">
-          <span>Reps</span>
-          <input
-            inputMode="numeric"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            aria-label={`Repeticiones de la serie ${serie.set_number}`}
-          />
-        </label>
-        <label className="entrenar__campo">
-          <span>Kg</span>
-          <input
-            inputMode="decimal"
-            value={carga}
-            onChange={(e) => setCarga(e.target.value)}
-            aria-label={`Carga de la serie ${serie.set_number}`}
-          />
-        </label>
-        <label className="entrenar__campo">
-          <span>RIR</span>
-          <input
-            inputMode="decimal"
-            value={rir}
-            onChange={(e) => setRir(e.target.value)}
-            aria-label={`RIR de la serie ${serie.set_number}`}
-          />
-        </label>
+    <li className="serie-actual">
+      <p className="serie-actual__marca">Serie {serie.set_number}</p>
+      <div className="serie-actual__campos">
+        <Stepper etiqueta="Reps" valor={reps} onCambio={setReps} />
+        <Stepper etiqueta="Kg" valor={carga} onCambio={setCarga} paso={2.5} decimales />
+        <Stepper etiqueta="RIR" valor={rir} onCambio={setRir} />
       </div>
-      <div className="fila entrenar__acciones">
-        <button
-          type="button"
-          className="principal"
-          onClick={() => mandar()}
-          disabled={registrar.isPending}
-        >
-          {registrar.isPending ? "…" : hecha ? "Corregir" : "Listo"}
-        </button>
-        <button
-          type="button"
-          onClick={() => mandar({ was_skipped: true })}
-          disabled={registrar.isPending}
-        >
-          La salté
-        </button>
-      </div>
+      <button
+        type="button"
+        className="principal serie-actual__registrar"
+        onClick={() => mandar()}
+        disabled={registrar.isPending}
+      >
+        {registrar.isPending ? "Guardando…" : "Registrar serie"}
+      </button>
+      <button
+        type="button"
+        className="sutil serie-actual__saltear"
+        onClick={() => mandar({ was_skipped: true })}
+        disabled={registrar.isPending}
+      >
+        La salté
+      </button>
+      {descansando && descanso ? <Descanso segundos={descanso} desde={descansando} /> : null}
       {registrar.isError ? (
         <p className="estado estado--falla" role="alert">
           No se pudo registrar.
@@ -108,9 +227,77 @@ function Serie({ serie, sesionId }: { serie: SerieDelDia; sesionId: string }) {
   );
 }
 
+function Ejercicio({
+  bloque,
+  sesionId,
+  abierto,
+  onAbrir,
+}: {
+  bloque: BloqueDelDia;
+  sesionId: string;
+  abierto: boolean;
+  onAbrir: () => void;
+}) {
+  const completo = bloque.sets.length > 0 && bloque.sets.every(hecha);
+  // Cuál está abierta: la primera sin registrar. Si están todas hechas y la
+  // persona vuelve a entrar, ninguna — el ejercicio se lee, no se completa de
+  // nuevo. `corrigiendo` es la excepción explícita.
+  const [corrigiendo, setCorrigiendo] = useState<string | null>(null);
+  const siguiente = bloque.sets.find((s) => !hecha(s));
+  const abierta = corrigiendo ?? siguiente?.id ?? null;
+
+  if (!abierto) {
+    return (
+      <li>
+        <button
+          type="button"
+          className={`ejercicio-cerrado${completo ? " ejercicio-cerrado--hecho" : ""}`}
+          onClick={onAbrir}
+        >
+          <span className="ejercicio-cerrado__tilde" aria-hidden="true">
+            {completo ? "✓" : ""}
+          </span>
+          <span className="ejercicio-cerrado__nombre">{bloque.exercise}</span>
+          <span className="ejercicio-cerrado__objetivo">{objetivoDe(bloque)}</span>
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li className="ejercicio-abierto">
+      <div className="ejercicio-abierto__cabecera">
+        <h3>{bloque.exercise}</h3>
+        <span className="ejercicio-abierto__objetivo">{objetivoDe(bloque)}</span>
+      </div>
+      {bloque.coach_note ? <p className="ejercicio-abierto__nota">{bloque.coach_note}</p> : null}
+      <ul className="lista-de-series">
+        {bloque.sets.map((serie) =>
+          serie.id === abierta ? (
+            <SerieActual
+              key={serie.id}
+              serie={serie}
+              sesionId={sesionId}
+              descanso={bloque.rest_seconds}
+            />
+          ) : hecha(serie) ? (
+            <SerieHecha key={serie.id} serie={serie} onCorregir={() => setCorrigiendo(serie.id)} />
+          ) : (
+            <SeriePendiente key={serie.id} serie={serie} />
+          ),
+        )}
+      </ul>
+    </li>
+  );
+}
+
 export function SesionDelDia() {
   const { sesionId } = useParams();
   const detalle = useSesion(sesionId ?? "", "athlete");
+  // Cuál está abierto, sin recalcularse solo: si el ejercicio abierto saltara al
+  // siguiente al terminar el último set, la pantalla se movería debajo de la
+  // mano justo después de un toque.
+  const [abiertoManual, setAbiertoManual] = useState<string | null>(null);
   if (!sesionId) return null;
 
   return (
@@ -119,37 +306,65 @@ export function SesionDelDia() {
         <Link to="/entrenar">← Mis sesiones</Link>
       </p>
       <Consulta consulta={detalle} que="la sesión">
-        {(datos) => (
-          <>
-            <h2>
-              {datos.mesocycle} · semana {datos.week_number}, día {datos.day_number}
-            </h2>
-            {datos.blocks.map((bloque) => (
-              <section key={bloque.prescription_id} className="tarjeta">
-                <h3>{bloque.exercise}</h3>
-                {bloque.coach_note ? <p>{bloque.coach_note}</p> : null}
-                {bloque.rest_seconds ? <small>Descanso: {bloque.rest_seconds}s</small> : null}
-                <ul className="lista" style={{ listStyle: "none", padding: 0 }}>
-                  {bloque.sets.map((serie) => (
-                    <Serie key={serie.id} serie={serie} sesionId={sesionId} />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </>
-        )}
+        {(datos) => {
+          const completos = datos.blocks.filter(
+            (b) => b.sets.length > 0 && b.sets.every(hecha),
+          ).length;
+          const primeroSinTerminar = datos.blocks.find(
+            (b) => !(b.sets.length > 0 && b.sets.every(hecha)),
+          );
+          const abierto = abiertoManual ?? primeroSinTerminar?.prescription_id ?? null;
+
+          return (
+            <>
+              <h2>
+                {datos.mesocycle} · semana {datos.week_number}, día {datos.day_number}
+              </h2>
+
+              <div className="progreso">
+                <p className="progreso__texto">
+                  <strong>
+                    {completos} de {datos.blocks.length}
+                  </strong>{" "}
+                  ejercicios completados
+                </p>
+                <div
+                  className="progreso__barra"
+                  role="progressbar"
+                  aria-valuenow={completos}
+                  aria-valuemin={0}
+                  aria-valuemax={datos.blocks.length}
+                  aria-label="Ejercicios completados"
+                >
+                  <span
+                    style={{
+                      width: datos.blocks.length
+                        ? `${(completos / datos.blocks.length) * 100}%`
+                        : "0%",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <ul className="lista-de-ejercicios">
+                {datos.blocks.map((bloque) => (
+                  <Ejercicio
+                    key={bloque.prescription_id}
+                    bloque={bloque}
+                    sesionId={sesionId}
+                    abierto={bloque.prescription_id === abierto}
+                    onAbrir={() => setAbiertoManual(bloque.prescription_id)}
+                  />
+                ))}
+              </ul>
+            </>
+          );
+        }}
       </Consulta>
     </>
   );
 }
 
-/**
- * Las sesiones del atleta.
- *
- * Pasa por el listado de fichas porque una persona puede ser atleta de varios
- * entrenadores, y en ese caso tiene más de una agenda. Con una sola ficha el
- * paso es invisible: se entra directo.
- */
 export function MisSesiones() {
   const fichas = useAtletas("athlete");
   return (
@@ -161,13 +376,18 @@ export function MisSesiones() {
         motivo: "Todavía no reclamaste ninguna ficha. Pedile el link a tu entrenador.",
       }}
     >
-      {(lista) =>
-        lista.map((ficha) => <AgendaDeUnaFicha key={ficha.id} atletaId={ficha.id} />)
-      }
+      {(lista) => lista.map((ficha) => <AgendaDeUnaFicha key={ficha.id} atletaId={ficha.id} />)}
     </Consulta>
   );
 }
 
+/**
+ * Las sesiones del atleta.
+ *
+ * Pasa por el listado de fichas porque una persona puede ser atleta de varios
+ * entrenadores, y en ese caso tiene más de una agenda. Con una sola ficha el
+ * paso es invisible: se entra directo.
+ */
 function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
   const agenda = useAgenda(atletaId, "athlete");
   return (

@@ -66,6 +66,173 @@ function montarSesion() {
   );
 }
 
+const serie = (n: number, hecha: boolean) => ({
+  id: `ps${n}`,
+  set_number: n,
+  reps_min: 8,
+  reps_max: 8,
+  rir_min: 2,
+  rir_max: 2,
+  target_load_kg: 80,
+  // Lo hecho distinto de lo prescripto a propósito: si coincidieran, un test
+  // que lee «8 reps» no distinguiría si la fila muestra lo que la persona hizo
+  // o lo que le pidieron, que es exactamente la propiedad que verifica.
+  reps_done: hecha ? 9 : null,
+  load_done_kg: hecha ? 82.5 : null,
+  rir_done: hecha ? 1 : null,
+});
+
+const DIA = {
+  id: "s1",
+  mesocycle: "Acumulación",
+  week_number: 2,
+  day_number: 1,
+  blocks: [
+    {
+      prescription_id: "p1",
+      exercise: "Sentadilla",
+      pattern: "rodilla_dominante",
+      rest_seconds: 120,
+      coach_note: null,
+      sets: [serie(1, true), serie(2, false), serie(3, false)],
+    },
+    {
+      prescription_id: "p2",
+      exercise: "Press de banca",
+      pattern: "empuje_horizontal",
+      rest_seconds: null,
+      coach_note: null,
+      sets: [serie(4, false)],
+    },
+  ],
+};
+
+function responderCon(cuerpo: unknown) {
+  const pedido = vi.fn<typeof fetch>((url) =>
+    Promise.resolve(
+      new Response(JSON.stringify(String(url).includes("/log") ? { id: "l1" } : cuerpo), {
+        status: 200,
+      }),
+    ),
+  );
+  vi.stubGlobal("fetch", pedido);
+  return pedido;
+}
+
+describe("una serie abierta por vez", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("sólo la próxima sin registrar tiene campos", async () => {
+    // La versión anterior mostraba las 21 series de un día abiertas a la vez:
+    // 5.417px y 105 controles, medido a 375px. La tarea principal era scrollear
+    // hasta encontrar cuál seguía.
+    responderCon(DIA);
+    montarSesion();
+    await screen.findByText("Sentadilla");
+
+    // Un solo juego de campos en toda la pantalla.
+    expect(screen.getAllByLabelText("Reps")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Registrar serie" })).toHaveLength(1);
+    // Y es la 2: la 1 está hecha.
+    expect(screen.getByText("Serie 2")).toBeVisible();
+  });
+
+  it("lo ya hecho se lee en un renglón, con lo que la persona hizo", async () => {
+    responderCon(DIA);
+    montarSesion();
+    await screen.findByText("Sentadilla");
+
+    expect(screen.getByText("9 reps")).toBeVisible();
+    expect(screen.getByText("82.5 kg")).toBeVisible();
+    expect(screen.getByText("RIR 1")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Corregir" })).toBeVisible();
+  });
+
+  it("corregir vuelve a abrir esa serie y no otra", async () => {
+    // Sin esto, una serie mal cargada queda mal para siempre desde el teléfono.
+    responderCon(DIA);
+    montarSesion();
+    await userEvent.click(await screen.findByRole("button", { name: "Corregir" }));
+
+    expect(screen.getByText("Serie 1")).toBeVisible();
+    expect(screen.getAllByLabelText("Reps")).toHaveLength(1);
+  });
+
+  it("el segundo ejercicio está cerrado y se abre tocándolo", async () => {
+    responderCon(DIA);
+    montarSesion();
+    const cerrado = await screen.findByRole("button", { name: /Press de banca/ });
+    expect(screen.getAllByLabelText("Reps")).toHaveLength(1);
+
+    await userEvent.click(cerrado);
+    expect(screen.getByText("Serie 4")).toBeVisible();
+  });
+
+  it("el progreso cuenta ejercicios completos, no series", async () => {
+    // Un ejercicio a medias no está hecho. Contar series daría 1 de 4 y leería
+    // como progreso donde no lo hay.
+    responderCon(DIA);
+    montarSesion();
+    await screen.findByText("Sentadilla");
+
+    expect(screen.getByText("0 de 2")).toBeVisible();
+    const barra = screen.getByRole("progressbar");
+    expect(barra).toHaveAttribute("aria-valuenow", "0");
+    expect(barra).toHaveAttribute("aria-valuemax", "2");
+  });
+
+  it("el objetivo del ejercicio se lee de un vistazo", async () => {
+    responderCon(DIA);
+    montarSesion();
+    expect(await screen.findByText("3×8 @ 80 kg")).toBeVisible();
+  });
+});
+
+describe("empujar el número en vez de escribirlo", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("«+» sube y «−» baja", async () => {
+    responderCon(SESION);
+    montarSesion();
+    const reps = await screen.findByLabelText<HTMLInputElement>("Reps");
+    expect(reps.value).toBe("8");
+
+    await userEvent.click(screen.getByLabelText("Subir Reps"));
+    expect(reps.value).toBe("9");
+    await userEvent.click(screen.getByLabelText("Bajar Reps"));
+    await userEvent.click(screen.getByLabelText("Bajar Reps"));
+    expect(reps.value).toBe("7");
+  });
+
+  it("la carga se mueve de a 2,5 kg, que es el disco más chico", async () => {
+    responderCon(SESION);
+    montarSesion();
+    const kg = await screen.findByLabelText<HTMLInputElement>("Kg");
+    await userEvent.click(screen.getByLabelText("Subir Kg"));
+    expect(kg.value).toBe("82.5");
+  });
+
+  it("no baja de cero", async () => {
+    // Un RIR negativo no existe y la columna tiene un CHECK que lo rechaza.
+    responderCon(SESION);
+    montarSesion();
+    const rir = await screen.findByLabelText<HTMLInputElement>("RIR");
+    for (const _ of [1, 2, 3, 4]) await userEvent.click(screen.getByLabelText("Bajar RIR"));
+    expect(rir.value).toBe("0");
+  });
+
+  it("el campo sigue aceptando que se escriba", async () => {
+    // Un valor lejano al prescripto son muchos toques. Los botones son el camino
+    // rápido, no el único.
+    responderCon(SESION);
+    montarSesion();
+    const kg = await screen.findByLabelText<HTMLInputElement>("Kg");
+    await userEvent.clear(kg);
+    await userEvent.type(kg, "100");
+    expect(kg.value).toBe("100");
+  });
+});
+
 describe("registrar una serie desde el gimnasio", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
@@ -76,16 +243,16 @@ describe("registrar una serie desde el gimnasio", () => {
     // producto no existe.
     responder();
     montarSesion();
-    const reps = await screen.findByLabelText<HTMLInputElement>(/Repeticiones de la serie 1/);
+    const reps = await screen.findByLabelText<HTMLInputElement>("Reps");
     expect(reps.value).toBe("8");
-    expect(screen.getByLabelText<HTMLInputElement>(/Carga de la serie 1/).value).toBe("80");
-    expect(screen.getByLabelText<HTMLInputElement>(/RIR de la serie 1/).value).toBe("2");
+    expect(screen.getByLabelText<HTMLInputElement>("Kg").value).toBe("80");
+    expect(screen.getByLabelText<HTMLInputElement>("RIR").value).toBe("2");
   });
 
   it("confirmar manda lo prescrito sin tocar nada", async () => {
     const pedido = responder();
     montarSesion();
-    await userEvent.click(await screen.findByRole("button", { name: "Listo" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Registrar serie" }));
 
     const { url, opciones } = llamadaDeRegistro(pedido);
     expect(url).toContain("/api/sets/ps1/log");
@@ -99,7 +266,7 @@ describe("registrar una serie desde el gimnasio", () => {
     // en otra pantalla.
     const pedido = responder();
     montarSesion();
-    await userEvent.click(await screen.findByRole("button", { name: "Listo" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Registrar serie" }));
 
     const { opciones } = llamadaDeRegistro(pedido);
     expect(new Headers(opciones.headers).get("Active-Role")).toBe("athlete");
@@ -121,8 +288,8 @@ describe("registrar una serie desde el gimnasio", () => {
     // carga en el tonelaje.
     const pedido = responder();
     montarSesion();
-    await userEvent.clear(await screen.findByLabelText(/Carga de la serie 1/));
-    await userEvent.click(screen.getByRole("button", { name: "Listo" }));
+    await userEvent.clear(await screen.findByLabelText("Kg"));
+    await userEvent.click(screen.getByRole("button", { name: "Registrar serie" }));
 
     const { opciones } = llamadaDeRegistro(pedido);
     expect(JSON.parse(String(opciones.body)).load_kg).toBeNull();

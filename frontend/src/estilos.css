@@ -348,56 +348,178 @@ form { margin: 0 0 var(--paso); }
 
 /* --- Entrenar: la pantalla que se usa parado ------------------------------------- */
 
-.entrenar__objetivo {
-  font-size: 0.8125rem;
-  color: var(--tinta-suave);
-  margin-bottom: calc(var(--paso) * 0.75);
-}
-.entrenar__serie {
+/* --- La pantalla del atleta -----------------------------------------------------
+ *
+ * Una sola serie abierta. Antes estaban las 21 de un día a la vez: 5.417px de
+ * alto y 105 controles, medido a 375px sobre siete ejercicios. El scroll era la
+ * tarea principal.
+ *
+ * La jerarquía la hace el tamaño, no el color: la serie actual es la única con
+ * superficie elevada y controles grandes, lo hecho baja a un renglón de texto y
+ * lo que falta queda tenue. Así sigue habiendo dos colores con significado
+ * —`--prescrito` y `--hecho`— y ninguno se gasta en decir «acá estás». */
+
+.progreso {
+  background: var(--papel);
   border: 1px solid var(--borde);
   border-radius: var(--radio);
+  padding: calc(var(--paso) * 1.5) calc(var(--paso) * 2);
+  margin-bottom: calc(var(--paso) * 2);
+}
+.progreso__texto { margin: 0 0 var(--paso); font-size: 0.875rem; color: var(--tinta-suave); }
+.progreso__texto strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.progreso__barra {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--prescrito);
+  overflow: hidden;
+}
+.progreso__barra > span {
+  display: block;
+  height: 100%;
+  background: var(--hecho);
+  transition: width 200ms ease;
+}
+
+.lista-de-ejercicios { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--paso); }
+
+/* Un ejercicio cerrado es un botón entero: el objetivo es tocarlo para volver,
+   y un área de un renglón completo se acierta sin apuntar. */
+.ejercicio-cerrado {
+  display: flex;
+  align-items: center;
+  gap: var(--paso);
+  width: 100%;
+  text-align: left;
   padding: calc(var(--paso) * 1.5);
-  margin-bottom: var(--paso);
-  background: var(--papel-elevado);
-  list-style: none;
+  background: var(--papel);
+  border: 1px solid var(--borde);
 }
-.entrenar__serie--hecha {
-  border-color: var(--hecho);
-  background: var(--hecho-tenue);
+.ejercicio-cerrado__tilde { width: 1rem; color: var(--hecho); font-weight: 700; }
+.ejercicio-cerrado__nombre { font-weight: 600; }
+.ejercicio-cerrado__objetivo {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.entrenar__campos {
+.ejercicio-cerrado--hecho .ejercicio-cerrado__nombre { color: var(--tinta-suave); }
+
+.ejercicio-abierto {
+  background: var(--papel);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio);
+  padding: calc(var(--paso) * 2);
+  box-shadow: var(--sombra);
+}
+.ejercicio-abierto__cabecera {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--paso) * 1.5);
+  gap: var(--paso);
   flex-wrap: wrap;
-  margin-bottom: var(--paso);
 }
-.entrenar__campo { display: flex; flex-direction: column; gap: 2px; }
-.entrenar__campo > span { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tinta-suave); }
-/* Números grandes y tabulares. Se leen de reojo, con el celular apoyado en el
-   banco y la vista todavía puesta en la barra. */
-.entrenar__campo > input {
-  width: 4.5rem;
-  font-size: 1.5rem;
+.ejercicio-abierto__cabecera h3 { margin: 0; }
+.ejercicio-abierto__objetivo {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+.ejercicio-abierto__nota { font-size: 0.875rem; color: var(--tinta-suave); margin-top: var(--paso); }
+
+.lista-de-series { list-style: none; margin: calc(var(--paso) * 1.5) 0 0; padding: 0; }
+
+/* Lo hecho y lo que falta comparten renglón para que las tres series se lean
+   como una tabla: la misma cifra cae en la misma columna. */
+.serie-fila {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr 1fr 1fr auto;
+  align-items: center;
+  gap: var(--paso);
+  padding: calc(var(--paso) * 0.75) 0;
+  border-bottom: 1px solid var(--borde);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.serie-fila__numero { color: var(--tinta-suave); font-size: 0.75rem; }
+.serie-fila--pendiente { color: var(--tinta-tenue); }
+.serie-fila--hecha .serie-fila__dato { color: var(--tinta); }
+
+.serie-actual {
+  background: var(--papel-hundido);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-chico);
+  padding: calc(var(--paso) * 1.5);
+  margin: var(--paso) 0;
+}
+.serie-actual__marca {
+  margin: 0 0 var(--paso);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+.serie-actual__campos {
+  display: grid;
+  gap: var(--paso);
+}
+/* Uno por renglón, y no tres en fila. Medido a 375px: con tres columnas cada
+   una queda en 96px, los dos botones se comen 80 y al número le sobran 16px de
+   ancho. Un stepper cuyo valor no se puede leer no es un control, es un adorno.
+   A lo ancho entra de a uno, con el número grande y los dos botones cómodos. */
+@media (min-width: 30rem) {
+  .serie-actual__campos { grid-template-columns: repeat(3, 1fr); }
+}
+.serie-actual__registrar { width: 100%; min-height: 48px; margin-top: calc(var(--paso) * 1.5); font-size: 1rem; }
+.serie-actual__saltear { width: 100%; min-height: 44px; margin-top: calc(var(--paso) * 0.5); }
+
+/* El número se empuja con el pulgar: 44px de lado en cada botón, y el campo en
+   el medio acepta teclado para quien prefiera escribirlo. */
+.stepper { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stepper__etiqueta {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+.stepper__control { display: flex; align-items: stretch; min-width: 0; }
+.stepper__control button {
+  min-width: 40px;
+  min-height: 44px;
+  font-size: 1.125rem;
+  padding: 0;
+  flex: 0 0 auto;
+}
+.stepper__control input {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  text-align: center;
+  font-size: 1.25rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
+}
+.stepper__control button:first-child { border-radius: var(--radio-chico) 0 0 var(--radio-chico); }
+.stepper__control button:last-child { border-radius: 0 var(--radio-chico) var(--radio-chico) 0; }
+
+.descanso {
+  margin: var(--paso) 0 0;
   text-align: center;
-  padding: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--tinta-suave);
 }
-/* 44px es el mínimo con el que un dedo acierta sin mirar. Debajo de eso, entre
-   series, se falla y se abandona. */
-.entrenar__acciones button {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-}
+.descanso strong { font-size: 1.25rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.descanso--listo { color: var(--hecho); }
 
 @media (max-width: 640px) {
   .marco__contenido { padding: calc(var(--paso) * 2) var(--paso) calc(var(--paso) * 8); }
   .adherencia__fila { grid-template-columns: 1fr 3rem 4.5rem; }
   .adherencia__nombre { grid-column: 1 / -1; text-align: left; }
-  .entrenar__acciones button { flex: 1; }
 }
 
 /* La pantalla de ingreso. Vive fuera del marco —el marco está adentro del
