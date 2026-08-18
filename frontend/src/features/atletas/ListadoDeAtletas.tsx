@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ErrorDelApi } from "../../api/cliente";
@@ -11,6 +11,7 @@ import {
   type Atleta,
 } from "../../api/consultas";
 import { Cargando, Falla, Vacio } from "../../components/estados";
+import { useRol } from "../../lib/Rol";
 
 /**
  * Quien entra por primera vez no tiene perfil de entrenador, y hasta ahora eso
@@ -102,6 +103,39 @@ function Acciones({ atleta }: { atleta: Atleta }) {
   );
 }
 
+/**
+ * Qué hacer cuando pedir como entrenador contesta 403.
+ *
+ * Hay dos personas distintas detrás de ese mismo código, y ofrecerles lo mismo
+ * deja a una de las dos encerrada:
+ *
+ * - **Alguien que recién llega** y todavía no es entrenador de nadie. Para esa
+ *   persona el 403 tiene salida y es darse de alta.
+ * - **Un atleta** que abrió la aplicación desde otro teléfono, u otro navegador,
+ *   o con el almacenamiento borrado. Su rol guardado se perdió, el que arranca
+ *   por defecto es `coach`, y el 403 es la respuesta correcta a una pregunta que
+ *   no debería haberse hecho. Ofrecerle «date de alta como entrenador» es
+ *   mandarla a crear un espacio que no quiere.
+ *
+ * Se distinguen por el dato, no por una suposición: si tiene fichas como atleta,
+ * es lo segundo. Ese pedido sale sólo por este camino, que es el raro.
+ */
+function NoEsEntrenador() {
+  const fichas = useAtletas("athlete");
+  const { cambiar } = useRol();
+  const tiene = (fichas.data?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (tiene) cambiar("athlete");
+  }, [tiene, cambiar]);
+
+  if (fichas.isPending) return <Cargando que="tus fichas" />;
+  // Mientras el cambio de rol no llegó, no se dibuja el alta de entrenador: es
+  // un parpadeo que ofrece justo lo que la persona no vino a hacer.
+  if (tiene) return <Cargando que="tus sesiones" />;
+  return <PrimeraVez />;
+}
+
 export function ListadoDeAtletas() {
   const consulta = useAtletas();
 
@@ -114,7 +148,7 @@ export function ListadoDeAtletas() {
     consulta.error instanceof ErrorDelApi &&
     consulta.error.status === 403
   ) {
-    return <PrimeraVez />;
+    return <NoEsEntrenador />;
   }
   if (consulta.isError) return <Falla que="los atletas" />;
 

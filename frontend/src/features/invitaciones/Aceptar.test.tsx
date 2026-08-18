@@ -1,8 +1,10 @@
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { montar } from "../../lib/pruebas";
+import { Inicio } from "../Inicio";
 import { Aceptar } from "./Aceptar";
 import { guardar, recuperar } from "./tokenEnTransito";
 
@@ -170,5 +172,43 @@ describe("cada rechazo dice algo distinto", () => {
     );
     montarEnRuta(RUTA);
     expect(await screen.findByRole("alert")).toHaveTextContent(/No se pudo aceptar/i);
+  });
+});
+
+describe("aceptar deja el rol en atleta", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  it("después de aceptar, la aplicación muestra lo del atleta", async () => {
+    // Es el único momento en que la aplicación sabe con certeza qué es esta
+    // persona: acaba de reclamar una ficha. Antes lo tiraba y volvía al inicio
+    // pidiendo como entrenador, con un 403 en la primera pantalla.
+    //
+    // Se observa por lo que se dibuja y no por el estado interno: `Inicio`
+    // renderiza una pantalla distinta según el rol, así que «Mis sesiones» sólo
+    // aparece si el rol cambió de verdad.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) => {
+        const cuerpo = String(url).includes("invitation")
+          ? { ok: true }
+          : String(url).includes("/sessions")
+            ? []
+            : [{ id: "a1", full_name: "Ficha" }];
+        return Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200 }));
+      }),
+    );
+
+    montar(
+      <Routes>
+        <Route path="/invitacion/:token" element={<Aceptar />} />
+        <Route path="/" element={<Inicio />} />
+      </Routes>,
+      "/invitacion/un-token",
+    );
+
+    await screen.findByText("Listo, ya estás asociado");
+    await userEvent.click(screen.getByRole("link", { name: "Ir al inicio" }));
+
+    expect(await screen.findByText("Mis sesiones")).toBeVisible();
   });
 });

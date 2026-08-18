@@ -25,3 +25,18 @@ export const API_URL = requerida(
   "VITE_API_URL",
   import.meta.env.VITE_API_URL,
 );
+
+/**
+ * Si se muestra el interruptor de rol, que por defecto no se muestra.
+ *
+ * No es una preferencia estética: el rol se resuelve solo. Aceptar una
+ * invitación deja el rol en atleta, y un 403 sobre el espacio del entrenador
+ * lleva a atleta a quien tenga fichas. Con eso, para casi todo el mundo no hay
+ * nada que elegir, y un desplegable que pregunta «¿estás mirando como
+ * entrenador o como atleta?» sólo confunde a quien es una sola de las dos.
+ *
+ * Queda para quien tiene los **dos** roles de verdad —un entrenador que además
+ * es atleta de otro—, que hoy es un caso que no se puede resolver solo. Ese día
+ * esto se prende, o se muestra según lo que la persona tenga.
+ */
+export const MOSTRAR_SELECTOR_DE_ROL = import.meta.env.VITE_MOSTRAR_SELECTOR_DE_ROL === "true";

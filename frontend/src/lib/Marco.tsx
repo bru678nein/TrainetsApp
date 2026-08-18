@@ -2,6 +2,7 @@ import { UserButton } from "@clerk/clerk-react";
 import { NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import { MOSTRAR_SELECTOR_DE_ROL } from "./entorno";
 import { SelectorDeRol, useRol } from "./Rol";
 
 /**
@@ -29,7 +30,7 @@ export function Marco({ children }: { children: ReactNode }) {
         ) : (
           <NavLink to="/">Atletas</NavLink>
         )}
-        <SelectorDeRol />
+        {MOSTRAR_SELECTOR_DE_ROL ? <SelectorDeRol /> : null}
         <UserButton />
       </header>
       <main className="marco__contenido">{children}</main>

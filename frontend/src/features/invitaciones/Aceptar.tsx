@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { ErrorDelApi } from "../../api/cliente";
 import { useAceptarInvitacion } from "../../api/consultas";
+import { useRol } from "../../lib/Rol";
 import { Cargando } from "../../components/estados";
 import { olvidar, recuperar } from "./tokenEnTransito";
 
@@ -43,6 +44,7 @@ function mensajeDe(error: unknown): string {
 export function Aceptar() {
   const { token: enLaUrl } = useParams();
   const aceptar = useAceptarInvitacion();
+  const { cambiar } = useRol();
   // La dirección manda cuando todavía lo trae; lo guardado es el respaldo para
   // cuando el proveedor devolvió el navegador a otro lado. Guardar acá sería un
   // efecto durante el render, y además volvería a escribir lo que `olvidar`
@@ -55,8 +57,13 @@ export function Aceptar() {
   useEffect(() => {
     if (!token || yaSeMando.current) return;
     yaSeMando.current = true;
-    mutate(token, { onSettled: olvidar });
-  }, [token, mutate]);
+    // Aceptar deja el rol en atleta, y es el único momento en que la aplicación
+    // sabe con certeza qué es esta persona: acaba de reclamar una ficha. Sin
+    // esto volvía al inicio pidiendo como entrenador y se comía un 403 en la
+    // primera pantalla, con un desplegable que hay que descubrir como única
+    // salida.
+    mutate(token, { onSettled: olvidar, onSuccess: () => cambiar("athlete") });
+  }, [token, mutate, cambiar]);
 
   if (!token) {
     return (
