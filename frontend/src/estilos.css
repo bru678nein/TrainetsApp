@@ -559,6 +559,14 @@ form { margin: 0 0 var(--paso); }
 
 .pestanas {
   display: flex;
+  /* Envuelven, y no es un detalle de gusto: en 320px las cuatro suman 334px
+     contra 304px disponibles, y sin envolver «Invitación» queda cortada **sin
+     forma de alcanzarla** — el contenedor no scrollea, así que para ese teléfono
+     esa pestaña no existe. Medido, no supuesto.
+
+     Envolver y no `overflow-x: auto` porque son cuatro y entran en dos filas:
+     todo queda visible y no hay que descubrir que la tira se desliza. */
+  flex-wrap: wrap;
   gap: calc(var(--paso) * 0.5);
   border-bottom: 1px solid var(--borde);
   margin-bottom: calc(var(--paso) * 2);
