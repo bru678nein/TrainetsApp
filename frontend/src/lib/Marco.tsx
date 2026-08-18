@@ -22,7 +22,7 @@ export function Marco({ children }: { children: ReactNode }) {
     <>
       <header className="marco__barra">
         <NavLink to="/" className="marco__marca">
-          AppWeb Lean
+          Trainets
         </NavLink>
         {rol === "athlete" ? (
           <NavLink to="/">Mis sesiones</NavLink>
