@@ -197,3 +197,28 @@ def tenant_session(ctx: TenantContext = Depends(require_tenant_context)) -> OrmS
     and tenant resolution cannot be requested separately.
     """
     return ctx.db
+
+
+def exigir_suscripcion_al_dia(db: OrmSession) -> None:
+    """Frena una escritura de entrenador con la suscripción vencida.
+
+    **Esto no es el control**: el control son las policies `RESTRICTIVE` de la
+    0020, que rechazan la escritura aunque nadie llame a esta función. Lo que
+    agrega es el motivo.
+
+    Sin ella, un rechazo por suscripción y uno por vínculo archivado llegan como
+    el mismo error de la base, y el manejador los traduce a un único `409` que
+    dice «vinculo_archivado» — falso para el primero, y sin decirle a la persona
+    qué tiene que hacer. Es el mismo argumento por el que `_solo_entrenador`
+    chequea el rol que las policies ya chequean.
+
+    `402` y no `403`: no es que no tenga permiso sobre esos datos —son suyos y
+    los sigue leyendo—, es que la suscripción venció.
+    """
+    import sqlalchemy as sa
+
+    if not db.execute(sa.text("SELECT app_coach_al_dia()")).scalar():
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            "suscripción vencida: tus datos siguen visibles, pero para programar hay que renovar",
+        )

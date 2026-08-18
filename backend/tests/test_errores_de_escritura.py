@@ -117,13 +117,21 @@ class TestLoQueNoSeTapa:
 
 
 class TestElMotivoSigueSiendoCierto:
-    def test_la_unica_regla_restrictiva_es_el_vinculo(self, db) -> None:
-        """El manejador nombra el motivo, y eso vale mientras sea el único.
+    def test_toda_regla_restrictiva_tiene_quien_la_explique(self, db) -> None:
+        """El manejador nombra un motivo, y ese motivo tiene que ser el cierto.
 
-        Si mañana aparece otra policy `RESTRICTIVE` —otra regla de escritura—,
-        el `409` empezaría a decir "vinculo_archivado" sobre algo que no lo es.
-        Este test falla ahí, que es cuando hay que revisar el texto, y no seis
-        meses después mirando un mensaje que nunca fue verdad.
+        Cualquier policy `RESTRICTIVE` que rechace una escritura llega como el
+        mismo error de la base, y el `409` la traduce a "vinculo_archivado". Con
+        una sola familia eso era verdad siempre.
+
+        Hoy son dos. La segunda —la suscripción vencida, de la 0020— **no llega
+        a este manejador**: los endpoints de escritura del entrenador la
+        chequean antes y contestan `402` diciendo qué pasó. Por eso se la excluye
+        acá explícitamente, y no aflojando el test.
+
+        Una tercera familia sin ese trato volvería a mentir en el `409`. Este
+        caso falla ahí, que es cuando hay que decidir, y no seis meses después
+        mirando un mensaje que nunca fue verdad.
         """
         otras = (
             db.execute(
@@ -131,6 +139,7 @@ class TestElMotivoSigueSiendoCierto:
                 SELECT policyname FROM pg_policies
                 WHERE schemaname = 'public' AND permissive = 'RESTRICTIVE'
                   AND policyname NOT LIKE '%_vinculo_vivo_%'
+                  AND policyname NOT LIKE '%_suscripcion_al_dia_%'
                 ORDER BY 1
             """)
             )

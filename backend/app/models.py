@@ -98,6 +98,17 @@ class Coach(Base):
     # preferences of the coaching workspace, not of the person.
     locale: Mapped[str] = mapped_column(String(10), server_default="es-AR")
     unit_system: Mapped[str] = mapped_column(String(10), server_default="metric")
+    # Until when this coach may write. A date and not an `active` flag: it gives
+    # the trial, the failed-payment retry window and the refund for free, and
+    # each of those would otherwise be a special case decided in a hurry. The
+    # policies read it; nothing in the application writes it.
+    pago_hasta: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now() + interval '30 days'")
+    )
+    # The provider's subscription id, whichever provider. Nothing else about the
+    # provider reaches the schema: the webhook translates its vocabulary into
+    # these two columns, so changing provider touches no policy.
+    referencia_externa: Mapped[str | None] = mapped_column(String(120), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[AppUser] = relationship()

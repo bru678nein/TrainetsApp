@@ -36,7 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.api.deps import TenantContext, require_tenant_context
+from app.api.deps import TenantContext, exigir_suscripcion_al_dia, require_tenant_context
 from app.models import (
     Exercise,
     Mesocycle,
@@ -88,6 +88,7 @@ def _solo_entrenador(ctx: TenantContext) -> OrmSession:
     """
     if ctx.role != "coach":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador edita rutinas")
+    exigir_suscripcion_al_dia(ctx.db)
     return ctx.db
 
 
