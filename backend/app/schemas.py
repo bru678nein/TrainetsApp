@@ -124,6 +124,18 @@ class SessionSummary(BaseModel):
     label: str | None = None
     scheduled_on: date | None = None
 
+    #: Cuántas series pide este día y cuántas ya tienen respuesta.
+    #:
+    #: Sin esto, un día terminado y uno sin empezar se dibujan igual, y el atleta
+    #: tiene que abrirlos para saber cuál le falta.
+    #:
+    #: «Con respuesta» y no «registradas»: una serie saltada también fue
+    #: contestada — el atleta dijo que no la hizo. Contar sólo las registradas
+    #: dejaría un día cerrado a propósito como si estuviera a medio hacer, para
+    #: siempre.
+    series_prescritas: int = 0
+    series_respondidas: int = 0
+
 
 class SessionOut(BaseModel):
     id: uuid.UUID

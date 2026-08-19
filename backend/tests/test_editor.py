@@ -1227,3 +1227,81 @@ class TestDuplicarUnBloqueEntero:
         assert [s["week_number"] for s in del_corto] == [1], (
             f"la semana 2 no entra en un bloque de una: {del_corto}"
         )
+
+
+class TestLaAgendaDiceCuantoFalta:
+    """Un día terminado y uno sin empezar se dibujaban igual en la agenda del
+    atleta, que tenía que abrirlos para saber cuál le faltaba."""
+
+    @pytest.fixture
+    def dia(self, cliente, coach, programa, ejercicio) -> dict[str, str]:
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 1, "label": "M", "week_count": 1},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio, "sets": [{"reps_min": 8, "rir_min": 2}] * 3},
+        ).json()["id"]
+        series = coach(cliente, "GET", f"/api/sessions/{sesion}").json()["blocks"][0]["sets"]
+        return {"sesion": sesion, "pres": pres, "series": [s["id"] for s in series]}
+
+    def agenda(self, cliente, coach, escenario, sesion_id: str) -> dict:
+        """La fila de *esta* sesión, buscada por id.
+
+        `filas[0]` no sirve: el escenario ya le arma a este atleta otra sesión
+        con su propia serie, así que el primer elemento es la ajena. Pasaba al
+        correr la clase sola por el orden que devolvía la consulta, y falló al
+        correr la suite entera.
+        """
+        filas = coach(cliente, "GET", f"/api/athletes/{escenario.atleta_de_a}/sessions").json()
+        mia = [f for f in filas if f["id"] == sesion_id]
+        assert mia, f"la sesión {sesion_id} no aparece en la agenda"
+        return mia[0]
+
+    def registrar(self, cliente, mint, escenario, serie: str, saltada: bool = False) -> None:
+        """Como atleta: registrar es suyo y la policy rechaza al entrenador."""
+        cuerpo = {"was_skipped": True} if saltada else {"reps": 8}
+        r = cliente.request(
+            "PUT",
+            f"/api/sets/{serie}/log",
+            headers={
+                "Authorization": f"Bearer {mint(escenario.sub_c)}",
+                "Active-Role": "athlete",
+            },
+            json=cuerpo,
+        )
+        assert r.status_code in (200, 201), r.text
+
+    def test_sin_registrar_nada_dice_cero_de_tres(self, cliente, coach, escenario, dia) -> None:
+        fila = self.agenda(cliente, coach, escenario, dia["sesion"])
+        assert fila["series_prescritas"] == 3
+        assert fila["series_respondidas"] == 0
+
+    def test_cuenta_las_que_se_van_registrando(self, cliente, coach, mint, escenario, dia) -> None:
+        self.registrar(cliente, mint, escenario, dia["series"][0])
+        fila = self.agenda(cliente, coach, escenario, dia["sesion"])
+        assert (fila["series_respondidas"], fila["series_prescritas"]) == (1, 3)
+
+    def test_una_saltada_tambien_cuenta_como_contestada(
+        self, cliente, coach, mint, escenario, dia
+    ) -> None:
+        """El atleta dijo que no la hizo, que es una respuesta. Contar sólo las
+        registradas dejaría un día cerrado a propósito como si estuviera a medio
+        hacer, para siempre."""
+        for i, serie in enumerate(dia["series"]):
+            self.registrar(cliente, mint, escenario, serie, saltada=(i == 2))
+
+        fila = self.agenda(cliente, coach, escenario, dia["sesion"])
+        assert fila["series_respondidas"] == 3, "la saltada tiene que contar"
+        assert fila["series_respondidas"] == fila["series_prescritas"]

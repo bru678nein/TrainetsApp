@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, text, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
 
@@ -283,8 +283,26 @@ def list_sessions(
     programs, because the ordinal is unique per program and not per athlete.
     """
     _athlete_or_404(db, athlete_id)
+    # Las dos cuentas van en la misma consulta y no una por sesión: un mesociclo
+    # de cuatro semanas por tres días son doce viajes a la base para dibujar una
+    # lista.
+    prescritas = (
+        select(func.count(PrescribedSet.id))
+        .join(Prescription, Prescription.id == PrescribedSet.prescription_id)
+        .where(Prescription.session_id == Session.id)
+        .correlate(Session)
+        .scalar_subquery()
+    )
+    respondidas = (
+        select(func.count(LoggedSet.id))
+        .join(PrescribedSet, PrescribedSet.id == LoggedSet.prescribed_set_id)
+        .join(Prescription, Prescription.id == PrescribedSet.prescription_id)
+        .where(Prescription.session_id == Session.id)
+        .correlate(Session)
+        .scalar_subquery()
+    )
     stmt = (
-        select(Session, Mesocycle, Program)
+        select(Session, Mesocycle, Program, prescritas, respondidas)
         .join(Mesocycle, Mesocycle.id == Session.mesocycle_id)
         .join(Program, Program.id == Mesocycle.program_id)
         .where(Program.athlete_id == athlete_id)
@@ -308,8 +326,10 @@ def list_sessions(
             day_number=se.day_number,
             label=se.label,
             scheduled_on=se.scheduled_on,
+            series_prescritas=pide,
+            series_respondidas=hechas,
         )
-        for se, me, pr in db.execute(stmt).all()
+        for se, me, pr, pide, hechas in db.execute(stmt).all()
     ]
 
 

@@ -314,6 +314,10 @@ export type SesionDeLaAgenda = {
   mesocycle_ordinal: number;
   week_number: number;
   day_number: number;
+  /** Cuántas series pide el día y cuántas ya tienen respuesta — registrada o
+   *  saltada. Un día terminado y uno sin empezar se dibujaban igual. */
+  series_prescritas: number;
+  series_respondidas: number;
 };
 
 export type SerieDelDia = {

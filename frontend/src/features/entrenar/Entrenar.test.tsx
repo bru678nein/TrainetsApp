@@ -4,7 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { montar } from "../../lib/pruebas";
-import { SesionDelDia } from "./Entrenar";
+import { MisSesiones, SesionDelDia } from "./Entrenar";
 
 vi.mock("@clerk/clerk-react", () => ({
   useAuth: () => ({ getToken: () => Promise.resolve("un-token") }),
@@ -294,5 +294,75 @@ describe("registrar una serie desde el gimnasio", () => {
 
     const { opciones } = llamadaDeRegistro(pedido);
     expect(JSON.parse(String(opciones.body)).load_kg).toBeNull();
+  });
+});
+
+
+describe("la agenda distingue un día terminado de uno sin empezar", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  const fila = (dia: number, prescritas: number, respondidas: number) => ({
+    id: `s${dia}`,
+    mesocycle_id: "m1",
+    mesocycle: "Acumulación",
+    mesocycle_ordinal: 1,
+    week_number: 1,
+    day_number: dia,
+    series_prescritas: prescritas,
+    series_respondidas: respondidas,
+  });
+
+  function conAgenda(filas: unknown[]) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify(String(url).includes("/sessions") ? filas : [{ id: "a1" }]),
+            { status: 200 },
+          ),
+        ),
+      ),
+    );
+  }
+
+  function montarAgenda() {
+    return montar(<MisSesiones />);
+  }
+
+  it("el terminado lo dice con palabras y no sólo con color", async () => {
+    // Quien no distingue los tonos tiene que poder leerlo, y a pleno sol tampoco
+    // se ve un verde de otro gris.
+    conAgenda([fila(1, 9, 9)]);
+    montarAgenda();
+
+    expect(await screen.findByText(/completado/)).toBeVisible();
+  });
+
+  it("uno a medio hacer dice cuánto le falta", async () => {
+    conAgenda([fila(1, 9, 4)]);
+    montarAgenda();
+
+    expect(await screen.findByText(/4 de 9/)).toBeVisible();
+    expect(screen.queryByText(/completado/)).toBeNull();
+  });
+
+  it("uno sin empezar no dice nada de más", async () => {
+    conAgenda([fila(1, 9, 0)]);
+    montarAgenda();
+
+    await screen.findByText(/semana 1/);
+    expect(screen.queryByText(/completado/)).toBeNull();
+    expect(screen.queryByText(/de 9/)).toBeNull();
+  });
+
+  it("un día sin nada prescripto no está completado, está vacío", async () => {
+    // Sin el `> 0`, cero de cero da «completado» y felicita a alguien por no
+    // hacer nada.
+    conAgenda([fila(1, 0, 0)]);
+    montarAgenda();
+
+    await screen.findByText(/semana 1/);
+    expect(screen.queryByText(/completado/)).toBeNull();
   });
 });

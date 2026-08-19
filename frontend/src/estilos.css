@@ -1055,3 +1055,14 @@ form { margin: 0 0 var(--paso); }
 .agenda__texto { display: flex; flex-direction: column; min-width: 0; }
 .agenda__texto small { color: var(--tinta-suave); }
 .agenda__flecha { margin-left: auto; color: var(--tinta-tenue); font-size: 1.5rem; line-height: 1; }
+
+/* Un día terminado se lee terminado: el cuadrito pasa a tilde sobre el color de
+   «hecho», y la fila baja de intensidad. La palabra «completado» va en el texto
+   —el color solo no alcanza— y el resto queda legible: es historial, no ruido. */
+.agenda__dia--completo { background: var(--papel); }
+.agenda__dia--completo .agenda__numero {
+  background: var(--hecho-tenue);
+  color: var(--hecho);
+  font-size: 1rem;
+}
+.agenda__dia--completo .agenda__texto strong { color: var(--tinta-suave); font-weight: 500; }

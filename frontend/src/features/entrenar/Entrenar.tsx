@@ -406,20 +406,35 @@ function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
       >
         {(lista) => (
           <ul className="agenda">
-            {lista.map((s) => (
+            {lista.map((s) => {
+              // Un día está completo cuando no le queda ninguna serie sin
+              // contestar. `> 0` en el denominador porque un día sin nada
+              // prescripto no está terminado: está vacío, y decirle «completado»
+              // sería felicitar a alguien por no hacer nada.
+              const completo = s.series_prescritas > 0 && s.series_respondidas >= s.series_prescritas;
+              const empezado = s.series_respondidas > 0 && !completo;
+              return (
               <li key={s.id}>
                 {/* Toda la fila es el destino, y no un texto subrayado en el
                     medio: en el teléfono se toca con el pulgar sin apuntar, y un
                     enlace de dos palabras dentro de un renglón vacío es un
                     objetivo de doce píxeles rodeado de nada. */}
-                <Link to={`/entrenar/${s.id}`} className="agenda__dia">
+                <Link
+                  to={`/entrenar/${s.id}`}
+                  className={`agenda__dia${completo ? " agenda__dia--completo" : ""}`}
+                >
                   <span className="agenda__numero" aria-hidden="true">
-                    D{s.day_number}
+                    {completo ? "✓" : `D${s.day_number}`}
                   </span>
                   <span className="agenda__texto">
                     <strong>Día {s.day_number}</strong>
                     <small>
                       {s.mesocycle} · semana {s.week_number}
+                      {/* El estado va en palabras y no sólo en el color: quien no
+                          distingue los tonos tiene que poder leerlo, y a pleno
+                          sol tampoco se ve un verde de otro gris. */}
+                      {completo ? " · completado" : null}
+                      {empezado ? ` · ${s.series_respondidas} de ${s.series_prescritas}` : null}
                     </small>
                   </span>
                   <span className="agenda__flecha" aria-hidden="true">
@@ -427,7 +442,8 @@ function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
                   </span>
                 </Link>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </Consulta>
