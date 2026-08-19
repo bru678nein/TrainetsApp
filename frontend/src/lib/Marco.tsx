@@ -2,6 +2,7 @@ import { UserButton } from "@clerk/clerk-react";
 import { NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
 
+import { Marca } from "../components/iconos";
 import { MOSTRAR_SELECTOR_DE_ROL } from "./entorno";
 import { SelectorDeRol, useRol } from "./Rol";
 
@@ -23,6 +24,7 @@ export function Marco({ children }: { children: ReactNode }) {
     <>
       <header className="marco__barra">
         <NavLink to="/" className="marco__marca">
+          <Marca />
           Trainets
         </NavLink>
         {/* `NavLink` marca la ruta activa solo; se usa acá para que la pastilla

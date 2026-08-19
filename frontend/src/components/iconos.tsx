@@ -50,3 +50,24 @@ export function Mas({ className }: Props) {
     </svg>
   );
 }
+
+
+/**
+ * La marca: un bloque macizo al que le falta un pedazo.
+ *
+ * El bloque es lo que el entrenador planificó; el hueco, lo que no llegó a
+ * hacerse. La distancia entre esas dos cosas es de lo que se trata el producto,
+ * y acá es literalmente la forma.
+ *
+ * `currentColor` y no un color propio: en la barra hereda la tinta, y el mismo
+ * archivo sirve calado sobre un fondo de color sin una segunda versión. El
+ * favicon sí lleva el color literal, porque el navegador lo dibuja fuera de
+ * todo documento y ahí `currentColor` no resuelve contra nada.
+ */
+export function Marca({ tam = 22 }: { tam?: number }) {
+  return (
+    <svg width={tam} height={tam} viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+      <path d="M8 3h9v11h11v9a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6V9a6 6 0 0 1 5-6z" />
+    </svg>
+  );
+}

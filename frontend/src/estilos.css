@@ -1104,3 +1104,8 @@ form { margin: 0 0 var(--paso); }
 }
 .volver span { font-size: 1.25rem; line-height: 1; }
 .volver:hover { border-color: var(--borde-fuerte); color: var(--tinta); }
+
+/* La marca de la barra: el símbolo hereda la tinta del enlace, así que no hay
+   una segunda versión para el modo oscuro. */
+.marco__marca { display: inline-flex; align-items: center; gap: 8px; }
+.marco__marca svg { flex: 0 0 auto; color: var(--hecho); }

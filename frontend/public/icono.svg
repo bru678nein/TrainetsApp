@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+  <!-- El de la pantalla de inicio: calado sobre el color de la marca, que es
+       como se ve al lado de los íconos del sistema. -->
+  <rect width="60" height="60" rx="14" fill="#3d6b8f"/>
+  <path transform="translate(13 13) scale(1.06)"
+        d="M8 3h9v11h11v9a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6V9a6 6 0 0 1 5-6z"
+        fill="#fbfaf8"/>
+</svg>
