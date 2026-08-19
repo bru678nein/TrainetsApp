@@ -34,8 +34,38 @@ function responder({ fichas }: { fichas: unknown[] }) {
   return pedido;
 }
 
+/**
+ * Un almacenamiento nuevo por caso, y esto no es prolijidad.
+ *
+ * El rol elegido se guarda en `localStorage`. En esta máquina ese objeto no
+ * existe, `_guardado()` cae al `catch` y devuelve `coach` siempre — así que la
+ * falta de limpieza entre casos quedaba tapada. En CI sí existe: el primer caso
+ * dejaba `athlete` guardado y el segundo arrancaba ya como atleta, sin dibujar
+ * nunca el alta de entrenador.
+ *
+ * Verde acá y rojo allá durante dos pushes, y la primera explicación que le
+ * encontré —que faltaba tiempo de espera— era falsa: con cinco segundos falla
+ * igual, porque el elemento no aparece nunca.
+ */
+function almacenamientoFalso(): Storage {
+  const datos = new Map<string, string>();
+  return {
+    get length() {
+      return datos.size;
+    },
+    clear: () => datos.clear(),
+    getItem: (k) => datos.get(k) ?? null,
+    key: (i) => [...datos.keys()][i] ?? null,
+    removeItem: (k) => void datos.delete(k),
+    setItem: (k, v) => void datos.set(k, v),
+  };
+}
+
 describe("el rol se resuelve sin preguntarle a la persona", () => {
-  beforeEach(() => vi.unstubAllGlobals());
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal("localStorage", almacenamientoFalso());
+  });
 
   it("con fichas de atleta, la pantalla pasa a ser la del atleta", async () => {
     // Se monta `Inicio` y no el listado, a propósito: el rol decide **qué
@@ -61,17 +91,7 @@ describe("el rol se resuelve sin preguntarle a la persona", () => {
     // del atleta dice «Tu entrenador todavía no cargó sesiones», así que la
     // expresión laxa matcheaba de los dos lados y el test pasaba con el cambio
     // de rol hecho siempre. Verificado mutando.
-    //
-    // Con más tiempo del que espera `findBy` por defecto: para llegar acá hacen
-    // falta **dos pedidos secuenciales** —el 403 del espacio de entrenador y
-    // después la consulta de fichas—, y un segundo alcanza en esta máquina y no
-    // en la de CI. Falló ahí y pasaba acá, que es la forma que tiene un test
-    // sensible al tiempo de no avisar hasta que ya está subido.
-    expect(
-      await screen.findByText("Todavía no tenés un espacio de entrenador", undefined, {
-        timeout: 5000,
-      }),
-    ).toBeVisible();
+    expect(await screen.findByText("Todavía no tenés un espacio de entrenador")).toBeVisible();
   });
 
   it("no ofrece el alta mientras todavía no sabe", async () => {
