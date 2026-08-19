@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- El SVG primero, para Chrome y Firefox: un solo archivo que cambia de
+         color con el esquema del sistema. Safari ignora los favicons en SVG, y
+         por eso va el PNG detrás — sin él, en Safari no se ve nada. -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/icono.svg" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#3d6b8f" />
     <title>Trainets</title>
   </head>
