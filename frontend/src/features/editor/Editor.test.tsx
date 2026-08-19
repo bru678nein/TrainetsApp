@@ -700,3 +700,83 @@ describe("elegir el ejercicio de una sesión", () => {
     expect(screen.queryByText(/Ejercicio agregado/)).not.toBeInTheDocument();
   });
 });
+
+describe("copiar y pegar semanas", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  const semana = (n: number) =>
+    screen.getByRole("heading", { name: `Semana ${n}` }).closest("section")!;
+
+  it("sólo ofrece copiar las semanas que tienen algo", async () => {
+    // Copiar una semana vacía no significa nada, y el servidor la rechaza con
+    // 404. Un botón que no puede funcionar es peor que uno que no está.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+
+    expect(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ })).toBeVisible();
+    expect(within(semana(3)).queryByRole("button", { name: /Copiar/ })).toBeNull();
+  });
+
+  it("pegar aparece recién después de copiar, y no sobre la copiada", async () => {
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+
+    expect(screen.queryByRole("button", { name: /Pegar/ })).toBeNull();
+
+    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
+
+    expect(within(semana(3)).getByRole("button", { name: /Pegar la semana 1/ })).toBeVisible();
+    expect(within(semana(1)).queryByRole("button", { name: /Pegar/ })).toBeNull();
+  });
+
+  it("no ofrece pegar sobre una semana que ya tiene días", async () => {
+    // El servidor contesta 409 para no pisar trabajo hecho — el atleta pudo
+    // haber registrado series ahí. Se deshabilita antes para no ofrecer un
+    // botón que contesta un error.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
+
+    expect(within(semana(2)).queryByRole("button", { name: /Pegar/ })).toBeNull();
+  });
+
+  it("dice cuánto se mueve el RIR antes de apretar", async () => {
+    // Es la razón por la que duplicar sirve. Decirlo después convierte una
+    // decisión en una sorpresa. Progresión [0, 0, -1, -1]: de la 1 a la 3 baja
+    // un punto.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
+
+    expect(within(semana(3)).getByText("RIR -1")).toBeVisible();
+  });
+
+  it("pegar manda el origen y el destino correctos", async () => {
+    const pedido = responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
+    await userEvent.click(within(semana(4)).getByRole("button", { name: /Pegar la semana 1/ }));
+
+    const alta = pedido.mock.calls.find(([u]) => String(u).includes("duplicate-week"));
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ from_week: 1, to_week: 4 });
+  });
+
+  it("volver a apretar copiar suelta lo copiado", async () => {
+    // Sin esto, una vez copiada una semana no hay forma de volver atrás salvo
+    // recargar, y los botones de pegar quedan puestos en toda la pantalla.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: "Semana 1" });
+    const copiar = within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ });
+
+    await userEvent.click(copiar);
+    await userEvent.click(within(semana(1)).getByRole("button", { name: /Soltar la semana 1/ }));
+
+    expect(screen.queryByRole("button", { name: /Pegar/ })).toBeNull();
+  });
+});

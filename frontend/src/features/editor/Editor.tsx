@@ -95,37 +95,6 @@ function NuevoMesociclo({ programaId, siguiente }: { programaId: string; siguien
   );
 }
 
-function DuplicarSemana({ meso }: { meso: Mesociclo }) {
-  const [desde, setDesde] = useState(1);
-  const [hasta, setHasta] = useState(2);
-  const duplicar = useEscrituraDelEditor<unknown, void>((enviar) =>
-    enviar(`/api/mesocycles/${meso.id}/duplicate-week`, { from_week: desde, to_week: hasta }),
-    "Semana duplicada",
-  );
-
-  return (
-    <div className="fila">
-      <strong>Duplicar semana</strong>
-      <Selector etiqueta="De la" valor={desde} onCambio={setDesde} max={meso.week_count} />
-      <Selector etiqueta="a la" valor={hasta} onCambio={setHasta} max={meso.week_count} />
-      <button
-        type="button"
-        className="principal"
-        onClick={() => duplicar.mutate()}
-        disabled={duplicar.isPending}
-      >
-        {duplicar.isPending ? "Duplicando…" : "Duplicar"}
-      </button>
-      {meso.rir_progression ? (
-        <small> — aplica la progresión [{meso.rir_progression.join(", ")}]</small>
-      ) : (
-        <small> — este bloque no declara progresión: copia plano</small>
-      )}
-      <Aviso de={duplicar} />
-    </div>
-  );
-}
-
 // --- Una sesión y su contenido --------------------------------------------------
 
 function NuevaSerie({ prescripcionId }: { prescripcionId: string }) {
@@ -805,12 +774,16 @@ function Semana({
   sesiones,
   abierta,
   onAbrir,
+  copiada,
+  onCopiar,
 }: {
   meso: Mesociclo;
   numero: number;
   sesiones: SesionDeLaAgenda[];
   abierta: string | null;
   onAbrir: (id: string | null) => void;
+  copiada: number | null;
+  onCopiar: (semana: number | null) => void;
 }) {
   // La semana que se está editando ocupa el ancho entero. Media pantalla alcanza
   // para leer qué días tiene, y no para armar un ejercicio con sus series: ahí
@@ -827,10 +800,66 @@ function Semana({
     mutar("DELETE", `/api/sessions/${id}`),
     "Día borrado",
   );
+  const pegar = useEscrituraDelEditor<unknown, void>(
+    (enviar) =>
+      enviar(`/api/mesocycles/${meso.id}/duplicate-week`, {
+        from_week: copiada,
+        to_week: numero,
+      }),
+    "Semana pegada",
+  );
+
+  const esta = copiada === numero;
+  // Pegar sobre una semana con días ocupados el servidor lo rechaza con 409: no
+  // pisa trabajo hecho, y el atleta pudo haber registrado series ahí. Se
+  // deshabilita antes para no ofrecer un botón que contesta un error.
+  //
+  // `!esta` parece redundante —una semana copiada tiene sesiones, así que nunca
+  // es destino— y no lo es: copiar la 1, borrarle todos los días, y sin ese
+  // término se ofrecería pegarla sobre sí misma, que el servidor rechaza con
+  // «el origen y el destino son la misma semana». Alcanzable, y **ningún test lo
+  // cubre**: sacarlo no rompe nada, verificado por mutación. Queda igual porque
+  // es una condición, no una suposición.
+  const sePuedePegar = copiada !== null && !esta && sesiones.length === 0;
+
+  // Cuánto se mueve el RIR al caer en esta semana. Es la razón por la que
+  // duplicar sirve, y decirlo antes de apretar convierte «pegar» en una decisión
+  // en vez de una sorpresa.
+  const salto =
+    meso.rir_progression && copiada !== null
+      ? (meso.rir_progression[numero - 1] ?? 0) - (meso.rir_progression[copiada - 1] ?? 0)
+      : null;
 
   return (
-    <section className={`semana${editando ? " semana--editando" : ""}`}>
-      <h4 className="semana__titulo">Semana {numero}</h4>
+    <section
+      className={`semana${editando ? " semana--editando" : ""}${esta ? " semana--copiada" : ""}`}
+    >
+      <div className="semana__cabecera">
+        <h4 className="semana__titulo">Semana {numero}</h4>
+        {sesiones.length > 0 ? (
+          <button
+            type="button"
+            className="sutil"
+            onClick={() => onCopiar(esta ? null : numero)}
+            aria-pressed={esta}
+            aria-label={esta ? `Soltar la semana ${numero}` : `Copiar la semana ${numero}`}
+          >
+            {esta ? "Copiada" : "Copiar"}
+          </button>
+        ) : null}
+        {sePuedePegar ? (
+          <button
+            type="button"
+            className="principal"
+            onClick={() => pegar.mutate(undefined, { onSuccess: () => onCopiar(null) })}
+            disabled={pegar.isPending}
+            aria-label={`Pegar la semana ${copiada} en la semana ${numero}`}
+          >
+            {pegar.isPending ? "Pegando…" : `Pegar la ${copiada}`}
+            {salto ? <small className="semana__salto"> RIR {salto > 0 ? `+${salto}` : salto}</small> : null}
+          </button>
+        ) : null}
+      </div>
       {sesiones.length === 0 ? (
         <p className="semana__vacia">Sin sesiones</p>
       ) : (
@@ -888,6 +917,7 @@ function Semana({
       </button>
       <Aviso de={agregar} />
       <Aviso de={borrar} />
+      <Aviso de={pegar} />
     </section>
   );
 }
@@ -895,6 +925,10 @@ function Semana({
 function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
   const agenda = useAgenda(atletaId, "coach");
   const [abierta, setAbierta] = useState<string | null>(null);
+  // Qué semana está en el portapapeles. Vive en el bloque y no en cada semana
+  // porque copiar y pegar son dos semanas distintas del mismo mesociclo, y
+  // porque copiar de un bloque a otro cambiaría la progresión sin avisar.
+  const [copiada, setCopiada] = useState<number | null>(null);
   const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
 
   return (
@@ -902,7 +936,16 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
       <h3>
         {meso.ordinal}. {meso.label} — {meso.week_count} semanas
       </h3>
-      <DuplicarSemana meso={meso} />
+      {meso.rir_progression ? (
+        <p className="bloque__progresion">
+          Progresión declarada: <strong>[{meso.rir_progression.join(", ")}]</strong> — copiar una
+          semana y pegarla en otra aplica la diferencia.
+        </p>
+      ) : (
+        <p className="bloque__progresion">
+          Este bloque no declara progresión: pegar una semana la copia igual.
+        </p>
+      )}
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           const mias = todas.filter((s) => s.mesocycle === meso.label);
@@ -918,6 +961,8 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
                     .sort((a, b) => a.day_number - b.day_number)}
                   abierta={abierta}
                   onAbrir={setAbierta}
+                  copiada={copiada}
+                  onCopiar={setCopiada}
                 />
               ))}
             </div>

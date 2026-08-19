@@ -1000,3 +1000,12 @@ form { margin: 0 0 var(--paso); }
 .ficha__ciclo p { margin: 0 0 4px; font-size: 0.8125rem; color: var(--tinta-suave); }
 .ficha__ciclo strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
 .ficha__acciones { margin-top: auto; padding-top: var(--paso); border-top: 1px solid var(--borde); }
+
+/* Copiar y pegar semanas, en vez de un formulario con dos desplegables.
+   «De la 1 a la 3» hay que leerlo dos veces; copiar y pegar no se explica. */
+.semana__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
+.semana__cabecera .semana__titulo { margin: 0; margin-right: auto; }
+.semana--copiada { outline: 2px dashed var(--hecho); outline-offset: 2px; }
+.semana__salto { color: inherit; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.bloque__progresion { font-size: 0.8125rem; color: var(--tinta-suave); }
+.bloque__progresion strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
