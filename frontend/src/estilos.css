@@ -936,3 +936,67 @@ form { margin: 0 0 var(--paso); }
 }
 .ejercicio__nombre { font-size: 1rem; }
 .ejercicio__borrar:hover:not(:disabled) { color: var(--alerta); background: var(--alerta-tenue); }
+
+/* --- El listado de atletas -------------------------------------------------------
+ *
+ * Fichas y no renglones. La diferencia no es estética: en un renglón entran el
+ * nombre y el estado, y el dato por el que existe esta pantalla —hace cuánto que
+ * no entrena— no entra. Con la ficha entra, y entra sin abrir nada.
+ *
+ * Se acomodan solas por ancho en vez de declarar columnas: el entrenador puede
+ * tener tres atletas o cuarenta, y una rejilla fija deja huecos con pocos y
+ * aprieta con muchos. */
+
+.filtros-de-atletas { margin-bottom: calc(var(--paso) * 2); }
+.filtros-de-atletas > input[type="search"] { flex: 1 1 14rem; min-width: 0; }
+
+.fichas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: calc(var(--paso) * 1.5);
+}
+
+.ficha {
+  background: var(--papel);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: calc(var(--paso) * 2);
+  box-shadow: var(--sombra);
+  display: flex;
+  flex-direction: column;
+  gap: var(--paso);
+}
+/* Lo cerrado se lee y no compite. El estado ya lo dice la etiqueta con palabras;
+   esto sólo baja el peso visual para que la vista de todos los días sean los
+   activos. */
+.ficha--pausado,
+.ficha--archivado { background: var(--papel-hundido); box-shadow: none; }
+
+.ficha__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
+.ficha__nombre {
+  font-weight: 650;
+  font-size: 1rem;
+  color: var(--tinta);
+  text-decoration: none;
+}
+.ficha__nombre:hover { text-decoration: underline; }
+
+.ficha__datos { display: flex; gap: calc(var(--paso) * 2); margin: 0; flex-wrap: wrap; }
+.ficha__datos dt {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+.ficha__datos dd { margin: 0; font-size: 0.875rem; font-weight: 600; }
+/* El único lugar del listado donde el color dice algo, y lleva su umbral en el
+   componente: dos semanas sin entrenar en un vínculo activo. En uno pausado no
+   entrenar es lo esperado y no se marca. */
+.ficha__alerta { color: var(--alerta); }
+
+.ficha__ciclo p { margin: 0 0 4px; font-size: 0.8125rem; color: var(--tinta-suave); }
+.ficha__ciclo strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
+.ficha__acciones { margin-top: auto; padding-top: var(--paso); border-top: 1px solid var(--borde); }

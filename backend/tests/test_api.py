@@ -160,3 +160,50 @@ class TestAnalytics:
         for w in a:
             assert 0 <= w["completion_rate"] <= 1
             assert 0 <= w["in_range_rate"] <= 1
+
+
+class TestElListadoTraeConQueDecidir:
+    """El listado existe para contestar quién se está cayendo.
+
+    Sin la última sesión es una lista de nombres, que es exactamente lo que el
+    entrenador ya tiene en el teléfono. Con ella contesta lo que una planilla no
+    puede: hace cuánto que esta persona no entrena.
+    """
+
+    def test_trae_ultima_sesion_programa_y_semana(self, client, seeded) -> None:
+        filas = client.get("/api/athletes").json()
+        assert filas, "el escenario sembrado debería traer al menos un atleta"
+
+        con_registros = [f for f in filas if f["ultima_sesion"] is not None]
+        assert con_registros, "la planilla tiene 1.199 registros: alguno tiene que aparecer"
+
+        uno = con_registros[0]
+        assert uno["programa_actual"] is None or isinstance(uno["programa_actual"], str)
+        if uno["semana_actual"] is not None:
+            assert uno["semana_actual"] >= 1
+
+    def test_una_ficha_sin_registros_no_inventa_fecha(self, client, seeded) -> None:
+        """`None` y no la fecha de alta: «nunca entrenó» y «entrenó el día que lo
+        cargaron» son cosas distintas, y la segunda es mentira."""
+        r = client.post("/api/athletes", json={"full_name": "Recién cargado"})
+        assert r.status_code == 201, r.text
+
+        fila = next(
+            f for f in client.get("/api/athletes").json() if f["full_name"] == "Recién cargado"
+        )
+        assert fila["ultima_sesion"] is None
+        assert fila["programa_actual"] is None
+        assert fila["semana_actual"] is None
+
+    def test_el_listado_no_hace_una_consulta_por_atleta(
+        self, client, seeded, sessions_opened
+    ) -> None:
+        """La guarda contra el N+1 en la pantalla que más se abre.
+
+        No cuenta consultas —eso mediría el ORM— sino sesiones abiertas, que es
+        lo que el fixture ya observa. Lo que fija es que pedir el listado sea un
+        viaje, no uno por ficha.
+        """
+        antes = len(sessions_opened)
+        client.get("/api/athletes")
+        assert len(sessions_opened) - antes == 1

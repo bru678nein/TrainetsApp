@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -216,7 +215,7 @@ def crear_atleta(
 @router.get("/athletes", response_model=list[AthleteOut])
 def list_athletes(
     incluir_cerrados: bool = False, db: OrmSession = Depends(tenant_session)
-) -> Sequence[Athlete]:
+) -> list[AthleteOut]:
     """Los vínculos vigentes, y bajo pedido también los que no lo están.
 
     El default sigue siendo sólo los activos: es la lista con la que el
@@ -228,10 +227,44 @@ def list_athletes(
     Explícito y no automático, porque son dos preguntas distintas: "¿con quién
     estoy trabajando?" y "¿a quién entrené alguna vez?".
     """
-    stmt = select(Athlete)
-    if not incluir_cerrados:
-        stmt = stmt.where(Athlete.estado == "activo")
-    return db.scalars(stmt.order_by(Athlete.estado, Athlete.full_name)).all()
+    filtro = "" if incluir_cerrados else "WHERE a.estado = 'activo'"
+    # Una sola consulta para todo el listado, y no una por atleta. Con veinte
+    # fichas, tres subconsultas correlacionadas por fila son sesenta viajes a la
+    # base en la pantalla que más se abre — el mismo error que ya está declarado
+    # como deuda en la analítica, que carga todo en memoria.
+    #
+    # Correlacionadas y no `JOIN` con `GROUP BY`: cada una devuelve una fila o
+    # ninguna, y agrupar obligaría a agregar campos que no se agregan, como el
+    # nombre del programa.
+    filas = db.execute(
+        text(f"""
+        SELECT a.id, a.full_name, a.level, a.estado,
+               (SELECT max(l.performed_at) FROM logged_set l
+                 WHERE l.athlete_id = a.id) AS ultima_sesion,
+               p.name AS programa_actual,
+               -- La semana la trae congelada `logged_set` desde la 0016, así que
+               -- no hace falta subir por prescribed_set → prescription → session.
+               -- Es la del último registro y no el máximo: `week_number` es
+               -- relativa al mesociclo, así que el máximo daría casi siempre la
+               -- última del bloque, entrene cuando entrene.
+               (SELECT l.week_number FROM logged_set l
+                 WHERE l.athlete_id = a.id AND l.week_number IS NOT NULL
+                 ORDER BY l.performed_at DESC LIMIT 1) AS semana_actual,
+               (SELECT m.week_count FROM mesocycle m
+                 WHERE m.program_id = p.id
+                 ORDER BY m.ordinal DESC LIMIT 1) AS semanas_del_bloque
+          FROM athlete a
+          LEFT JOIN LATERAL (
+              SELECT pr.id, pr.name FROM program pr
+               WHERE pr.athlete_id = a.id AND pr.status = 'active'
+               ORDER BY pr.starts_on DESC NULLS LAST, pr.created_at DESC
+               LIMIT 1
+          ) p ON true
+          {filtro}
+         ORDER BY a.estado, a.full_name
+    """)
+    ).mappings()
+    return [AthleteOut(**fila) for fila in filas]
 
 
 @router.get("/athletes/{athlete_id}/sessions", response_model=list[SessionSummary])

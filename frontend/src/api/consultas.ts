@@ -9,6 +9,13 @@ export type Atleta = {
   full_name: string;
   level: string | null;
   estado?: string;
+  /** Cuándo entrenó por última vez. `null` si todavía no registró nada — que no
+   *  es lo mismo que hace mucho, y por eso no viaja como una fecha vieja. */
+  ultima_sesion?: string | null;
+  programa_actual?: string | null;
+  /** En qué semana del bloque actual está, y de cuántas. */
+  semana_actual?: number | null;
+  semanas_del_bloque?: number | null;
 };
 
 /**

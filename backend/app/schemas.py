@@ -17,6 +17,22 @@ class AthleteOut(BaseModel):
     #: un vínculo pausado sin forma de reanudarse: invisible y sin botón.
     estado: str = "activo"
 
+    #: Cuándo entrenó por última vez. Es el dato por el que existe este listado:
+    #: le dice al entrenador quién se está cayendo, que es lo que una planilla no
+    #: puede contestar sola. `None` cuando todavía no registró nada.
+    ultima_sesion: datetime | None = None
+    #: El programa vigente, si hay uno. Sirve para reconocer la ficha sin abrirla.
+    programa_actual: str | None = None
+    #: En qué semana del bloque actual está, y de cuántas.
+    #:
+    #: Del **mesociclo** y no del programa entero, porque `program` no declara
+    #: ninguna duración: sumar los `week_count` de sus bloques da un denominador
+    #: que se mueve cada vez que el entrenador agrega uno, y una barra cuyo total
+    #: cambia no es una barra de progreso. El mesociclo además es la unidad que
+    #: declara su propia progresión, así que «semana 3 de 4» es accionable.
+    semana_actual: int | None = None
+    semanas_del_bloque: int | None = None
+
 
 class AthleteIn(BaseModel):
     """What the coach types when the person does not exist as an identity yet.
