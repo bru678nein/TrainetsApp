@@ -1081,3 +1081,149 @@ class TestElEjercicioNaceConSusSeries:
         assert len(detalle["blocks"]) == 2
         for bloque in detalle["blocks"]:
             assert [s["set_number"] for s in bloque["sets"]] == [1, 2]
+
+
+class TestDuplicarUnBloqueEntero:
+    """Un mesociclo con todo adentro, o hacia uno nuevo o hacia uno vacío.
+
+    Es la operación que hace que armar el segundo bloque cueste un toque en vez
+    de rearmar cuatro semanas.
+    """
+
+    @pytest.fixture
+    def armado(self, cliente, coach, programa, ejercicio) -> dict[str, str]:
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={
+                "ordinal": 1,
+                "label": "Acumulación",
+                "week_count": 4,
+                "rir_progression": [0, 0, -1, -1],
+            },
+        ).json()["id"]
+        for semana in (1, 2):
+            sesion = coach(
+                cliente,
+                "POST",
+                f"/api/mesocycles/{meso}/sessions",
+                json={"week_number": semana, "day_number": 1},
+            ).json()["id"]
+            coach(
+                cliente,
+                "POST",
+                f"/api/sessions/{sesion}/prescriptions",
+                json={"exercise_id": ejercicio, "sets": [{"reps_min": 8, "rir_min": 2}] * 3},
+            )
+        return {"programa": programa, "meso": meso}
+
+    def test_sin_destino_crea_el_bloque_siguiente(self, cliente, coach, armado) -> None:
+        r = coach(cliente, "POST", f"/api/mesocycles/{armado['meso']}/duplicate", json={})
+        assert r.status_code == 201, r.text
+        copia = r.json()
+
+        assert copia["ordinal"] == 2
+        assert copia["week_count"] == 4
+        # La progresión viaja con el bloque: es suya, no del programa.
+        assert copia["rir_progression"] == [0, 0, -1, -1]
+        assert copia["id"] != armado["meso"]
+
+    def test_se_lleva_las_sesiones_con_su_contenido(
+        self, cliente, coach, escenario, armado
+    ) -> None:
+        """Copiar la cáscara y no el contenido sería peor que no copiar: parece
+        que funcionó y el bloque nuevo está vacío por dentro."""
+        copia = coach(
+            cliente, "POST", f"/api/mesocycles/{armado['meso']}/duplicate", json={}
+        ).json()
+
+        agenda = coach(cliente, "GET", f"/api/athletes/{escenario.atleta_de_a}/sessions").json()
+        del_bloque = [s for s in agenda if s["mesocycle"] == copia["label"]]
+        assert len(del_bloque) == 2, "las dos semanas armadas tienen que estar"
+        assert {s["week_number"] for s in del_bloque} == {1, 2}
+
+        detalle = coach(cliente, "GET", f"/api/sessions/{del_bloque[0]['id']}").json()
+        assert len(detalle["blocks"]) == 1, "el ejercicio tiene que haber viajado"
+        assert len(detalle["blocks"][0]["sets"]) == 3, "y sus tres series también"
+
+    def test_con_destino_vacio_lo_llena(self, cliente, coach, armado) -> None:
+        vacio = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{armado['programa']}/mesocycles",
+            json={"ordinal": 5, "label": "Vacío", "week_count": 4},
+        ).json()["id"]
+
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{armado['meso']}/duplicate",
+            json={"to_mesocycle": vacio},
+        )
+        assert r.status_code == 201, r.text
+        assert r.json()["id"] == vacio, "tiene que devolver el destino, no uno nuevo"
+
+    def test_no_pisa_un_bloque_que_ya_tiene_sesiones(self, cliente, coach, armado) -> None:
+        """Igual que al pegar una semana: no se borra trabajo sin preguntar, y el
+        atleta puede haber registrado series ahí."""
+        otro = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{armado['programa']}/mesocycles",
+            json={"ordinal": 6, "label": "Ocupado", "week_count": 4},
+        ).json()["id"]
+        coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{otro}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        )
+
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{armado['meso']}/duplicate",
+            json={"to_mesocycle": otro},
+        )
+        assert r.status_code == 409, r.text
+        assert "Ocupado" in r.json()["detail"]
+
+    def test_sobre_si_mismo_se_rechaza(self, cliente, coach, armado) -> None:
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{armado['meso']}/duplicate",
+            json={"to_mesocycle": armado["meso"]},
+        )
+        assert r.status_code == 409, r.text
+
+    def test_las_semanas_que_no_entran_se_descartan(
+        self, cliente, coach, escenario, armado
+    ) -> None:
+        """El bloque de origen tiene armadas las semanas 1 y 2. Copiado sobre uno
+        de una sola semana, la 2 no puede entrar: una sesión en una semana que el
+        destino no tiene no se dibuja nunca y queda de fantasma en la base.
+
+        La primera versión de este caso sólo verificaba que contestara 201, y
+        pasaba con el descarte borrado. Lo dijo una mutación."""
+        corto = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{armado['programa']}/mesocycles",
+            json={"ordinal": 7, "label": "Corto", "week_count": 1},
+        ).json()["id"]
+
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{armado['meso']}/duplicate",
+            json={"to_mesocycle": corto},
+        )
+        assert r.status_code == 201, r.text
+
+        agenda = coach(cliente, "GET", f"/api/athletes/{escenario.atleta_de_a}/sessions").json()
+        del_corto = [s for s in agenda if s["mesocycle"] == "Corto"]
+        assert [s["week_number"] for s in del_corto] == [1], (
+            f"la semana 2 no entra en un bloque de una: {del_corto}"
+        )

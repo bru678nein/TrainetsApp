@@ -495,6 +495,17 @@ class PatternOut(BaseModel):
     coach_id: uuid.UUID | None = None
 
 
+class DuplicarMesocicloIn(BaseModel):
+    """A dónde va la copia del bloque.
+
+    `None` crea uno nuevo al final del programa; un id lo copia dentro de ese,
+    que tiene que estar vacío. Es la misma operación con distinto destino, y por
+    eso comparten ruta.
+    """
+
+    to_mesocycle: uuid.UUID | None = None
+
+
 class DuplicarSemanaIn(BaseModel):
     """De qué semana a qué semana, las dos en el cuerpo.
 

@@ -47,6 +47,7 @@ from app.models import (
     Session,
 )
 from app.schemas import (
+    DuplicarMesocicloIn,
     DuplicarSemanaIn,
     DuplicarSesionIn,
     ExerciseIn,
@@ -651,9 +652,21 @@ def _copiar_prescripcion(
     return copia
 
 
-def _copiar_sesion(db: OrmSession, sesion: Session, semana: int, dia: int, delta: int) -> Session:
+def _copiar_sesion(
+    db: OrmSession,
+    sesion: Session,
+    semana: int,
+    dia: int,
+    delta: int,
+    mesociclo_id: uuid.UUID | None = None,
+) -> Session:
+    """`mesociclo_id` se pasa sólo al copiar hacia otro bloque.
+
+    Por defecto la copia queda en el mesociclo del original, que es lo que quiere
+    duplicar una semana. Clavarlo ahí impedía copiar un bloque entero.
+    """
     copia = Session(
-        mesocycle_id=sesion.mesocycle_id,
+        mesocycle_id=mesociclo_id or sesion.mesocycle_id,
         week_number=semana,
         day_number=dia,
         label=sesion.label,
@@ -724,6 +737,78 @@ def duplicar_semana(
     copias = [_copiar_sesion(db, s, payload.to_week, s.day_number, delta) for s in origen]
     db.commit()
     return copias
+
+
+@editor.post(
+    "/mesocycles/{mesocycle_id}/duplicate",
+    response_model=MesocycleOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def duplicar_mesociclo(
+    mesocycle_id: uuid.UUID,
+    payload: DuplicarMesocicloIn,
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> Mesocycle:
+    """Un bloque entero: o hacia uno nuevo, o dentro de uno que ya existe y está
+    vacío.
+
+    Las dos cosas por la misma ruta porque son la misma operación con distinto
+    destino, igual que duplicar una semana. Sin destino crea el bloque siguiente;
+    con destino, lo llena.
+
+    **La progresión no se recalcula al cruzar de bloque.** El array de RIR es
+    *interno* a un mesociclo —dice cuánto se mueve cada semana respecto de la
+    primera de ese bloque—, así que aplicar un salto entre bloques distintos
+    inventaría una progresión que nadie declaró. Las semanas se copian como
+    están y el bloque nuevo declara la suya.
+    """
+    db = _solo_entrenador(ctx)
+    origen = _o_404(db, Mesocycle, mesocycle_id, "mesociclo")
+
+    if payload.to_mesocycle is not None:
+        destino = _o_404(db, Mesocycle, payload.to_mesocycle, "mesociclo de destino")
+        if destino.id == origen.id:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT, "el origen y el destino son el mismo bloque"
+            )
+        ocupado = db.scalars(
+            select(Session.id).where(Session.mesocycle_id == destino.id).limit(1)
+        ).first()
+        if ocupado:
+            # Igual que al pegar una semana: no se pisa trabajo hecho sin
+            # preguntar, y el atleta puede haber registrado series ahí.
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"el bloque «{destino.label}» ya tiene sesiones: borralas o elegí otro",
+            )
+    else:
+        destino = Mesocycle(
+            program_id=origen.program_id,
+            ordinal=_siguiente(db, Mesocycle.ordinal, Mesocycle.program_id == origen.program_id),
+            label=f"{origen.label} (copia)",
+            week_count=origen.week_count,
+            focus=origen.focus,
+            rir_progression=origen.rir_progression,
+        )
+        db.add(destino)
+        db.flush()
+
+    sesiones = list(
+        db.scalars(
+            select(Session)
+            .where(Session.mesocycle_id == origen.id)
+            .order_by(Session.week_number, Session.day_number)
+        ).all()
+    )
+    for s in sesiones:
+        # Las semanas que el destino no tiene se descartan: copiar un bloque de
+        # cuatro sobre uno de tres dejaría sesiones en una semana que no existe,
+        # y el editor no las dibujaría nunca.
+        if s.week_number <= destino.week_count:
+            _copiar_sesion(db, s, s.week_number, s.day_number, 0, destino.id)
+
+    db.commit()
+    return destino
 
 
 @editor.post(

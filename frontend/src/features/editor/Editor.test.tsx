@@ -780,3 +780,105 @@ describe("copiar y pegar semanas", () => {
     expect(screen.queryByRole("button", { name: /Pegar/ })).toBeNull();
   });
 });
+
+describe("duplicar y pegar bloques", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  /**
+   * Tres bloques: dos armados y uno vacío.
+   *
+   * El tercero armado **y sin copiar** es el que hace falta: con sólo dos, el
+   * armado es siempre el copiado, así que `!esteCopiado` ya lo excluye y la
+   * condición de «sólo en los vacíos» no decide nada. Con dos bloques la
+   * mutación que la borraba pasaba en verde.
+   */
+  function conTresBloques() {
+    const SEGUNDO = { ...MESO, id: "m2", ordinal: 2, label: "Intensificación" };
+    const VACIO = { ...MESO, id: "m3", ordinal: 3, label: "Descarga" };
+    const AGENDA_3 = [
+      ...AGENDA,
+      { id: "s9", mesocycle: "Intensificación", mesocycle_ordinal: 2, week_number: 1, day_number: 1 },
+    ];
+    const pedido = vi.fn<typeof fetch>((url) => {
+      const u = String(url);
+      const cuerpo = u.includes("/mesocycles/")
+        ? { id: "m4" }
+        : u.includes("/mesocycles")
+          ? [MESO, SEGUNDO, VACIO]
+          : u.match(/\/api\/sessions\//)
+            ? { id: "s1", mesocycle: "Acumulación", week_number: 1, day_number: 1, blocks: [] }
+            : u.includes("/sessions")
+              ? AGENDA_3
+              : cuerpoPara(u);
+      return Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200 }));
+    });
+    vi.stubGlobal("fetch", pedido);
+    return pedido;
+  }
+
+  const bloque = (nombre: string) =>
+    screen.getByRole("heading", { name: new RegExp(nombre) }).closest("section")!;
+
+  it("con un solo bloque ofrece duplicar y no copiar", async () => {
+    // Con uno solo no hay dónde pegar, así que «Copiar» sería un botón que no
+    // lleva a ningún lado. Para crear el segundo está «Duplicar», de un toque.
+    responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: /Acumulación/ });
+
+    expect(screen.getByRole("button", { name: "Duplicar" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Copiar el bloque/ })).toBeNull();
+  });
+
+  it("duplicar crea uno nuevo, sin destino", async () => {
+    const pedido = responder();
+    montarEditor();
+    await screen.findByRole("heading", { name: /Acumulación/ });
+    await userEvent.click(screen.getByRole("button", { name: "Duplicar" }));
+
+    const alta = pedido.mock.calls.find(([u]) => String(u).includes("/duplicate"));
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: null });
+  });
+
+  it("con más de un bloque aparece copiar en todos", async () => {
+    conTresBloques();
+    montarEditor();
+    await screen.findByRole("heading", { name: /Intensificación/ });
+
+    expect(screen.getAllByRole("button", { name: /Copiar el bloque/ })).toHaveLength(3);
+  });
+
+  it("pegar aparece sólo en el bloque vacío, después de copiar", async () => {
+    conTresBloques();
+    montarEditor();
+    await screen.findByRole("heading", { name: /Intensificación/ });
+
+    expect(screen.queryByRole("button", { name: /Pegar el bloque/ })).toBeNull();
+
+    await userEvent.click(
+      within(bloque("Acumulación")).getByRole("button", { name: /Copiar el bloque/ }),
+    );
+
+    // Sólo «Descarga» está vacío. «Intensificación» tiene sesiones y no es el
+    // copiado: es el caso que distingue si la condición existe de verdad.
+    expect(within(bloque("Descarga")).getByRole("button", { name: /Pegar/ })).toBeVisible();
+    expect(within(bloque("Intensificación")).queryByRole("button", { name: /Pegar/ })).toBeNull();
+    expect(within(bloque("Acumulación")).queryByRole("button", { name: /Pegar/ })).toBeNull();
+  });
+
+  it("pegar manda el origen en la ruta y el destino en el cuerpo", async () => {
+    const pedido = conTresBloques();
+    montarEditor();
+    await screen.findByRole("heading", { name: /Intensificación/ });
+    await userEvent.click(
+      within(bloque("Acumulación")).getByRole("button", { name: /Copiar el bloque/ }),
+    );
+    await userEvent.click(within(bloque("Descarga")).getByRole("button", { name: /Pegar/ }));
+
+    const alta = pedido.mock.calls.find(
+      ([u, o]) => String(u).includes("/duplicate") && o?.method === "POST",
+    );
+    expect(String(alta![0])).toContain("/api/mesocycles/m1/duplicate");
+    expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: "m3" });
+  });
+});

@@ -922,7 +922,19 @@ function Semana({
   );
 }
 
-function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
+function Bloque({
+  meso,
+  atletaId,
+  cuantos,
+  copiado,
+  onCopiar,
+}: {
+  meso: Mesociclo;
+  atletaId: string;
+  cuantos: number;
+  copiado: string | null;
+  onCopiar: (id: string | null) => void;
+}) {
   const agenda = useAgenda(atletaId, "coach");
   const [abierta, setAbierta] = useState<string | null>(null);
   // Qué semana está en el portapapeles. Vive en el bloque y no en cada semana
@@ -931,11 +943,47 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
   const [copiada, setCopiada] = useState<number | null>(null);
   const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
 
+  const duplicar = useEscrituraDelEditor<unknown, void>(
+    (enviar) => enviar(`/api/mesocycles/${meso.id}/duplicate`, { to_mesocycle: null }),
+    "Bloque duplicado",
+  );
+  const pegarBloque = useEscrituraDelEditor<unknown, void>(
+    (enviar) => enviar(`/api/mesocycles/${copiado}/duplicate`, { to_mesocycle: meso.id }),
+    "Bloque pegado",
+  );
+
+  const esteCopiado = copiado === meso.id;
+
   return (
-    <section className="tarjeta">
-      <h3>
-        {meso.ordinal}. {meso.label} — {meso.week_count} semanas
-      </h3>
+    <section className={`tarjeta${esteCopiado ? " bloque--copiado" : ""}`}>
+      <div className="bloque__cabecera">
+        <h3>
+          {meso.ordinal}. {meso.label} — {meso.week_count} semanas
+        </h3>
+        <button
+          type="button"
+          className="sutil"
+          onClick={() => duplicar.mutate()}
+          disabled={duplicar.isPending}
+          title="Crea un bloque nuevo al final, con todo lo de éste"
+        >
+          {duplicar.isPending ? "Duplicando…" : "Duplicar"}
+        </button>
+        {/* Copiar aparece recién con más de un bloque: con uno solo no hay dónde
+            pegar, y un botón que no lleva a ningún lado es ruido. Para crear el
+            segundo está «Duplicar», que es un toque en vez de dos. */}
+        {cuantos > 1 ? (
+          <button
+            type="button"
+            className="sutil"
+            onClick={() => onCopiar(esteCopiado ? null : meso.id)}
+            aria-pressed={esteCopiado}
+            aria-label={esteCopiado ? `Soltar el bloque ${meso.label}` : `Copiar el bloque ${meso.label}`}
+          >
+            {esteCopiado ? "Copiado" : "Copiar"}
+          </button>
+        ) : null}
+      </div>
       {meso.rir_progression ? (
         <p className="bloque__progresion">
           Progresión declarada: <strong>[{meso.rir_progression.join(", ")}]</strong> — copiar una
@@ -949,8 +997,24 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           const mias = todas.filter((s) => s.mesocycle === meso.label);
+          // Igual que con las semanas: sólo se pega en un bloque vacío. El
+          // servidor rechaza pisar uno armado con 409, y el atleta puede haber
+          // registrado series ahí.
+          const sePuedePegar = copiado !== null && !esteCopiado && mias.length === 0;
           return (
             <div className="semanas">
+              {sePuedePegar ? (
+                <p className="bloque__pegar">
+                  <button
+                    type="button"
+                    className="principal"
+                    onClick={() => pegarBloque.mutate(undefined, { onSuccess: () => onCopiar(null) })}
+                    disabled={pegarBloque.isPending}
+                  >
+                    {pegarBloque.isPending ? "Pegando…" : "Pegar el bloque copiado acá"}
+                  </button>
+                </p>
+              ) : null}
               {semanas.map((numero) => (
                 <Semana
                   key={numero}
@@ -969,6 +1033,8 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
           );
         }}
       </Consulta>
+      <Aviso de={duplicar} />
+      <Aviso de={pegarBloque} />
     </section>
   );
 }
@@ -984,6 +1050,9 @@ function Bloque({ meso, atletaId }: { meso: Mesociclo; atletaId: string }) {
 export function Rutina({ atletaId }: { atletaId: string }) {
   const programas = useProgramas(atletaId);
   const [programa, setPrograma] = useState<string | undefined>();
+  // Qué bloque está en el portapapeles. Vive acá porque copiar y pegar son dos
+  // bloques distintos del mismo programa.
+  const [bloqueCopiado, setBloqueCopiado] = useState<string | null>(null);
   const mesociclos = useMesociclos(programa);
 
   if (programas.isPending) return <Cargando que="los programas" />;
@@ -1022,7 +1091,16 @@ export function Rutina({ atletaId }: { atletaId: string }) {
             }}
           >
             {(lista) =>
-              lista.map((meso) => <Bloque key={meso.id} meso={meso} atletaId={atletaId} />)
+              lista.map((meso) => (
+                <Bloque
+                  key={meso.id}
+                  meso={meso}
+                  atletaId={atletaId}
+                  cuantos={lista.length}
+                  copiado={bloqueCopiado}
+                  onCopiar={setBloqueCopiado}
+                />
+              ))
             }
           </Consulta>
         </>

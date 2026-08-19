@@ -48,6 +48,7 @@ ESCRITURAS = {
     # atleta archivado no toca nada de ese atleta.
     "/api/exercises": True,
     # Duplicar escribe sobre el programa del vínculo, igual que armar a mano.
+    "/api/mesocycles/{mesocycle_id}/duplicate": False,
     "/api/mesocycles/{mesocycle_id}/duplicate-week": False,
     "/api/sessions/{session_id}/duplicate": False,
     "/api/prescriptions/{prescription_id}/duplicate": False,
