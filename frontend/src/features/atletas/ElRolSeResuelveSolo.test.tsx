@@ -61,7 +61,17 @@ describe("el rol se resuelve sin preguntarle a la persona", () => {
     // del atleta dice «Tu entrenador todavía no cargó sesiones», así que la
     // expresión laxa matcheaba de los dos lados y el test pasaba con el cambio
     // de rol hecho siempre. Verificado mutando.
-    expect(await screen.findByText("Todavía no tenés un espacio de entrenador")).toBeVisible();
+    //
+    // Con más tiempo del que espera `findBy` por defecto: para llegar acá hacen
+    // falta **dos pedidos secuenciales** —el 403 del espacio de entrenador y
+    // después la consulta de fichas—, y un segundo alcanza en esta máquina y no
+    // en la de CI. Falló ahí y pasaba acá, que es la forma que tiene un test
+    // sensible al tiempo de no avisar hasta que ya está subido.
+    expect(
+      await screen.findByText("Todavía no tenés un espacio de entrenador", undefined, {
+        timeout: 5000,
+      }),
+    ).toBeVisible();
   });
 
   it("no ofrece el alta mientras todavía no sabe", async () => {
