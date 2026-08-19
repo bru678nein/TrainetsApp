@@ -25,11 +25,18 @@ export function Marco({ children }: { children: ReactNode }) {
         <NavLink to="/" className="marco__marca">
           Trainets
         </NavLink>
-        {rol === "athlete" ? (
-          <NavLink to="/">Mis sesiones</NavLink>
-        ) : (
-          <NavLink to="/">Atletas</NavLink>
-        )}
+        {/* `NavLink` marca la ruta activa solo; se usa acá para que la pastilla
+            se vea hundida cuando ya estás en esa pantalla, en vez de invitarte a
+            ir adonde ya estás. */}
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `marco__enlace${isActive ? " marco__enlace--activo" : ""}`
+          }
+        >
+          {rol === "athlete" ? "Mis sesiones" : "Atletas"}
+        </NavLink>
         {MOSTRAR_SELECTOR_DE_ROL ? <SelectorDeRol /> : null}
         <UserButton />
       </header>

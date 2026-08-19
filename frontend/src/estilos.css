@@ -1066,3 +1066,41 @@ form { margin: 0 0 var(--paso); }
   font-size: 1rem;
 }
 .agenda__dia--completo .agenda__texto strong { color: var(--tinta-suave); font-weight: 500; }
+
+/* La navegación de la barra, como pastilla y no como enlace subrayado. El estado
+   activo se hunde: estando ya en esa pantalla, un enlace normal invita a ir
+   adonde ya estás. */
+.marco__enlace {
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  color: var(--tinta-suave);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.marco__enlace:hover { background: var(--papel-hundido); color: var(--tinta); }
+.marco__enlace--activo { background: var(--hecho-tenue); color: var(--hecho); }
+
+/* Volver es una acción y no una nota al pie: es lo primero que se toca al
+   terminar un día, y con una mano. */
+.volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0 0.7rem 0 0.45rem;
+  margin-bottom: calc(var(--paso) * 1.5);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--papel-elevado);
+  color: var(--tinta-suave);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.volver span { font-size: 1.25rem; line-height: 1; }
+.volver:hover { border-color: var(--borde-fuerte); color: var(--tinta); }

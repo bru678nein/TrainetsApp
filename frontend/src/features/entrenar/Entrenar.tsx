@@ -305,9 +305,12 @@ export function SesionDelDia() {
 
   return (
     <>
-      <p>
-        <Link to="/entrenar">← Mis sesiones</Link>
-      </p>
+      {/* Volver es una acción, no una nota al pie. Con el chevron adelante y
+          altura de dedo, se aprieta sin apuntar — es la primera cosa que se toca
+          al terminar un día. */}
+      <Link to="/entrenar" className="volver">
+        <span aria-hidden="true">‹</span> Mis sesiones
+      </Link>
       <Consulta consulta={detalle} que="la sesión">
         {(datos) => {
           const completos = datos.blocks.filter(
