@@ -1015,3 +1015,43 @@ form { margin: 0 0 var(--paso); }
 .bloque__cabecera h3 { margin: 0; margin-right: auto; }
 .bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
 .bloque__pegar { grid-column: 1 / -1; margin: 0 0 var(--paso); }
+
+/* --- La agenda del atleta ---------------------------------------------------
+ *
+ * Filas tocables y no enlaces subrayados. El enlace de texto era un objetivo de
+ * doce píxeles en medio de un renglón vacío: en el teléfono hay que apuntar, y
+ * ésta es la pantalla que se usa con una mano y sin mirar.
+ *
+ * La fila entera es el destino, con 56px de alto —por encima del mínimo de 44—
+ * y el número del día adelante, que es lo que se busca al abrirla. */
+.agenda { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--paso); }
+.agenda__dia {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--paso) * 1.5);
+  min-height: 56px;
+  padding: var(--paso) calc(var(--paso) * 1.5);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--papel-elevado);
+  color: var(--tinta);
+  text-decoration: none;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.agenda__dia:hover { border-color: var(--borde-fuerte); background: var(--papel-hundido); }
+.agenda__numero {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: var(--radio-chico);
+  background: var(--prescrito);
+  color: var(--tinta-suave);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.agenda__texto { display: flex; flex-direction: column; min-width: 0; }
+.agenda__texto small { color: var(--tinta-suave); }
+.agenda__flecha { margin-left: auto; color: var(--tinta-tenue); font-size: 1.5rem; line-height: 1; }

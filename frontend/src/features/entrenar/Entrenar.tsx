@@ -405,11 +405,26 @@ function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
         }}
       >
         {(lista) => (
-          <ul className="lista">
+          <ul className="agenda">
             {lista.map((s) => (
               <li key={s.id}>
-                <Link to={`/entrenar/${s.id}`}>
-                  {s.mesocycle} · semana {s.week_number}, día {s.day_number}
+                {/* Toda la fila es el destino, y no un texto subrayado en el
+                    medio: en el teléfono se toca con el pulgar sin apuntar, y un
+                    enlace de dos palabras dentro de un renglón vacío es un
+                    objetivo de doce píxeles rodeado de nada. */}
+                <Link to={`/entrenar/${s.id}`} className="agenda__dia">
+                  <span className="agenda__numero" aria-hidden="true">
+                    D{s.day_number}
+                  </span>
+                  <span className="agenda__texto">
+                    <strong>Día {s.day_number}</strong>
+                    <small>
+                      {s.mesocycle} · semana {s.week_number}
+                    </small>
+                  </span>
+                  <span className="agenda__flecha" aria-hidden="true">
+                    ›
+                  </span>
                 </Link>
               </li>
             ))}
