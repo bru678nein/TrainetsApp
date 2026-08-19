@@ -21,9 +21,9 @@ const MESO = {
 };
 /** Sólo las semanas 1 y 2 están armadas: la 3 y la 4 quedan vacías a propósito. */
 const AGENDA = [
-  { id: "s1", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 1, day_number: 1 },
-  { id: "s2", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 1, day_number: 2 },
-  { id: "s3", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 2, day_number: 1 },
+  { id: "s1", mesocycle_id: "m1", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 1, day_number: 1 },
+  { id: "s2", mesocycle_id: "m1", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 1, day_number: 2 },
+  { id: "s3", mesocycle_id: "m1", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 2, day_number: 1 },
 ];
 
 /**
@@ -163,6 +163,7 @@ describe("agregar y borrar días", () => {
         if (u.includes("/sessions")) {
           const llena = [1, 2, 3, 4, 5, 6, 7].map((d) => ({
             id: `s${d}`,
+            mesocycle_id: "m1",
             mesocycle: "Acumulación",
             mesocycle_ordinal: 1,
             week_number: 1,
@@ -797,7 +798,7 @@ describe("duplicar y pegar bloques", () => {
     const VACIO = { ...MESO, id: "m3", ordinal: 3, label: "Descarga" };
     const AGENDA_3 = [
       ...AGENDA,
-      { id: "s9", mesocycle: "Intensificación", mesocycle_ordinal: 2, week_number: 1, day_number: 1 },
+      { id: "s9", mesocycle_id: "m2", mesocycle: "Intensificación", mesocycle_ordinal: 2, week_number: 1, day_number: 1 },
     ];
     const pedido = vi.fn<typeof fetch>((url) => {
       const u = String(url);
@@ -880,5 +881,66 @@ describe("duplicar y pegar bloques", () => {
     );
     expect(String(alta![0])).toContain("/api/mesocycles/m1/duplicate");
     expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: "m3" });
+  });
+});
+
+describe("dos bloques que se llaman igual", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  /**
+   * El caso que rompía. La agenda trae las sesiones de **todos** los programas
+   * del atleta, y el editor las agrupaba por el nombre del bloque — que lo
+   * escribe el entrenador y puede repetir.
+   *
+   * Dos «Acumulación» se mostraban las sesiones entre ellos: el vacío parecía
+   * lleno, sus días salían duplicados, y pegar no aparecía nunca porque el
+   * bloque nunca se veía vacío.
+   */
+  function conNombresRepetidos() {
+    const GEMELO = { ...MESO, id: "m2", ordinal: 2, label: "Acumulación" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) => {
+        const u = String(url);
+        const cuerpo = u.includes("/mesocycles/")
+          ? { id: "m9" }
+          : u.includes("/mesocycles")
+            ? [MESO, GEMELO]
+            : u.match(/\/api\/sessions\//)
+              ? { id: "s1", mesocycle: "Acumulación", week_number: 1, day_number: 1, blocks: [] }
+              : u.includes("/sessions")
+                ? AGENDA
+                : cuerpoPara(u);
+        return Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200 }));
+      }),
+    );
+  }
+
+  it("las sesiones quedan sólo en el bloque al que pertenecen", async () => {
+    conNombresRepetidos();
+    montarEditor();
+    // Se espera a las semanas y no al encabezado del bloque: el bloque se dibuja
+    // antes de que la agenda resuelva, y ahí todavía no hay ningún día.
+    await screen.findAllByRole("heading", { name: "Semana 1" });
+
+    const primero = screen.getByRole("heading", { name: /1\. Acumulación/ }).closest("section")!;
+    const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
+
+    // Las tres sesiones de la agenda son del bloque m1. Se cuentan por
+    // `aria-expanded`, que es lo que lleva el botón de cada día.
+    expect(primero.querySelectorAll("button[aria-expanded]")).toHaveLength(3);
+    expect(segundo.querySelectorAll("button[aria-expanded]")).toHaveLength(0);
+  });
+
+  it("y el bloque vacío ofrece pegar, aunque el otro se llame igual", async () => {
+    conNombresRepetidos();
+    montarEditor();
+    await screen.findAllByRole("heading", { name: "Semana 1" });
+
+    const primero = screen.getByRole("heading", { name: /1\. Acumulación/ }).closest("section")!;
+    await userEvent.click(within(primero).getByRole("button", { name: /Copiar el bloque/ }));
+
+    const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
+    expect(within(segundo).getByRole("button", { name: /Pegar/ })).toBeVisible();
   });
 });

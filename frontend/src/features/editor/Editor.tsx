@@ -996,7 +996,11 @@ function Bloque({
       )}
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
-          const mias = todas.filter((s) => s.mesocycle === meso.label);
+          // Por id y no por nombre: la etiqueta la escribe el entrenador y puede
+          // repetirla, y esta agenda trae las sesiones de todos sus programas.
+          // Agrupando por nombre, un bloque vacío se veía lleno con las sesiones
+          // de otro que se llamaba igual — y pegar no aparecía nunca.
+          const mias = todas.filter((s) => s.mesocycle_id === meso.id);
           // Igual que con las semanas: sólo se pega en un bloque vacío. El
           // servidor rechaza pisar uno armado con 409, y el atleta puede haber
           // registrado series ahí.

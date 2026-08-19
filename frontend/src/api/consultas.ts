@@ -307,6 +307,9 @@ export function useEscrituraDelEditor<T, V>(
 
 export type SesionDeLaAgenda = {
   id: string;
+  /** El bloque al que pertenece. Agrupar por el nombre mezcla dos bloques que se
+   *  llamen igual, y esta agenda trae los de todos los programas del atleta. */
+  mesocycle_id: string;
   mesocycle: string;
   mesocycle_ordinal: number;
   week_number: number;

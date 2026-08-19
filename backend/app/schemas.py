@@ -109,6 +109,14 @@ class SessionSummary(BaseModel):
     id: uuid.UUID
     program_id: uuid.UUID
     program: str
+    #: El id del bloque, y no sólo su nombre.
+    #:
+    #: Sin esto la interfaz sólo puede agrupar por `mesocycle`, que es una
+    #: etiqueta que el entrenador escribe y puede repetir — y esta agenda trae
+    #: las sesiones de **todos** los programas del atleta. Dos bloques llamados
+    #: «Acumulación» en programas distintos se mostraban las sesiones entre
+    #: ellos: un bloque vacío parecía lleno.
+    mesocycle_id: uuid.UUID
     mesocycle: str
     mesocycle_ordinal: int
     week_number: int

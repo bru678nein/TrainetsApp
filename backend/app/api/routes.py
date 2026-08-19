@@ -301,6 +301,7 @@ def list_sessions(
             id=se.id,
             program_id=pr.id,
             program=pr.name,
+            mesocycle_id=me.id,
             mesocycle=me.label,
             mesocycle_ordinal=me.ordinal,
             week_number=se.week_number,
