@@ -927,6 +927,28 @@ def borrar_ejercicio(
         )
     if en_uso:
         db.execute(delete(Prescription).where(Prescription.exercise_id == ejercicio.id))
+        # Un `DELETE` bloqueado por una policy `RESTRICTIVE` no levanta error:
+        # devuelve cero filas y sigue. Así que las prescripciones que cuelgan de
+        # un vínculo archivado sobreviven en silencio, y el borrado del ejercicio
+        # se estrella después contra `prescription_exercise_id_fkey`, que es
+        # RESTRICT — un 500 que no explica nada, sobre una operación que la
+        # persona confirmó.
+        #
+        # Se vuelve a contar en vez de mirar el predicado de la policy: lo que
+        # importa no es cuáles *deberían* haberse ido sino cuáles siguen ahí, y
+        # eso lo contesta la base. El conteo las ve porque ninguna restrictiva
+        # toca el `SELECT`.
+        quedan = db.scalar(
+            select(func.count())
+            .select_from(Prescription)
+            .where(Prescription.exercise_id == ejercicio.id)
+        )
+        if quedan:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"{quedan} de sus {en_uso} prescripciones cuelgan de un vínculo "
+                f"archivado y no se pueden sacar: reactivá ese vínculo o dejá el ejercicio",
+            )
     db.delete(ejercicio)
     db.commit()
 

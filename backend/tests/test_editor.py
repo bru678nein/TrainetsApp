@@ -978,6 +978,32 @@ class TestBorrarSacaDeLosDias:
         r = coach(cliente, "DELETE", f"/api/movement-patterns/{comun['code']}")
         assert r.status_code == 403
 
+    def test_una_prescripcion_bajo_un_vinculo_archivado_no_se_traga_el_borrado(
+        self, cliente, coach, escenario, ejercicio, prescrito
+    ):
+        """Dos reglas ciertas por separado que juntas daban un 500.
+
+        Bajo un vínculo archivado no se escribe, y un `DELETE` que una policy
+        RESTRICTIVE bloquea **no levanta error: devuelve cero filas**. Así que el
+        borrado masivo de prescripciones se filtraba en silencio, y después la
+        clave foránea de `prescription.exercise_id` —que es RESTRICT— rechazaba
+        borrar el ejercicio. `errores.py` traduce el 42501, no el 23503, y eso
+        subía como error del servidor.
+
+        Lo que corresponde no es borrar igual: la prescripción de un atleta
+        archivado tiene que quedarse donde está. Es decirlo.
+        """
+        coach(
+            cliente,
+            "POST",
+            f"/api/athletes/{escenario.atleta_de_a}/estado",
+            json={"accion": "archivar"},
+        )
+
+        r = coach(cliente, "DELETE", f"/api/exercises/{ejercicio}?confirmar=true")
+        assert r.status_code == 409, r.text
+        assert "archivado" in r.json()["detail"]
+
 
 class TestElEjercicioNaceConSusSeries:
     """Medido sobre la programación real: 473 de 473 ejercicios prescriptos
