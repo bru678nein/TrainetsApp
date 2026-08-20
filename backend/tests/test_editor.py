@@ -148,6 +148,71 @@ class TestArmarLaEstructura:
         assert r.status_code == 409
         assert "4 semanas" in r.json()["detail"]
 
+    def test_tampoco_se_llega_ahi_moviendo_un_dia_con_patch(self, cliente, coach, programa) -> None:
+        """El control al crear no alcanza si el de editar no existe.
+
+        Crear en la semana 9 de un bloque de 2 se rechaza, y mover un día que ya
+        existe hacia la semana 9 es la misma fila en el mismo lugar imposible.
+        Una sesión fuera de rango no se ve en el editor —que dibuja semana por
+        semana hasta `week_count`— pero cuenta para duplicar y para el progreso.
+        """
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 1, "label": "Corto", "week_count": 2},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+
+        movida = coach(cliente, "PATCH", f"/api/sessions/{sesion}", json={"week_number": 9})
+        assert movida.status_code == 409, movida.text
+        assert "2 semanas" in movida.json()["detail"]
+
+        # El control corre después de aplicar el cambio sobre el objeto, así que
+        # lo que hay que probar no es el código de respuesta: es que la fila no
+        # se movió igual.
+        assert coach(cliente, "GET", f"/api/sessions/{sesion}").json()["week_number"] == 1
+
+    def test_achicar_el_bloque_por_debajo_de_lo_que_ya_tiene_es_409(
+        self, cliente, coach, programa
+    ) -> None:
+        """La otra forma de dejar un día afuera: no mover el día, correr el borde.
+
+        Bajar `week_count` a 1 con una sesión en la semana 3 no la borra ni la
+        mueve; la deja fuera del bloque que la contiene, que es el mismo estado
+        que los dos controles de arriba impiden por el otro lado.
+        """
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 1, "label": "M", "week_count": 4},
+        ).json()["id"]
+        creada = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 3, "day_number": 1},
+        )
+        assert creada.status_code == 201, creada.text
+
+        achicado = coach(cliente, "PATCH", f"/api/mesocycles/{meso}", json={"week_count": 1})
+        assert achicado.status_code == 409, achicado.text
+        bloques = coach(cliente, "GET", f"/api/programs/{programa}/mesocycles").json()
+        assert next(m for m in bloques if m["id"] == meso)["week_count"] == 4, (
+            "contestó 409 pero achicó el bloque igual"
+        )
+
+        # Y achicar hasta donde sí entra sigue andando: el control es el borde,
+        # no una prohibición de achicar.
+        hasta_la_3 = coach(cliente, "PATCH", f"/api/mesocycles/{meso}", json={"week_count": 3})
+        assert hasta_la_3.status_code == 200, hasta_la_3.text
+
 
 class TestLasTresFormasDePrescribir:
     @pytest.fixture

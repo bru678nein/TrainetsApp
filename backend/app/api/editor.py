@@ -229,6 +229,23 @@ def editar_mesociclo(
 ) -> Mesocycle:
     db = _solo_entrenador(ctx)
     meso = _o_404(db, Mesocycle, mesocycle_id, "mesociclo")
+    # Achicar el bloque por debajo de las semanas ya armadas deja sesiones en una
+    # semana que el bloque no tiene: el editor no las dibuja nunca y quedan de
+    # fantasma. `crear_sesion` ya rechaza el caso simétrico —una semana mayor que
+    # el bloque— y sin esto la misma regla vale de un lado y no del otro.
+    #
+    # Antes de aplicar, no después: rechazar algo que ya se escribió sobre la
+    # fila deja la sesión sucia por el resto de la transacción.
+    if payload.week_count is not None:
+        ultima = db.scalar(
+            select(func.max(Session.week_number)).where(Session.mesocycle_id == meso.id)
+        )
+        if ultima and ultima > payload.week_count:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"hay sesiones hasta la semana {ultima}: borralas antes de bajar el bloque "
+                f"a {payload.week_count}",
+            )
     _aplicar(meso, payload.model_dump())
     db.commit()
     return meso
@@ -285,6 +302,16 @@ def editar_sesion(
 ) -> Session:
     db = _solo_entrenador(ctx)
     sesion = _o_404(db, Session, session_id, "sesión")
+    # El mismo control que hace `crear_sesion`. Estaba de un solo lado: crear una
+    # sesión en la semana 9 de un bloque de 2 se rechazaba, y moverla ahí con un
+    # PATCH pasaba. Y va antes de aplicar, por lo mismo que en el mesociclo.
+    if payload.week_number is not None:
+        meso = _o_404(db, Mesocycle, sesion.mesocycle_id, "mesociclo")
+        if payload.week_number > meso.week_count:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"el mesociclo tiene {meso.week_count} semanas y pediste la {payload.week_number}",
+            )
     _aplicar(sesion, payload.model_dump())
     db.commit()
     return sesion
