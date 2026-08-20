@@ -55,14 +55,19 @@ def cadena(db: OrmSession, mundo) -> dict[str, object]:
 
 
 def _escribible(db: OrmSession, tabla: str, cadena: dict[str, object]) -> bool:
-    """Llama a la función de `tabla` con el id de su padre."""
+    """Llama a la función de `tabla` con el id de lo que esa función recibe.
+
+    Para cinco es el padre. `logged_set` es la excepción: desde la 0021 resuelve
+    por `athlete_id` y no por `prescribed_set_id`, porque esa columna admite nulo
+    desde la 0016 y con nulo la función contestaba que sí.
+    """
     padres = {
         "program": "athlete",
         "mesocycle": "program",
         "session": "mesocycle",
         "prescription": "session",
         "prescribed_set": "prescription",
-        "logged_set": "prescribed_set",
+        "logged_set": "athlete",
     }
     return bool(
         db.execute(

@@ -222,3 +222,56 @@ class TestLasDieciochoEstan:
             .all()
         )
         assert sobre_select == [], f"tocan la lectura: {sobre_select}"
+
+    def test_ninguna_resuelve_por_una_columna_nullable(self, db: OrmSession) -> None:
+        """El agujero que abrió la 0016 y cerró la 0021, hecho regla.
+
+        Estas funciones contestan «¿el vínculo de esta fila está vivo?» subiendo
+        por una clave foránea. Si esa columna admite nulo, la fila huérfana no
+        matchea nada, el `NOT EXISTS` da verdadero y la escritura pasa — sin
+        error, sin log, sin nada que mirar. `logged_set.prescribed_set_id` se
+        volvió nullable en la 0016 y estuvo así cinco migraciones.
+
+        No alcanza con que hoy las seis sean NOT NULL: lo que rompió fue una
+        columna que *dejó* de serlo.
+        """
+        expuestas = (
+            db.execute(
+                sa.text(r"""
+                WITH usos AS (
+                    SELECT tablename, policyname,
+                           (regexp_match(coalesce(qual, with_check),
+                                         'app_vinculo_escribible_\w+\((\w+)\)'))[1] AS columna
+                    FROM pg_policies
+                    WHERE schemaname='public' AND policyname LIKE '%\_vinculo\_vivo\_%'
+                )
+                SELECT u.tablename || '.' || coalesce(u.columna, '???')
+                FROM usos u
+                LEFT JOIN pg_class c ON c.relname = u.tablename
+                LEFT JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+                LEFT JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = u.columna
+                WHERE u.columna IS NULL OR a.attnotnull IS NOT TRUE
+                GROUP BY 1 ORDER BY 1
+            """)
+            )
+            .scalars()
+            .all()
+        )
+        assert expuestas == [], (
+            f"resuelven por una columna que admite nulo, o por algo que no se pudo "
+            f"leer: {expuestas}"
+        )
+
+    @pytest.mark.parametrize("tabla", sorted(TABLAS))
+    def test_con_argumento_nulo_no_dejan_pasar(self, db: OrmSession, tabla: str) -> None:
+        """Y si aun así llega un nulo, que sea una negativa y no un permiso.
+
+        La regla de arriba impide que una policy le pase nulo. Esta dice qué
+        pasa cuando igual llega: la respuesta correcta a «no sé de qué fila me
+        hablás» es que no, no se escribe.
+        """
+        respuesta = db.execute(sa.text(f"SELECT app_vinculo_escribible_{tabla}(NULL)")).scalar()
+        assert respuesta is False, (
+            "con argumento nulo la función dice que se puede escribir, sin haber "
+            "mirado el estado de ningún vínculo"
+        )
