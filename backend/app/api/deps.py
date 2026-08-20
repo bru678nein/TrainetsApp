@@ -199,6 +199,31 @@ def tenant_session(ctx: TenantContext = Depends(require_tenant_context)) -> OrmS
     return ctx.db
 
 
+def solo_entrenador_al_dia(ctx: TenantContext, motivo: str) -> OrmSession:
+    """Las dos condiciones para que un entrenador escriba, en un solo lugar.
+
+    Existe porque no estaban en un solo lugar. El chequeo de suscripción vivía
+    dentro del helper privado del editor, así que los tres endpoints de escritura
+    que viven en `routes.py` —alta de atleta, cambio de vínculo y emisión de
+    invitación— no pasaban por él. Las policies los rechazaban igual, pero el
+    manejador traducía ese rechazo a un `409 vinculo_archivado`: a un entrenador
+    vencido le decía que su vínculo estaba archivado, que es falso, y no le decía
+    que tenía que renovar.
+
+    El motivo del 403 viaja como parámetro porque no es el mismo: quien no puede
+    editar una rutina, quien no puede cambiar un vínculo y quien no puede invitar
+    son tres frases distintas, y colapsarlas en una sola las empeora.
+
+    Ninguna de las dos es el control. El rol lo chequean las policies y la
+    suscripción también; esto se adelanta para que el motivo llegue a quien lo
+    lee.
+    """
+    if ctx.role != "coach":
+        raise HTTPException(status.HTTP_403_FORBIDDEN, motivo)
+    exigir_suscripcion_al_dia(ctx.db)
+    return ctx.db
+
+
 def exigir_suscripcion_al_dia(db: OrmSession) -> None:
     """Frena una escritura de entrenador con la suscripción vencida.
 

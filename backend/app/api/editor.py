@@ -36,7 +36,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.api.deps import TenantContext, exigir_suscripcion_al_dia, require_tenant_context
+from app.api.deps import TenantContext, require_tenant_context, solo_entrenador_al_dia
 from app.models import (
     Exercise,
     Mesocycle,
@@ -87,10 +87,7 @@ def _solo_entrenador(ctx: TenantContext) -> OrmSession:
     a row-level rejection that reads as "no permission" with no subject. Refusing
     up front says which rule was broken.
     """
-    if ctx.role != "coach":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador edita rutinas")
-    exigir_suscripcion_al_dia(ctx.db)
-    return ctx.db
+    return solo_entrenador_al_dia(ctx, "sólo un entrenador edita rutinas")
 
 
 def _o_404(db: OrmSession, modelo: type[T], id_: uuid.UUID, que: str) -> T:

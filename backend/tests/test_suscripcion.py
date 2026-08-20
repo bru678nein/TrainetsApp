@@ -232,3 +232,77 @@ class TestElMotivoLlegaAQuienLoLee:
 
         r = coach(cliente, "GET", f"/api/athletes/{escenario.atleta_de_a}/programs")
         assert r.status_code == 200, r.text
+
+
+class TestNingunaEscrituraDelEntrenadorSeSaltea:
+    """El hallazgo que confirmaron los dos jueces.
+
+    El chequeo vivía dentro del helper privado del editor, así que los tres
+    endpoints de escritura que viven en `routes.py` no pasaban por él. Las
+    policies los rechazaban igual —el cobro nunca se pudo saltear— pero el
+    manejador traducía ese rechazo a un `409 vinculo_archivado`: a un entrenador
+    vencido le decía que su vínculo estaba archivado, que es falso, y no le decía
+    que tenía que renovar.
+    """
+
+    def test_dar_de_alta_una_ficha(self, cliente, coach, escenario, db: OrmSession) -> None:
+        vencer(db, escenario.coach_a)
+        r = coach(cliente, "POST", "/api/athletes", json={"full_name": "Nueva"})
+        assert r.status_code == 402, r.text
+        assert "vinculo_archivado" not in r.text
+
+    def test_cambiar_el_estado_de_un_vinculo(
+        self, cliente, coach, escenario, db: OrmSession
+    ) -> None:
+        vencer(db, escenario.coach_a)
+        r = coach(
+            cliente,
+            "POST",
+            f"/api/athletes/{escenario.atleta_de_a}/estado",
+            json={"accion": "pausar"},
+        )
+        assert r.status_code == 402, r.text
+        assert "vinculo_archivado" not in r.text
+
+    def test_emitir_una_invitacion(self, cliente, coach, escenario, db: OrmSession) -> None:
+        vencer(db, escenario.coach_a)
+        r = coach(cliente, "POST", f"/api/athletes/{escenario.atleta_de_a}/invitation")
+        assert r.status_code == 402, r.text
+        assert "vinculo_archivado" not in r.text
+
+    def test_al_dia_los_tres_siguen_andando(
+        self, cliente, coach, escenario, db: OrmSession
+    ) -> None:
+        """El control. Sin él, un chequeo que rechaza siempre pasaría los tres
+        casos de arriba y rompería la aplicación entera."""
+        vencer(db, escenario.coach_a, dias=30)
+        assert (
+            coach(cliente, "POST", "/api/athletes", json={"full_name": "Nueva"}).status_code == 201
+        )
+        assert (
+            coach(cliente, "POST", f"/api/athletes/{escenario.atleta_de_a}/invitation").status_code
+            == 201
+        )
+
+    def test_todo_endpoint_de_escritura_del_entrenador_pasa_por_el_mismo_lugar(self) -> None:
+        """La guarda estructural, que es lo que impide que vuelva a pasar.
+
+        El defecto no fue olvidarse una línea: fue que la condición vivía dentro
+        del helper privado de un módulo, así que el otro módulo nunca la vio. Un
+        cuarto endpoint escrito mañana la olvidaría igual.
+
+        Este caso falla si alguien vuelve a poner un chequeo de rol suelto en vez
+        de pasar por el único lugar que además mira la suscripción.
+        """
+        import pathlib
+
+        raiz = pathlib.Path(__file__).resolve().parents[1] / "app" / "api"
+        sueltos = []
+        for archivo in ("routes.py", "editor.py"):
+            for n, linea in enumerate((raiz / archivo).read_text().splitlines(), start=1):
+                if 'ctx.role != "coach"' in linea:
+                    sueltos.append(f"{archivo}:{n}")
+        assert sueltos == [], (
+            f"chequeo de rol fuera de `solo_entrenador_al_dia`, que es donde también "
+            f"se mira la suscripción: {sueltos}"
+        )

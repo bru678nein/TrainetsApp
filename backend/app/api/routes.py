@@ -13,6 +13,7 @@ from app.api.deps import (
     TenantContext,
     require_identity_for_signup,
     require_tenant_context,
+    solo_entrenador_al_dia,
     tenant_session,
 )
 from app.domain.analytics import (
@@ -186,8 +187,7 @@ def crear_atleta(
     they share afterwards. So `user_id` stays NULL, and the person claims the
     record later through an invitation link.
     """
-    if ctx.role != "coach":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador crea fichas")
+    solo_entrenador_al_dia(ctx, "sólo un entrenador crea fichas")
     db = ctx.db
     coach = _coach_del_contexto(db, ctx)
 
@@ -466,8 +466,7 @@ def cambiar_estado(
     """
     from app.domain.vinculo import Accion, Estado, Rechazo, transicionar
 
-    if ctx.role != "coach":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador cambia el vínculo")
+    solo_entrenador_al_dia(ctx, "sólo un entrenador cambia el vínculo")
 
     db = ctx.db
     ficha = _athlete_or_404(db, athlete_id)
@@ -506,8 +505,7 @@ def generar_invitacion(
     """
     from app.domain.invitacion import emitir
 
-    if ctx.role != "coach":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "sólo un entrenador invita")
+    solo_entrenador_al_dia(ctx, "sólo un entrenador invita")
 
     db = ctx.db
     ficha = _athlete_or_404(db, athlete_id)
