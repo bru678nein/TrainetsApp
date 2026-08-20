@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import { RedirectToSignIn, SignedIn, SignedOut, SignIn, SignUp } from "@clerk/clerk-react";
 import type { ReactNode } from "react";
 
 /**
@@ -10,19 +10,47 @@ import type { ReactNode } from "react";
  * the application does not call `/api` before it holds a token — and a call
  * without one answers 401, which teaches whoever is watching the console that
  * 401s are normal here.
+ *
+ * Signed out it now REDIRECTS instead of drawing the form in place. Rendering
+ * the form over whatever address you asked for left signing in and signing up
+ * with no address of their own: nothing to send somebody, nothing to link from
+ * a landing page, and no way to reach the sign-up form at all — Clerk's own
+ * "create an account" link had nowhere to go.
+ *
+ * The redirect keeps where you were headed, so an invitation link still lands on
+ * the invitation after signing in.
  */
 export function Sesion({ children }: { children: ReactNode }) {
   return (
     <>
       <SignedOut>
-        {/* Centrado acá y no en el marco: el marco vive adentro del portón, así
-            que la pantalla de ingreso —que es la primera que ve cualquiera— se
-            quedaba sin ninguna maquetación, pegada a la esquina. */}
-        <div className="portada">
-          <SignIn />
-        </div>
+        <RedirectToSignIn />
       </SignedOut>
       <SignedIn>{children}</SignedIn>
     </>
+  );
+}
+
+/**
+ * Las dos pantallas de acceso, cada una con su dirección.
+ *
+ * `routing="path"` y no el modo por defecto: Clerk navega a subrutas propias
+ * para los pasos de un ingreso —el segundo factor, la vuelta de un proveedor
+ * externo—, y sin esto esos pasos no tienen dónde vivir. Por eso las rutas se
+ * declaran con `/*`.
+ */
+export function Entrar() {
+  return (
+    <div className="portada">
+      <SignIn routing="path" path="/sign-in" signUpUrl="/sign-up" />
+    </div>
+  );
+}
+
+export function Registrarse() {
+  return (
+    <div className="portada">
+      <SignUp routing="path" path="/sign-up" signInUrl="/sign-in" />
+    </div>
   );
 }

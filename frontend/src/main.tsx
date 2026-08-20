@@ -21,7 +21,14 @@ if (!raiz) throw new Error("Falta el elemento #root en index.html");
 
 createRoot(raiz).render(
   <StrictMode>
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+    {/* Dónde viven las dos pantallas de acceso. Sin esto los enlaces internos
+        de Clerk —«¿no tenés cuenta?»— apuntan a rutas que esta aplicación no
+        declara. */}
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+    >
       <App />
     </ClerkProvider>
   </StrictMode>,

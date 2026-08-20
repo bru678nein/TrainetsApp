@@ -24,6 +24,10 @@ vi.mock("@clerk/clerk-react", () => ({
   SignedIn: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? children : null),
   SignedOut: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? null : children),
   SignIn: () => <div>Ingresar</div>,
+  SignUp: () => <div>Registrarse</div>,
+  // El portón dejó de dibujar el formulario en el lugar: ahora manda a
+  // `/sign-in`. El doble lo dice, para poder afirmar que redirigió.
+  RedirectToSignIn: () => <div>redirigiendo a ingresar</div>,
   UserButton: () => <div>Cuenta</div>,
 }));
 
@@ -34,8 +38,19 @@ describe("la carcasa", () => {
 
   it("sin sesión no renderiza ninguna ruta", () => {
     render(<App />);
-    expect(screen.getByText("Ingresar")).toBeInTheDocument();
+    expect(screen.getByText("redirigiendo a ingresar")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Atletas" })).not.toBeInTheDocument();
+  });
+
+  it("ingresar y registrarse tienen dirección propia, fuera del portón", () => {
+    // Fuera a propósito: adentro, entrar redirigiría a entrar para siempre. Y
+    // este caso corre con la sesión cerrada, que es cuando se usan.
+    window.history.pushState({}, "", "/sign-up");
+    render(<App />);
+
+    expect(screen.getByText("Registrarse")).toBeInTheDocument();
+    expect(screen.queryByText("redirigiendo a ingresar")).not.toBeInTheDocument();
+    window.history.pushState({}, "", "/");
   });
 
   it("con sesión sí", async () => {

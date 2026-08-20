@@ -20,6 +20,10 @@ vi.mock("@clerk/clerk-react", () => ({
   SignedIn: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? children : null),
   SignedOut: ({ children }: { children: ReactNode }) => (sesionIniciada.valor ? null : children),
   SignIn: () => <div>Ingresar</div>,
+  SignUp: () => <div>Registrarse</div>,
+  // El portón dejó de dibujar el formulario en el lugar: ahora manda a
+  // `/sign-in`. El doble lo dice, para poder afirmar que redirigió.
+  RedirectToSignIn: () => <div>redirigiendo a ingresar</div>,
   UserButton: () => <div>Cuenta</div>,
 }));
 
@@ -51,7 +55,10 @@ describe("la puerta de sesión", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("sin sesión muestra el ingreso y no el contenido", () => {
+  it("sin sesión manda a ingresar, en vez de dibujar el formulario encima", () => {
+    // Dibujarlo en el lugar dejaba a entrar y a registrarse sin dirección
+    // propia: nada que mandarle a alguien, nada a lo que enlazar desde una
+    // landing, y a la pantalla de registro no se llegaba de ninguna forma.
     render(
       <ProveedorDeRol>
       <Sesion>
@@ -60,7 +67,7 @@ describe("la puerta de sesión", () => {
       </ProveedorDeRol>,
     );
 
-    expect(screen.getByText("Ingresar")).toBeInTheDocument();
+    expect(screen.getByText("redirigiendo a ingresar")).toBeInTheDocument();
     expect(screen.queryByText("datos")).not.toBeInTheDocument();
   });
 

@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { ProveedorDeAvisos } from "./components/Avisos";
 import { Marco } from "./lib/Marco";
 import { ProveedorDeRol } from "./lib/Rol";
-import { Sesion } from "./lib/Sesion";
+import { Entrar, Registrarse, Sesion } from "./lib/Sesion";
 import { Rutas } from "./rutas";
 
 /**
@@ -28,11 +28,22 @@ export function App() {
             una invitación. */}
         <ProveedorDeAvisos>
           <ProveedorDeRol>
-            <Sesion>
-              <Marco>
-                <Rutas />
-              </Marco>
-            </Sesion>
+            <Routes>
+              {/* Fuera del portón, y tiene que ser así: adentro, entrar
+                  redirigiría a entrar para siempre. */}
+              <Route path="/sign-in/*" element={<Entrar />} />
+              <Route path="/sign-up/*" element={<Registrarse />} />
+              <Route
+                path="*"
+                element={
+                  <Sesion>
+                    <Marco>
+                      <Rutas />
+                    </Marco>
+                  </Sesion>
+                }
+              />
+            </Routes>
           </ProveedorDeRol>
         </ProveedorDeAvisos>
       </BrowserRouter>
