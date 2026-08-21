@@ -13,6 +13,7 @@ vive en el esquema.
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
@@ -1172,6 +1173,236 @@ class TestElEjercicioNaceConSusSeries:
         assert len(detalle["blocks"]) == 2
         for bloque in detalle["blocks"]:
             assert [s["set_number"] for s in bloque["sets"]] == [1, 2]
+
+
+class TestLaProyeccionDiceLoQueVaAPasar:
+    """El panel que muestra la progresión antes de aplicarla.
+
+    Declarar `[0, 0, -1, -1]` y descubrir cuatro semanas después que no era lo
+    que se quería cuesta deshacer un bloque que el atleta ya entrenó. Esto es
+    poder mirarlo antes.
+    """
+
+    @pytest.fixture
+    def bloque(self, cliente, coach, programa, ejercicio):
+        """El mismo de `TestDuplicar`: cuatro semanas, 2 → 2 → 1 → 1, RIR 2 y 80kg."""
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 1, "label": "M", "week_count": 4, "rir_progression": [0, 0, -1, -1]},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        for n in (1, 2):
+            coach(
+                cliente,
+                "POST",
+                f"/api/prescriptions/{pres}/sets",
+                json={
+                    "reps_min": 8,
+                    "reps_max": 8,
+                    "rir_min": 2,
+                    "rir_max": 2,
+                    "target_load_kg": 80,
+                    "set_number": n,
+                },
+            )
+        return meso, sesion, pres
+
+    def test_lo_que_proyecta_es_lo_que_duplicar_deja(self, cliente, coach, bloque, db) -> None:
+        """El único test que justifica que la proyección viva en el servidor.
+
+        Si el panel recalculara la regla por su cuenta, el día que alguien toque
+        el desplazamiento o el tope en cero seguiría dibujando lo viejo y nadie
+        se enteraría: no falla nada, sólo miente. Esto compara las dos salidas
+        campo por campo.
+
+        Contra las filas de la base y no contra `GET /sessions/{id}`, que no
+        expone `target_pct_1rm` ni `is_amrap`: comparar sólo lo que esa respuesta
+        muestra dejaría sin mirar dos de los campos que la copia toca.
+
+        Se lee la proyección **entera antes de duplicar nada**, porque una vez
+        armada la semana el endpoint pasa a informar lo que hay, que es otra
+        cosa.
+        """
+        import sqlalchemy as sa
+
+        meso, _, _ = bloque
+        proyectado = {
+            s["week_number"]: s
+            for s in coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()["semanas"]
+        }
+
+        for semana in (2, 3, 4):
+            copia = coach(
+                cliente,
+                "POST",
+                f"/api/mesocycles/{meso}/duplicate-week",
+                json={"from_week": 1, "to_week": semana},
+            ).json()[0]
+
+            db.execute(sa.text("RESET ROLE"))
+            real = (
+                db.execute(
+                    sa.text("""
+                    SELECT ps.set_number, ps.reps_min, ps.reps_max, ps.rir_min, ps.rir_max,
+                           ps.target_load_kg, ps.target_pct_1rm, ps.is_amrap
+                      FROM prescribed_set ps
+                      JOIN prescription p ON p.id = ps.prescription_id
+                     WHERE p.session_id = :s ORDER BY ps.set_number
+                """),
+                    {"s": copia["id"]},
+                )
+                .mappings()
+                .all()
+            )
+            predicho = proyectado[semana]["dias"][0]["ejercicios"][0]["sets"]
+
+            assert len(predicho) == len(real), f"semana {semana}: distinta cantidad de series"
+            for p, r in zip(predicho, real, strict=True):
+                for campo in r:
+                    guardado = float(r[campo]) if isinstance(r[campo], Decimal) else r[campo]
+                    assert p[campo] == guardado, (
+                        f"semana {semana}, serie {p['set_number']}: la proyección dijo "
+                        f"{campo}={p[campo]} y duplicar dejó {guardado}"
+                    )
+
+    def test_el_paso_se_lee_contra_la_semana_anterior(self, cliente, coach, bloque) -> None:
+        """`[0, 0, -1, -1]` son dos semanas iguales, un apretón y otra igual.
+
+        Leído contra la semana 1 la cuarta también sería «-1» y el entrenador
+        vería dos apretones donde hay uno.
+        """
+        meso, _, _ = bloque
+        semanas = coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()["semanas"]
+        assert [s["movimiento"] for s in semanas] == ["base", "sostiene", "aprieta", "sostiene"]
+        assert [s["rir_delta"] for s in semanas] == [0, 0, -1, -1]
+
+    def test_una_semana_armada_informa_lo_que_tiene_y_no_lo_que_tendria(
+        self, cliente, coach, bloque
+    ) -> None:
+        """Una semana duplicada se corrige a mano, y ahí la proyección sobra.
+
+        Dibujarla igual mostraría una semana que no existe — y peor: mostraría
+        que la corrección no se guardó.
+        """
+        meso, _, _ = bloque
+        copia = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/duplicate-week",
+            json={"from_week": 1, "to_week": 3},
+        ).json()[0]
+        serie = coach(cliente, "GET", f"/api/sessions/{copia['id']}").json()["blocks"][0]["sets"][0]
+        # La proyección decía RIR 1 para la semana 3; el entrenador la corrige.
+        assert serie["rir_min"] == 1
+        coach(cliente, "PATCH", f"/api/prescribed-sets/{serie['id']}", json={"rir_min": 0})
+
+        semana3 = next(
+            s
+            for s in coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()["semanas"]
+            if s["week_number"] == 3
+        )
+        assert semana3["ya_armada"] is True
+        assert semana3["dias"][0]["ejercicios"][0]["sets"][0]["rir_min"] == 0, (
+            "informó la proyección en vez de lo que hay guardado"
+        )
+
+    def test_sin_progresion_declarada_todas_las_semanas_son_iguales(
+        self, cliente, coach, programa, ejercicio
+    ) -> None:
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 2, "label": "Plano", "week_count": 3},
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 1, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        coach(
+            cliente, "POST", f"/api/prescriptions/{pres}/sets", json={"reps_min": 5, "rir_min": 3}
+        )
+
+        proyeccion = coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()
+        assert proyeccion["declara_progresion"] is False
+        assert [s["movimiento"] for s in proyeccion["semanas"]] == ["base", "sostiene", "sostiene"]
+        for semana in proyeccion["semanas"]:
+            assert semana["dias"][0]["ejercicios"][0]["sets"][0]["rir_min"] == 3
+
+    def test_un_bloque_vacio_no_proyecta_nada(self, cliente, coach, programa) -> None:
+        """Proyectar desde una semana vacía proyectaría el vacío, y decir «RIR 1
+        en la semana 3» sobre un bloque sin un solo ejercicio es inventar."""
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={"ordinal": 3, "label": "Vacío", "week_count": 2, "rir_progression": [0, -1]},
+        ).json()["id"]
+
+        proyeccion = coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()
+        assert proyeccion["semana_base"] is None
+        assert [s["dias"] for s in proyeccion["semanas"]] == [[], []]
+
+    def test_se_proyecta_desde_la_primera_semana_que_tenga_algo(
+        self, cliente, coach, programa, ejercicio
+    ) -> None:
+        """Un bloque se puede empezar a armar por la semana 2, y ahí la 1 no es
+        la base: es una semana vacía como cualquier otra."""
+        meso = coach(
+            cliente,
+            "POST",
+            f"/api/programs/{programa}/mesocycles",
+            json={
+                "ordinal": 4,
+                "label": "Empieza tarde",
+                "week_count": 3,
+                "rir_progression": [0, 0, -1],
+            },
+        ).json()["id"]
+        sesion = coach(
+            cliente,
+            "POST",
+            f"/api/mesocycles/{meso}/sessions",
+            json={"week_number": 2, "day_number": 1},
+        ).json()["id"]
+        pres = coach(
+            cliente,
+            "POST",
+            f"/api/sessions/{sesion}/prescriptions",
+            json={"exercise_id": ejercicio},
+        ).json()["id"]
+        coach(
+            cliente, "POST", f"/api/prescriptions/{pres}/sets", json={"reps_min": 5, "rir_min": 2}
+        )
+
+        proyeccion = coach(cliente, "GET", f"/api/mesocycles/{meso}/projection").json()
+        assert proyeccion["semana_base"] == 2
+        semanas = {s["week_number"]: s for s in proyeccion["semanas"]}
+        # De la 2 a la 3 la declaración baja un punto.
+        assert semanas[3]["dias"][0]["ejercicios"][0]["sets"][0]["rir_min"] == 1
+        # Y la 1 se proyecta hacia atrás con la misma diferencia, que acá es cero.
+        assert semanas[1]["dias"][0]["ejercicios"][0]["sets"][0]["rir_min"] == 2
 
 
 class TestDuplicarUnBloqueEntero:

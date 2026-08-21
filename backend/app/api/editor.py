@@ -47,15 +47,18 @@ from app.models import (
     Session,
 )
 from app.schemas import (
+    DiaProyectado,
     DuplicarMesocicloIn,
     DuplicarSemanaIn,
     DuplicarSesionIn,
+    EjercicioProyectado,
     ExerciseIn,
     ExerciseOut,
     ExercisePatch,
     MesocycleIn,
     MesocycleOut,
     MesocyclePatch,
+    Movimiento,
     OrderIn,
     PatternIn,
     PatternOut,
@@ -67,6 +70,9 @@ from app.schemas import (
     PrescriptionPatch,
     ProgramIn,
     ProgramOut,
+    ProyeccionOut,
+    SemanaProyectada,
+    SerieProyectada,
     SessionCreated,
     SessionIn,
     SessionPatch,
@@ -884,6 +890,131 @@ def duplicar_prescripcion(
     )
     db.commit()
     return copia
+
+
+def _movimiento(anterior: int | None, actual: int) -> Movimiento:
+    """How this week reads against the one before it.
+
+    Against the previous week and not against the base, because what the coach
+    is looking at is the step. Holding at -1 for three weeks is three different
+    sentences if each is read against week one.
+
+    A smaller RIR is fewer reps left in the tank, so it is harder. The names say
+    that rather than the sign, which nobody reads correctly at a glance.
+    """
+    if anterior is None:
+        return "base"
+    if actual == anterior:
+        return "sostiene"
+    return "aprieta" if actual < anterior else "afloja"
+
+
+def _proyectar_serie(serie: PrescribedSet, delta: int) -> SerieProyectada:
+    """The same shift the copy applies, asked of the same functions.
+
+    `_rir_movido` and nothing else: if the clamp at zero ever changes, or the
+    load starts moving, this panel changes with it instead of going quietly
+    stale.
+    """
+    movido_min = _rir_movido(serie.rir_min, delta)
+    movido_max = _rir_movido(serie.rir_max, delta)
+    return SerieProyectada(
+        set_number=serie.set_number,
+        reps_min=serie.reps_min,
+        reps_max=serie.reps_max,
+        rir_min=float(movido_min) if movido_min is not None else None,
+        rir_max=float(movido_max) if movido_max is not None else None,
+        target_load_kg=float(serie.target_load_kg) if serie.target_load_kg is not None else None,
+        target_pct_1rm=float(serie.target_pct_1rm) if serie.target_pct_1rm is not None else None,
+        is_amrap=serie.is_amrap,
+    )
+
+
+def _dias_de(sesiones: list[Session], delta: int) -> list[DiaProyectado]:
+    return [
+        DiaProyectado(
+            day_number=s.day_number,
+            label=s.label,
+            ejercicios=[
+                EjercicioProyectado(
+                    exercise_name=pres.exercise.name,
+                    position=pres.position,
+                    superset_key=pres.superset_key,
+                    sets=[
+                        _proyectar_serie(serie, delta)
+                        for serie in sorted(pres.sets, key=lambda x: x.set_number)
+                    ],
+                )
+                for pres in sorted(s.prescriptions, key=lambda p: p.position)
+            ],
+        )
+        for s in sorted(sesiones, key=lambda s: s.day_number)
+    ]
+
+
+@editor.get("/mesocycles/{mesocycle_id}/projection", response_model=ProyeccionOut)
+def proyectar_mesociclo(
+    mesocycle_id: uuid.UUID, ctx: TenantContext = Depends(require_tenant_context)
+) -> ProyeccionOut:
+    """What the block is going to look like, before anybody duplicates anything.
+
+    The progression is declared once and applied by copying, so until now the
+    only way to see what it produced was to produce it. Declaring `[0, 0, -1, -1]`
+    and finding out four weeks later that it was not what you meant costs undoing
+    a block the athlete may already have trained.
+
+    **A built week reports what is in it, not a projection.** Once a week exists
+    it can have been corrected by hand, and drawing the projection over it would
+    show a week that does not exist. Only the empty ones are predicted, which is
+    also the only place a prediction is worth anything.
+
+    No role check: this reads, and reading a programme is something the athlete's
+    own policies already allow.
+    """
+    db = ctx.db
+    meso = _o_404(db, Mesocycle, mesocycle_id, "mesociclo")
+
+    sesiones = list(
+        db.scalars(
+            select(Session)
+            .where(Session.mesocycle_id == meso.id)
+            .order_by(Session.week_number, Session.day_number)
+        ).all()
+    )
+    por_semana: dict[int, list[Session]] = {}
+    for s in sesiones:
+        por_semana.setdefault(s.week_number, []).append(s)
+
+    # De dónde se proyecta: la primera semana que tenga algo. No se elige la 1
+    # por decreto porque un bloque se puede empezar a armar en cualquier semana,
+    # y proyectar desde una semana vacía proyectaría el vacío.
+    base = min(por_semana) if por_semana else None
+
+    semanas: list[SemanaProyectada] = []
+    anterior: int | None = None
+    for numero in range(1, meso.week_count + 1):
+        delta = _desplazamiento(meso, base, numero) if base is not None else 0
+        armada = numero in por_semana
+        semanas.append(
+            SemanaProyectada(
+                week_number=numero,
+                rir_delta=delta,
+                movimiento=_movimiento(anterior, delta),
+                ya_armada=armada,
+                dias=_dias_de(por_semana[numero], 0)
+                if armada
+                else _dias_de(por_semana.get(base, []), delta)
+                if base is not None
+                else [],
+            )
+        )
+        anterior = delta
+
+    return ProyeccionOut(
+        semana_base=base,
+        declara_progresion=bool(meso.rir_progression),
+        semanas=semanas,
+    )
 
 
 @editor.patch("/exercises/{exercise_id}", response_model=ExerciseOut)

@@ -564,3 +564,72 @@ class PatternIn(BaseModel):
 
     label_es: str = Field(min_length=1, max_length=80)
     is_compound: bool = False
+
+
+#: How a week reads against the one before it. A smaller RIR is fewer reps left
+#: in the tank, so `aprieta` is harder and `afloja` is the deload.
+Movimiento = Literal["base", "sostiene", "aprieta", "afloja"]
+
+
+class SerieProyectada(BaseModel):
+    """A set as duplicating would leave it, not as it is stored.
+
+    Mirrors `PrescribedSetOut` minus its identifiers: a projected set has no id
+    because it does not exist. Handing one out with an id invites the interface
+    to try to edit it.
+    """
+
+    set_number: int
+    reps_min: int | None = None
+    reps_max: int | None = None
+    rir_min: float | None = None
+    rir_max: float | None = None
+    target_load_kg: float | None = None
+    target_pct_1rm: float | None = None
+    is_amrap: bool = False
+
+
+class EjercicioProyectado(BaseModel):
+    exercise_name: str
+    position: int
+    superset_key: str | None = None
+    sets: list[SerieProyectada]
+
+
+class DiaProyectado(BaseModel):
+    day_number: int
+    label: str | None = None
+    ejercicios: list[EjercicioProyectado]
+
+
+class SemanaProyectada(BaseModel):
+    """What a week of the block holds, or would hold once it is built.
+
+    `ya_armada` is the difference between the two, and it is the whole point of
+    the field: a built week reports **what is actually in it**, which may have
+    been corrected by hand after it was duplicated. Projecting over it would show
+    the coach a week that does not exist.
+
+    `movimiento` is read against the previous week, not against the base: what
+    the coach wants to see is the step, and holding at -1 for three weeks is
+    three different sentences if you read it against week one.
+    """
+
+    week_number: int
+    rir_delta: int
+    movimiento: Movimiento
+    ya_armada: bool
+    dias: list[DiaProyectado]
+
+
+class ProyeccionOut(BaseModel):
+    """What duplicating is going to do, before anybody presses it.
+
+    It is computed by the same functions the duplication runs, and not by a copy
+    of the rule: a panel that predicts something different from what the button
+    next to it does is worse than no panel.
+    """
+
+    semana_base: int | None
+    declara_progresion: bool
+    semanas: list[SemanaProyectada]
