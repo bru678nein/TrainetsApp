@@ -1186,13 +1186,29 @@ form { margin: 0 0 var(--paso); }
  * La densidad se paga en tipografía y en aire: los botones siguen en 44px y la
  * fila entera mide 52, que es más que el objetivo mínimo.
  */
-.atletas { list-style: none; margin: var(--paso-grande) 0 0; padding: 0;
+/* La grilla vive en la lista y las filas la heredan con `subgrid`.
+ *
+ * Con la grilla en cada fila, cada una calcula sus propias pistas: la última
+ * columna es `auto` y las acciones cambian de fila en fila —«Armar el primer
+ * bloque» al lado de «reactivar»— así que ninguna coincidía con el encabezado ni
+ * con las demás. Se veía como una tabla desalineada porque no era una tabla:
+ * eran seis grillas distintas una debajo de la otra.
+ *
+ * `subgrid` hace que todas compartan las pistas de la lista y siga habiendo una
+ * caja por fila para el fondo, el borde y el hover — que es lo que se pierde con
+ * `display: contents`. */
+.atletas {
+  list-style: none; margin: var(--paso-grande) 0 0; padding: 0;
   border: 1px solid var(--borde); border-radius: var(--radio-grande);
-  background: var(--papel); overflow: hidden; }
+  background: var(--papel); overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 120px 130px minmax(0, 1.5fr) max-content;
+}
 
 .atleta {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) 120px 130px minmax(0, 1.5fr) auto;
+  grid-template-columns: subgrid;
   gap: var(--paso-medio);
   align-items: center;
   min-height: 52px;
@@ -1256,8 +1272,11 @@ form { margin: 0 0 var(--paso); }
 
 @media (max-width: 900px) {
   /* En angosto la grilla se vuelve una ficha apilada: cinco columnas en 375px
-     son cinco columnas de nada. */
-  .atleta { grid-template-columns: 1fr; gap: 4px; padding: var(--paso-medio) var(--paso); }
+     son cinco columnas de nada. La lista deja de ser grilla para que la fila
+     pueda declarar la suya. */
+  .atletas { display: block; }
+  .atleta { grid-column: auto; grid-template-columns: 1fr; gap: 4px;
+    padding: var(--paso-medio) var(--paso); }
   .atleta--encabezado { display: none; }
   .atleta__acciones { justify-self: start; margin-top: 4px; }
 }
