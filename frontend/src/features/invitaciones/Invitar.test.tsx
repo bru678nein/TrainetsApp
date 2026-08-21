@@ -47,11 +47,22 @@ describe("generar el link", () => {
     expect(pedido).not.toHaveBeenCalled();
   });
 
+  it("explica qué hace el link antes de que lo generen", async () => {
+    // El entrenador manda esto por WhatsApp y no vuelve a ver esta pantalla, así
+    // que si no lo dice acá no lo sabe en ningún lado. Y va **antes** de
+    // generar, porque generar de nuevo invalida el anterior: la explicación
+    // llega tarde si aparece recién con el link en la mano.
+    responder(201, CREADA);
+    montar(<Invitar atletaId="a1" />);
+    expect(screen.getByText(/crea su cuenta y queda enganchado a la ficha/i)).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Link para atleta" })).toBeVisible();
+  });
+
   it("pega con POST contra la ficha que se está mirando", async () => {
     const pedido = responder(201, CREADA);
     montar(<Invitar atletaId="a1" />);
     await userEvent.click(screen.getByRole("button"));
-    await screen.findByLabelText(/link de invitación/i);
+    await screen.findByLabelText(/link para el atleta/i);
 
     const { url, opciones } = llamada(pedido);
     expect(url).toContain("/api/athletes/a1/invitation");
@@ -62,7 +73,7 @@ describe("generar el link", () => {
     const pedido = responder(201, CREADA);
     montar(<Invitar atletaId="a1" />);
     await userEvent.click(screen.getByRole("button"));
-    await screen.findByLabelText(/link de invitación/i);
+    await screen.findByLabelText(/link para el atleta/i);
 
     const { opciones } = llamada(pedido);
     expect(new Headers(opciones.headers).get("Active-Role")).toBe("coach");
@@ -72,7 +83,7 @@ describe("generar el link", () => {
     responder(201, CREADA);
     montar(<Invitar atletaId="a1" />);
     await userEvent.click(screen.getByRole("button"));
-    const campo = await screen.findByLabelText<HTMLInputElement>(/link de invitación/i);
+    const campo = await screen.findByLabelText<HTMLInputElement>(/link para el atleta/i);
     expect(campo.value).toBe(`${window.location.origin}/invitacion/tok-abc`);
   });
 
@@ -97,7 +108,7 @@ describe("generar el link", () => {
     responder(201, CREADA);
     montar(<Invitar atletaId="a1" />);
     await userEvent.click(screen.getByRole("button"));
-    await screen.findByLabelText(/link de invitación/i);
+    await screen.findByLabelText(/link para el atleta/i);
     expect(screen.getByRole("button")).toHaveTextContent(/invalida el anterior/i);
   });
 });
@@ -126,6 +137,6 @@ describe("cuando el API rechaza", () => {
     montar(<Invitar atletaId="a1" />);
     await userEvent.click(screen.getByRole("button"));
     await screen.findByRole("alert");
-    expect(screen.queryByLabelText(/link de invitación/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/link para el atleta/i)).not.toBeInTheDocument();
   });
 });

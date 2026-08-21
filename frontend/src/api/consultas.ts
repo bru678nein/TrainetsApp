@@ -9,6 +9,9 @@ export type Atleta = {
   full_name: string;
   level: string | null;
   estado?: string;
+  /** Si ya reclamó su ficha. No tenerla es el caso normal: el entrenador arma
+   *  el programa entero antes de mandar el link. */
+  tiene_cuenta?: boolean;
   /** Cuándo entrenó por última vez. `null` si todavía no registró nada — que no
    *  es lo mismo que hace mucho, y por eso no viaja como una fecha vieja. */
   ultima_sesion?: string | null;

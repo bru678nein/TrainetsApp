@@ -239,6 +239,7 @@ def list_athletes(
     filas = db.execute(
         text(f"""
         SELECT a.id, a.full_name, a.level, a.estado,
+               a.user_id IS NOT NULL AS tiene_cuenta,
                (SELECT max(l.performed_at) FROM logged_set l
                  WHERE l.athlete_id = a.id) AS ultima_sesion,
                p.name AS programa_actual,

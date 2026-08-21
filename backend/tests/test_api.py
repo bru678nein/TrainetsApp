@@ -195,6 +195,52 @@ class TestElListadoTraeConQueDecidir:
         assert fila["programa_actual"] is None
         assert fila["semana_actual"] is None
 
+    def test_una_ficha_recien_creada_no_tiene_cuenta_y_eso_es_lo_normal(
+        self, client, seeded
+    ) -> None:
+        """No es una ficha a medias: es el orden en que el producto funciona.
+
+        El entrenador crea la ficha, le arma el programa entero y recién después
+        manda el link. Sin este dato la interfaz no puede distinguir a quien
+        todavía no lo recibió de quien lo recibió y no entró.
+        """
+        r = client.post("/api/athletes", json={"full_name": "Sin cuenta todavía"})
+        assert r.status_code == 201, r.text
+
+        fila = next(
+            f for f in client.get("/api/athletes").json() if f["full_name"] == "Sin cuenta todavía"
+        )
+        assert fila["tiene_cuenta"] is False
+
+    def test_la_ficha_reclamada_dice_que_tiene_cuenta(self, client, seeded, db) -> None:
+        """El control del de arriba.
+
+        Sin esto, un campo clavado en `false` pasaría el caso anterior y la
+        interfaz diría «sin cuenta» para siempre, incluso para quien ya entró.
+
+        Se reclama la ficha acá y no se busca una ya reclamada: el escenario
+        sembrado trae una sola, y un test que se saltea cuando no encuentra lo
+        que necesita es un test que no corre nunca.
+        """
+        import sqlalchemy as sa
+
+        r = client.post("/api/athletes", json={"full_name": "Ya reclamada"})
+        assert r.status_code == 201, r.text
+
+        db.execute(sa.text("RESET ROLE"))
+        db.execute(
+            sa.text("""
+                UPDATE athlete SET user_id = (SELECT id FROM app_user LIMIT 1)
+                 WHERE full_name = 'Ya reclamada'
+            """)
+        )
+        db.flush()
+
+        fila = next(
+            f for f in client.get("/api/athletes").json() if f["full_name"] == "Ya reclamada"
+        )
+        assert fila["tiene_cuenta"] is True
+
     def test_el_listado_no_hace_una_consulta_por_atleta(
         self, client, seeded, sessions_opened
     ) -> None:

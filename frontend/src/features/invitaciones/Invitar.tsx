@@ -23,6 +23,11 @@ function mensajeDe(error: unknown): string {
 /**
  * El link con el que un atleta reclama la ficha que el entrenador ya armó.
  *
+ * Se llama «link para atleta» y no «invitación» porque eso es lo que un
+ * entrenador busca cuando lo busca: no está invitando a nadie a nada, le está
+ * dando a alguien la puerta de entrada a su propia ficha, que ya existe y ya
+ * tiene el programa adentro.
+ *
  * El token se muestra **una sola vez**, y eso no es una decisión de esta
  * pantalla: la base guarda su hash y ninguna ruta lo puede volver a mostrar. Por
  * eso el texto lo dice antes de que la persona cierre la pestaña, y por eso el
@@ -34,7 +39,15 @@ export function Invitar({ atletaId }: { atletaId: string }) {
 
   return (
     <section className="tarjeta">
-      <h3>Invitación</h3>
+      <h3>Link para atleta</h3>
+      {/* Qué hace del otro lado. El entrenador lo manda y no vuelve a ver esa
+          pantalla nunca, así que si no lo dice acá no lo sabe en ningún lado —
+          y es lo que le van a preguntar por WhatsApp. */}
+      <p className="invitar__que-es">
+        Con este link tu atleta entra, crea su cuenta y queda enganchado a la
+        ficha que ya le armaste. Desde ahí ve sus días y registra las series
+        desde el teléfono, y vos empezás a ver qué cumplió.
+      </p>
 
       {invitacion.isSuccess ? (
         <>
@@ -47,7 +60,7 @@ export function Invitar({ atletaId }: { atletaId: string }) {
               readOnly
               className="link-de-invitacion"
               value={linkDe(invitacion.data.token)}
-              aria-label="Link de invitación"
+              aria-label="Link para el atleta"
               onFocus={(evento) => evento.currentTarget.select()}
             />
           </p>
@@ -64,7 +77,7 @@ export function Invitar({ atletaId }: { atletaId: string }) {
           ? "Generando…"
           : invitacion.isSuccess
             ? "Generar otro (invalida el anterior)"
-            : "Generar link de invitación"}
+            : "Generar el link"}
       </button>
 
       {invitacion.isError ? (

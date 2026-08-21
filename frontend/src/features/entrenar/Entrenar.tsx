@@ -47,7 +47,9 @@ function objetivoDe(bloque: BloqueDelDia): string {
       ? `${primera.reps_min}-${primera.reps_max}`
       : `${primera.reps_min ?? "?"}`;
   const carga =
-    primera.target_load_kg != null ? `@ ${primera.target_load_kg} kg` : "· peso a elección";
+    primera.target_load_kg != null
+      ? `@ ${primera.target_load_kg} kg`
+      : "· peso a elección";
   return `${bloque.sets.length}×${reps} ${carga}`;
 }
 
@@ -82,7 +84,11 @@ function Stepper({
     <div className="stepper">
       <span className="stepper__etiqueta">{etiqueta}</span>
       <div className="stepper__control">
-        <button type="button" onClick={() => mover(-1)} aria-label={`Bajar ${etiqueta}`}>
+        <button
+          type="button"
+          onClick={() => mover(-1)}
+          aria-label={`Bajar ${etiqueta}`}
+        >
           −
         </button>
         <input
@@ -91,7 +97,11 @@ function Stepper({
           onChange={(e) => onCambio(e.target.value)}
           aria-label={etiqueta}
         />
-        <button type="button" onClick={() => mover(1)} aria-label={`Subir ${etiqueta}`}>
+        <button
+          type="button"
+          onClick={() => mover(1)}
+          aria-label={`Subir ${etiqueta}`}
+        >
           +
         </button>
       </div>
@@ -120,18 +130,28 @@ function Descanso({ segundos }: { segundos: number }) {
     return () => clearInterval(reloj);
   }, []);
 
-  if (restan <= 0) return <p className="descanso descanso--listo">Descanso terminado</p>;
+  if (restan <= 0)
+    return <p className="descanso descanso--listo">Descanso terminado</p>;
   const mm = Math.floor(restan / 60);
   const ss = String(restan % 60).padStart(2, "0");
   return (
     <p className="descanso" aria-live="off">
-      Descanso <strong>{mm}:{ss}</strong>
+      Descanso{" "}
+      <strong>
+        {mm}:{ss}
+      </strong>
     </p>
   );
 }
 
 /** Una serie ya registrada: un renglón, no un formulario. */
-function SerieHecha({ serie, onCorregir }: { serie: SerieDelDia; onCorregir: () => void }) {
+function SerieHecha({
+  serie,
+  onCorregir,
+}: {
+  serie: SerieDelDia;
+  onCorregir: () => void;
+}) {
   return (
     <li className="serie-fila serie-fila--hecha">
       <span className="serie-fila__numero" aria-hidden="true">
@@ -158,7 +178,10 @@ function SeriePendiente({ serie }: { serie: SerieDelDia }) {
       </span>
       <span className="serie-fila__dato">
         {serie.reps_min ?? "?"}
-        {serie.reps_max && serie.reps_max !== serie.reps_min ? `-${serie.reps_max}` : ""} reps
+        {serie.reps_max && serie.reps_max !== serie.reps_min
+          ? `-${serie.reps_max}`
+          : ""}{" "}
+        reps
       </span>
       <span className="serie-fila__dato">
         {serie.target_load_kg != null ? `${serie.target_load_kg} kg` : "libre"}
@@ -179,8 +202,12 @@ function SerieActual({
   descanso: number | null;
 }) {
   const registrar = useRegistrarSerie(sesionId);
-  const [reps, setReps] = useState(String(serie.reps_done ?? serie.reps_min ?? ""));
-  const [carga, setCarga] = useState(String(serie.load_done_kg ?? serie.target_load_kg ?? ""));
+  const [reps, setReps] = useState(
+    String(serie.reps_done ?? serie.reps_min ?? ""),
+  );
+  const [carga, setCarga] = useState(
+    String(serie.load_done_kg ?? serie.target_load_kg ?? ""),
+  );
   const [rir, setRir] = useState(String(serie.rir_done ?? serie.rir_min ?? ""));
   const [descansando, setDescansando] = useState<number | null>(null);
 
@@ -201,7 +228,13 @@ function SerieActual({
       <p className="serie-actual__marca">Serie {serie.set_number}</p>
       <div className="serie-actual__campos">
         <Stepper etiqueta="Reps" valor={reps} onCambio={setReps} />
-        <Stepper etiqueta="Kg" valor={carga} onCambio={setCarga} paso={2.5} decimales />
+        <Stepper
+          etiqueta="Kg"
+          valor={carga}
+          onCambio={setCarga}
+          paso={2.5}
+          decimales
+        />
         <Stepper etiqueta="RIR" valor={rir} onCambio={setRir} />
       </div>
       <button
@@ -220,7 +253,9 @@ function SerieActual({
       >
         La salté
       </button>
-      {descansando && descanso ? <Descanso key={descansando} segundos={descanso} /> : null}
+      {descansando && descanso ? (
+        <Descanso key={descansando} segundos={descanso} />
+      ) : null}
       {registrar.isError ? (
         <p className="estado estado--falla" role="alert">
           No se pudo registrar.
@@ -261,7 +296,9 @@ function Ejercicio({
             {completo ? "✓" : ""}
           </span>
           <span className="ejercicio-cerrado__nombre">{bloque.exercise}</span>
-          <span className="ejercicio-cerrado__objetivo">{objetivoDe(bloque)}</span>
+          <span className="ejercicio-cerrado__objetivo">
+            {objetivoDe(bloque)}
+          </span>
         </button>
       </li>
     );
@@ -271,9 +308,13 @@ function Ejercicio({
     <li className="ejercicio-abierto">
       <div className="ejercicio-abierto__cabecera">
         <h3>{bloque.exercise}</h3>
-        <span className="ejercicio-abierto__objetivo">{objetivoDe(bloque)}</span>
+        <span className="ejercicio-abierto__objetivo">
+          {objetivoDe(bloque)}
+        </span>
       </div>
-      {bloque.coach_note ? <p className="ejercicio-abierto__nota">{bloque.coach_note}</p> : null}
+      {bloque.coach_note ? (
+        <p className="ejercicio-abierto__nota">{bloque.coach_note}</p>
+      ) : null}
       <ul className="lista-de-series">
         {bloque.sets.map((serie) =>
           serie.id === abierta ? (
@@ -284,7 +325,11 @@ function Ejercicio({
               descanso={bloque.rest_seconds}
             />
           ) : hecha(serie) ? (
-            <SerieHecha key={serie.id} serie={serie} onCorregir={() => setCorrigiendo(serie.id)} />
+            <SerieHecha
+              key={serie.id}
+              serie={serie}
+              onCorregir={() => setCorrigiendo(serie.id)}
+            />
           ) : (
             <SeriePendiente key={serie.id} serie={serie} />
           ),
@@ -304,7 +349,9 @@ export function SesionDelDia() {
   if (!sesionId) return null;
 
   return (
-    <>
+    /* Columna angosta: esta pantalla se usa con el teléfono en la mano, y el
+       marco ahora es ancho para que entre el editor. */
+    <div className="columna">
       {/* Volver es una acción, no una nota al pie. Con el chevron adelante y
           altura de dedo, se aprieta sin apuntar — es la primera cosa que se toca
           al terminar un día. */}
@@ -319,12 +366,14 @@ export function SesionDelDia() {
           const primeroSinTerminar = datos.blocks.find(
             (b) => !(b.sets.length > 0 && b.sets.every(hecha)),
           );
-          const abierto = abiertoManual ?? primeroSinTerminar?.prescription_id ?? null;
+          const abierto =
+            abiertoManual ?? primeroSinTerminar?.prescription_id ?? null;
 
           return (
             <>
               <h2>
-                {datos.mesocycle} · semana {datos.week_number}, día {datos.day_number}
+                {datos.mesocycle} · semana {datos.week_number}, día{" "}
+                {datos.day_number}
               </h2>
 
               <div className="progreso">
@@ -367,23 +416,30 @@ export function SesionDelDia() {
           );
         }}
       </Consulta>
-    </>
+    </div>
   );
 }
 
 export function MisSesiones() {
   const fichas = useAtletas("athlete");
   return (
-    <Consulta
-      consulta={fichas}
-      que="tus fichas"
-      vacio={{
-        cuando: (lista) => lista.length === 0,
-        motivo: "Todavía no reclamaste ninguna ficha. Pedile el link a tu entrenador.",
-      }}
-    >
-      {(lista) => lista.map((ficha) => <AgendaDeUnaFicha key={ficha.id} atletaId={ficha.id} />)}
-    </Consulta>
+    <div className="columna">
+      <Consulta
+        consulta={fichas}
+        que="tus fichas"
+        vacio={{
+          cuando: (lista) => lista.length === 0,
+          motivo:
+            "Todavía no reclamaste ninguna ficha. Pedile el link a tu entrenador.",
+        }}
+      >
+        {(lista) =>
+          lista.map((ficha) => (
+            <AgendaDeUnaFicha key={ficha.id} atletaId={ficha.id} />
+          ))
+        }
+      </Consulta>
+    </div>
   );
 }
 
@@ -414,37 +470,41 @@ function AgendaDeUnaFicha({ atletaId }: { atletaId: string }) {
               // contestar. `> 0` en el denominador porque un día sin nada
               // prescripto no está terminado: está vacío, y decirle «completado»
               // sería felicitar a alguien por no hacer nada.
-              const completo = s.series_prescritas > 0 && s.series_respondidas >= s.series_prescritas;
+              const completo =
+                s.series_prescritas > 0 &&
+                s.series_respondidas >= s.series_prescritas;
               const empezado = s.series_respondidas > 0 && !completo;
               return (
-              <li key={s.id}>
-                {/* Toda la fila es el destino, y no un texto subrayado en el
+                <li key={s.id}>
+                  {/* Toda la fila es el destino, y no un texto subrayado en el
                     medio: en el teléfono se toca con el pulgar sin apuntar, y un
                     enlace de dos palabras dentro de un renglón vacío es un
                     objetivo de doce píxeles rodeado de nada. */}
-                <Link
-                  to={`/entrenar/${s.id}`}
-                  className={`agenda__dia${completo ? " agenda__dia--completo" : ""}`}
-                >
-                  <span className="agenda__numero" aria-hidden="true">
-                    {completo ? "✓" : `D${s.day_number}`}
-                  </span>
-                  <span className="agenda__texto">
-                    <strong>Día {s.day_number}</strong>
-                    <small>
-                      {s.mesocycle} · semana {s.week_number}
-                      {/* El estado va en palabras y no sólo en el color: quien no
+                  <Link
+                    to={`/entrenar/${s.id}`}
+                    className={`agenda__dia${completo ? " agenda__dia--completo" : ""}`}
+                  >
+                    <span className="agenda__numero" aria-hidden="true">
+                      {completo ? "✓" : `D${s.day_number}`}
+                    </span>
+                    <span className="agenda__texto">
+                      <strong>Día {s.day_number}</strong>
+                      <small>
+                        {s.mesocycle} · semana {s.week_number}
+                        {/* El estado va en palabras y no sólo en el color: quien no
                           distingue los tonos tiene que poder leerlo, y a pleno
                           sol tampoco se ve un verde de otro gris. */}
-                      {completo ? " · completado" : null}
-                      {empezado ? ` · ${s.series_respondidas} de ${s.series_prescritas}` : null}
-                    </small>
-                  </span>
-                  <span className="agenda__flecha" aria-hidden="true">
-                    ›
-                  </span>
-                </Link>
-              </li>
+                        {completo ? " · completado" : null}
+                        {empezado
+                          ? ` · ${s.series_respondidas} de ${s.series_prescritas}`
+                          : null}
+                      </small>
+                    </span>
+                    <span className="agenda__flecha" aria-hidden="true">
+                      ›
+                    </span>
+                  </Link>
+                </li>
               );
             })}
           </ul>

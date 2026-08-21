@@ -44,7 +44,7 @@ export function PanelDelAtleta() {
           { id: "ejercicios", titulo: "Ejercicios", contenido: <Catalogo /> },
           {
             id: "invitacion",
-            titulo: "Invitación",
+            titulo: "Link para atleta",
             contenido: <Invitar atletaId={atletaId} />,
           },
         ]}

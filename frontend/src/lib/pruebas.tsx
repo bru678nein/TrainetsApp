@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 
 import { ProveedorDeAvisos } from "../components/Avisos";
 import { ProveedorDeRol } from "./Rol";
+import { ProveedorDeTema } from "./Tema";
 
 /**
  * Monta un componente con lo que necesita para vivir: rutas y un cliente de
@@ -27,11 +28,15 @@ export function montar(elemento: ReactElement, ruta = "/") {
       {/* Los avisos van acá porque en `App` van ahí. Un envoltorio de prueba que
           no tiene lo que la aplicación tiene deja pasar lo que sólo se rompe
           fuera de los tests. */}
-      <ProveedorDeAvisos>
-        <ProveedorDeRol>
-          <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
-        </ProveedorDeRol>
-      </ProveedorDeAvisos>
+      {/* Y el tema por el mismo motivo: el marco tiene el interruptor, así que
+          sin el proveedor cualquier pantalla montada con esto se cae. */}
+      <ProveedorDeTema>
+        <ProveedorDeAvisos>
+          <ProveedorDeRol>
+            <MemoryRouter initialEntries={[ruta]}>{children}</MemoryRouter>
+          </ProveedorDeRol>
+        </ProveedorDeAvisos>
+      </ProveedorDeTema>
     </QueryClientProvider>
   );
   return render(elemento, { wrapper: Envoltorio });

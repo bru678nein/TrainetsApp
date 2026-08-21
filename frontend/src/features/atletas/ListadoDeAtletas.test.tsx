@@ -64,7 +64,11 @@ describe("el listado de atletas", () => {
   it("sin atletas explica que no hay, en vez de mostrar una lista vacía", async () => {
     pedir.mockResolvedValue([]);
     montar(<ListadoDeAtletas />);
-    expect(await screen.findByText("Todavía no cargaste ningún atleta.")).toBeInTheDocument();
+    // El vacío enseña el orden del producto —ficha, programa, y el link recién
+    // al final— porque es lo primero que ve un entrenador nuevo y el único lugar
+    // donde eso se puede decir sin que nadie lea un manual.
+    expect(await screen.findByText(/Creá la ficha primero/)).toBeInTheDocument();
+    expect(screen.getByText(/no necesita cuenta para que empieces/)).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 });

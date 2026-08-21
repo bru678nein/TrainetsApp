@@ -51,6 +51,25 @@ export function Mas({ className }: Props) {
   );
 }
 
+export function Sol({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6" />
+      <path d="M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1" />
+    </svg>
+  );
+}
+
+/* Una luna de un solo trazo: el recorte se hace con la curva y no con una
+   máscara, así hereda `currentColor` como el resto. */
+export function Luna({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8Z" />
+    </svg>
+  );
+}
 
 /**
  * La marca: un bloque macizo al que le falta un pedazo.
@@ -66,7 +85,13 @@ export function Mas({ className }: Props) {
  */
 export function Marca({ tam = 22 }: { tam?: number }) {
   return (
-    <svg width={tam} height={tam} viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+    <svg
+      width={tam}
+      height={tam}
+      viewBox="0 0 32 32"
+      fill="currentColor"
+      aria-hidden="true"
+    >
       <path d="M8 3h9v11h11v9a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6V9a6 6 0 0 1 5-6z" />
     </svg>
   );

@@ -21,6 +21,15 @@ class AthleteOut(BaseModel):
     #: le dice al entrenador quién se está cayendo, que es lo que una planilla no
     #: puede contestar sola. `None` cuando todavía no registró nada.
     ultima_sesion: datetime | None = None
+    #: Si la persona ya reclamó su ficha.
+    #:
+    #: Viaja porque **no tener cuenta es el caso normal, no un problema**: el
+    #: entrenador crea la ficha y le arma el programa entero antes de mandarle
+    #: nada. Sin este dato la interfaz no puede distinguir a quien todavía no
+    #: recibió el link de quien lo recibió y no entró, que son dos conversaciones
+    #: distintas.
+    tiene_cuenta: bool = False
+
     #: El programa vigente, si hay uno. Sirve para reconocer la ficha sin abrirla.
     programa_actual: str | None = None
     #: En qué semana del bloque actual está, y de cuántas.

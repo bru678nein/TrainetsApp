@@ -17,53 +17,100 @@
  */
 
 :root {
-  color-scheme: light dark;
+  /* Le dice al navegador de qué color pintar barras de scroll y controles
+     nativos. Lo mueve el interruptor, no el sistema. */
+  color-scheme: light;
 
-  --tinta: #1a1a18;
-  --tinta-suave: #6b6b66;
-  /* Medido contra `--papel`: 4.55:1. El valor anterior daba 2.80 y lo usa el
-     chip de «archivado», que es texto y no decoración. */
-  --tinta-tenue: #767369;
-  --papel: #fbfaf8;
-  --papel-hundido: #f2f0ec;
+  /* Grises neutros y no cálidos: el crema los sostenía, el blanco puro los
+     ensucia. Los tres valores están medidos contra `--papel` — `--tinta-tenue`
+     es el que hay que cuidar porque lo usa el chip de «archivado», que es texto
+     y no decoración, y tiene que pasar 4.5:1. Da 4.65. */
+  --tinta: #1c1c1e;
+  --tinta-suave: #6c6c70;
+  --tinta-tenue: #747479;
+  --papel: #ffffff;
+  --papel-hundido: #f5f5f7;
   --papel-elevado: #ffffff;
-  --borde: #dcd9d2;
-  --borde-fuerte: #b9b5ac;
+  --borde: #e4e4e7;
+  --borde-fuerte: #c5c5ca;
 
-  --prescrito: #ebe9e4;
-  --hecho: #3d6b8f;
-  --hecho-tenue: #dbe6ef;
+  --prescrito: #f0f0f3;
+  --hecho: #2f6690;
+  --hecho-tenue: #e4eef6;
   --alerta: #b0392b;
   --alerta-tenue: #f7e4e1;
   --aviso: #8a6d1f;
 
+  /* **Seis pasos y no once.** Había once tamaños de letra sueltos, seis de
+     ellos apretados entre 1rem y 1.5rem — diferencias de un píxel que nadie
+     elige a propósito y que son lo que hace que una interfaz se lea casera. La
+     jerarquía sale del peso y del tamaño, no de once tamaños.
+
+     Los nombres son roles y no medidas: `--texto-micro` es el rótulo en
+     mayúsculas, `--texto-base` es todo lo que se lee de corrido. Nadie tiene
+     que acordarse de cuánto es 0.8125rem. */
+  --texto-micro: 0.75rem;
+  --texto-chico: 0.8125rem;
+  --texto-base: 0.875rem;
+  --texto-medio: 1rem;
+  --texto-grande: 1.25rem;
+  --texto-titulo: 1.5rem;
+
+  /* El interletrado negativo en los tamaños grandes es la mitad del aspecto
+     «prolijo»: sin él los títulos se ven sueltos. En los chicos va al revés, y
+     por eso los rótulos en mayúsculas lo llevan positivo. */
+  --tracking-titulo: -0.015em;
+  --tracking-rotulo: 0.05em;
+
+  /* Un solo paso llevaba a `var(--paso-medio)` desparramado. Estos son
+     los saltos que el ojo distingue: dentro de un componente, entre
+     componentes, y entre secciones. */
+  --paso-chico: 4px;
   --paso: 8px;
-  --radio: 6px;
-  --radio-chico: 4px;
+  --paso-medio: 12px;
+  --paso-grande: 16px;
+  --seccion: 32px;
+
+  /* Tres radios con roles, que es lo que separa una interfaz cuidada de una
+     armada: los controles chicos a 6, los contenedores a 8. Todo al mismo
+     valor se lee plano; cada cosa con el suyo se lee ordenado. */
+  --radio: 10px;
+  --radio-chico: 6px;
+  --radio-grande: 14px;
   --sombra: 0 1px 2px rgb(26 26 24 / 6%), 0 1px 8px rgb(26 26 24 / 4%);
   --foco: 0 0 0 3px color-mix(in srgb, var(--hecho) 35%, transparent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --tinta: #ece9e3;
-    --tinta-suave: #9c988f;
-    /* 4.63:1 sobre el papel oscuro, medido igual que el claro. */
-    --tinta-tenue: #8b8880;
-    --papel: #15161a;
-    --papel-hundido: #101115;
-    --papel-elevado: #1d1f24;
-    --borde: #2e3038;
-    --borde-fuerte: #43464f;
+/* El oscuro es una elección y no una preferencia heredada.
+ *
+ * Antes entraba solo por `prefers-color-scheme`, con este argumento: la luz de
+ * un gimnasio no la elige nadie desde una pantalla de ajustes. Se cambió a
+ * propósito — el default es claro para todo el mundo y el oscuro se pide.
+ *
+ * La consecuencia, para que no sorprenda: alguien con el sistema en oscuro
+ * ahora entra en blanco hasta que toca el interruptor. Es el precio de que la
+ * aplicación se vea igual en la máquina de cualquiera, que es lo que se
+ * eligió.
+ */
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+  --tinta: #f2f2f7;
+  --tinta-suave: #9e9ea4;
+  /* 5.45:1 sobre el papel oscuro, medido igual que el claro. */
+  --tinta-tenue: #8a8a90;
+  --papel: #121214;
+  --papel-hundido: #0c0c0e;
+  --papel-elevado: #1c1c1f;
+  --borde: #2c2c30;
+  --borde-fuerte: #444449;
 
-    --prescrito: #2a2d34;
-    --hecho: #7aa9cf;
-    --hecho-tenue: #23303c;
-    --alerta: #e0776a;
-    --alerta-tenue: #33211f;
-    --aviso: #d4b25e;
-    --sombra: 0 1px 2px rgb(0 0 0 / 30%), 0 1px 10px rgb(0 0 0 / 20%);
-  }
+  --prescrito: #26262a;
+  --hecho: #7aa9cf;
+  --hecho-tenue: #1e2d3a;
+  --alerta: #e0776a;
+  --alerta-tenue: #33211f;
+  --aviso: #d4b25e;
+  --sombra: 0 1px 2px rgb(0 0 0 / 30%), 0 1px 10px rgb(0 0 0 / 20%);
 }
 
 * {
@@ -93,16 +140,41 @@ h2,
 h3,
 h4 {
   line-height: 1.25;
-  letter-spacing: -0.011em;
-  margin: 0 0 calc(var(--paso) * 1.5);
+  letter-spacing: var(--tracking-titulo);
+  margin: 0 0 var(--paso-medio);
+  /* El peso es lo que separa un título de su cuerpo. Con seis tamaños en vez de
+     once, el salto de tamaño solo ya no alcanza para marcar la jerarquía. */
+  font-weight: 600;
 }
-h1 { font-size: 1.375rem; }
-h2 { font-size: 1.1875rem; }
-h3 { font-size: 1rem; }
-h4 { font-size: 0.875rem; color: var(--tinta-suave); text-transform: uppercase; letter-spacing: 0.04em; }
+h1 { font-size: var(--texto-titulo); }
+h2 { font-size: var(--texto-grande); }
+h3 { font-size: var(--texto-medio); }
+
+/* El respiro que agrupa.
+ *
+ * Con todo separado por lo mismo, un título no se lee como el principio de algo
+ * nuevo: se lee como otro renglón. El salto grande antes de un título y el
+ * chico entre sus párrafos es lo que hace que la página tenga partes.
+ *
+ * Con `* +` y no a secas, para que un título que abre un contenedor no empuje
+ * contra su propio borde. */
+* + h1,
+* + h2 { margin-top: var(--seccion); }
+* + h3,
+* + h4 { margin-top: var(--paso-grande); }
+
+/* El rótulo de sección: chico, en mayúsculas y con el interletrado abierto.
+   Es el mismo recurso que usan los metadatos técnicos en el resto de la app, y
+   por eso comparte el token en vez de repetir el número. */
+h4 {
+  font-size: var(--texto-micro);
+  color: var(--tinta-suave);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-rotulo);
+}
 
 p { margin: 0 0 var(--paso); }
-small { color: var(--tinta-suave); font-size: 0.8125rem; }
+small { color: var(--tinta-suave); font-size: var(--texto-chico); }
 
 a {
   color: var(--hecho);
@@ -117,9 +189,9 @@ a {
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: calc(var(--paso) * 1.5);
+  gap: var(--paso-medio);
   flex-wrap: wrap;
-  padding: var(--paso) calc(var(--paso) * 2);
+  padding: var(--paso) var(--paso-grande);
   background: var(--papel-elevado);
   border-bottom: 1px solid var(--borde);
 }
@@ -130,10 +202,26 @@ a {
   color: var(--tinta);
   text-decoration: none;
 }
+/* 80rem y no 62.
+ *
+ * 62rem es un ancho para **leer**, y el editor no se lee: se recorre. Con la
+ * proyección al costado, las semanas quedaban apretadas en 40rem mientras
+ * sobraban trescientos píxeles a cada lado de la pantalla.
+ *
+ * Lo que sí se lee sigue angosto por su cuenta — ver `.columna`, que es lo que
+ * usan las pantallas del atleta. Ensanchar el marco no es ensancharlo todo. */
 .marco__contenido {
-  max-width: 62rem;
+  max-width: 80rem;
   margin: 0 auto;
-  padding: calc(var(--paso) * 3) calc(var(--paso) * 2) calc(var(--paso) * 8);
+  padding: calc(var(--paso) * 3) var(--paso-grande) calc(var(--paso) * 8);
+}
+
+/* Lo que se lee de arriba abajo y se usa con una mano: la pantalla del atleta.
+   Estirada al ancho del editor, una serie abierta ocuparía 1280px para mostrar
+   dos números. */
+.columna {
+  max-width: 34rem;
+  margin-inline: auto;
 }
 
 /* --- Superficies -------------------------------------------------------------- */
@@ -141,9 +229,11 @@ a {
 .tarjeta {
   background: var(--papel);
   border: 1px solid var(--borde);
-  border-radius: var(--radio);
-  padding: calc(var(--paso) * 2);
-  margin-bottom: calc(var(--paso) * 2);
+  border-radius: var(--radio-grande);
+  /* Más aire adentro que afuera: es lo que hace que el contenido se lea como
+     una unidad en vez de como texto apretado contra un marco. */
+  padding: var(--paso-grande) var(--paso-grande) var(--paso-medio);
+  margin-bottom: var(--seccion);
   box-shadow: var(--sombra);
 }
 .tarjeta--tenue {
@@ -166,13 +256,13 @@ a {
 button,
 .boton {
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   font-weight: 500;
   color: var(--tinta);
   background: var(--papel-elevado);
   border: 1px solid var(--borde-fuerte);
-  border-radius: var(--radio-chico);
-  padding: 0.4rem 0.7rem;
+  border-radius: var(--radio);
+  padding: 0.45rem 0.85rem;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
 }
@@ -192,26 +282,38 @@ button.principal:hover:not(:disabled) {
    llamativo de la pantalla. */
 button.peligro { color: var(--alerta); border-color: var(--alerta); }
 button.peligro:hover:not(:disabled) { background: var(--alerta-tenue); }
+/* Discreto no es invisible, y era invisible.
+ *
+ * Sin borde, «Duplicar» y «Ver la proyección» se leen como texto gris al lado
+ * de un título: hay que descubrir que se puede tocar. El borde tenue lo vuelve
+ * un objetivo sin subirle la voz — sigue siendo lo más callado de la pantalla,
+ * pero ahora se ve que es un control. Es la misma corrección que se le hizo a
+ * las sesiones del atleta cuando eran enlaces subrayados.
+ */
 button.sutil {
-  border-color: transparent;
+  border-color: var(--borde);
   background: transparent;
   color: var(--tinta-suave);
-  padding: 0.2rem 0.4rem;
+  padding: 0.3rem 0.65rem;
 }
-button.sutil:hover:not(:disabled) { background: var(--papel-hundido); color: var(--tinta); }
+button.sutil:hover:not(:disabled) {
+  background: var(--papel-hundido);
+  border-color: var(--borde-fuerte);
+  color: var(--tinta);
+}
 
 input,
 select,
 textarea {
   font: inherit;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   color: var(--tinta);
   background: var(--papel-elevado);
   border: 1px solid var(--borde-fuerte);
-  border-radius: var(--radio-chico);
-  padding: 0.4rem 0.5rem;
+  border-radius: var(--radio);
+  padding: 0.45rem 0.6rem;
 }
-label { font-size: 0.875rem; color: var(--tinta-suave); }
+label { font-size: var(--texto-base); color: var(--tinta-suave); }
 label > input,
 label > select { margin-left: 0.25rem; }
 
@@ -224,7 +326,7 @@ form { margin: 0 0 var(--paso); }
   border: 1px dashed var(--borde);
   border-radius: var(--radio);
   color: var(--tinta-suave);
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   text-align: center;
 }
 .estado--falla {
@@ -233,25 +335,46 @@ form { margin: 0 0 var(--paso); }
   background: var(--alerta-tenue);
   color: var(--alerta);
   text-align: left;
-  padding: var(--paso) calc(var(--paso) * 1.5);
+  padding: var(--paso) var(--paso-medio);
 }
 
 /* La etiqueta de estado del vínculo lleva texto y no sólo color: quien no
    distingue los tonos tiene que poder leer «pausado». */
 .chip {
-  display: inline-block;
-  font-size: 0.75rem;
+  /* `inline-flex` y `justify-self: start`: dentro de una grilla, un chip en
+     `inline-block` es un ítem de grilla y se estira a todo el ancho de la
+     columna. Se veía como una pastilla vacía con el texto arrugado a la
+     izquierda. */
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  justify-self: start;
+  width: fit-content;
+  font-size: var(--texto-micro);
   font-weight: 600;
   letter-spacing: 0.02em;
-  padding: 0.1rem 0.45rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 999px;
   border: 1px solid var(--borde-fuerte);
   color: var(--tinta-suave);
   background: var(--papel-hundido);
 }
-.chip--activo { color: var(--hecho); border-color: var(--hecho); background: var(--hecho-tenue); }
-.chip--pausado { color: var(--aviso); border-color: var(--aviso); }
-.chip--archivado { color: var(--tinta-tenue); }
+/* La etiqueta va en tinta y el estado lo dice el punto.
+ *
+ * Estaba en el color del estado sobre su propio fondo tenue, y eso no pasa AA:
+ * `--hecho` sobre `--hecho-tenue` da **4.48:1** medido, no 4.5. A ojo se ve
+ * bien, que es exactamente por qué nadie lo encontró. En tinta da 13.76:1 y el
+ * color sigue estando donde se lee sin leer: en el punto. */
+.chip__punto {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--tinta-suave); flex: none;
+}
+.chip--activo { color: var(--tinta); border-color: transparent; background: var(--hecho-tenue); }
+.chip--activo .chip__punto { background: var(--hecho); }
+.chip--pausado { color: var(--tinta); border-color: transparent; background: var(--prescrito); }
+.chip--pausado .chip__punto { background: var(--aviso); }
+.chip--archivado { color: var(--tinta); border-color: transparent; background: var(--alerta-tenue); }
+.chip--archivado .chip__punto { background: var(--alerta); }
 
 /* --- Listas ------------------------------------------------------------------- */
 
@@ -279,7 +402,7 @@ form { margin: 0 0 var(--paso); }
   align-items: center;
   gap: var(--paso);
   margin-bottom: calc(var(--paso) * 0.75);
-  font-size: 0.8125rem;
+  font-size: var(--texto-chico);
 }
 .adherencia__nombre { text-align: right; color: var(--tinta-suave); }
 .adherencia__nombre--flojo { color: var(--tinta); font-weight: 600; }
@@ -302,11 +425,15 @@ form { margin: 0 0 var(--paso); }
 
 /* --- La invitación -------------------------------------------------------------- */
 
+.invitar__que-es {
+  color: var(--tinta-suave);
+  max-width: 44rem;
+}
 .link-de-invitacion {
   width: 100%;
   max-width: 34rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.8125rem;
+  font-size: var(--texto-chico);
 }
 
 /* --- Reordenar ------------------------------------------------------------------ */
@@ -363,10 +490,10 @@ form { margin: 0 0 var(--paso); }
   background: var(--papel);
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  padding: calc(var(--paso) * 1.5) calc(var(--paso) * 2);
-  margin-bottom: calc(var(--paso) * 2);
+  padding: var(--paso-medio) var(--paso-grande);
+  margin-bottom: var(--paso-grande);
 }
-.progreso__texto { margin: 0 0 var(--paso); font-size: 0.875rem; color: var(--tinta-suave); }
+.progreso__texto { margin: 0 0 var(--paso); font-size: var(--texto-base); color: var(--tinta-suave); }
 .progreso__texto strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
 .progreso__barra {
   height: 6px;
@@ -391,7 +518,7 @@ form { margin: 0 0 var(--paso); }
   gap: var(--paso);
   width: 100%;
   text-align: left;
-  padding: calc(var(--paso) * 1.5);
+  padding: var(--paso-medio);
   background: var(--papel);
   border: 1px solid var(--borde);
 }
@@ -399,7 +526,7 @@ form { margin: 0 0 var(--paso); }
 .ejercicio-cerrado__nombre { font-weight: 600; }
 .ejercicio-cerrado__objetivo {
   margin-left: auto;
-  font-size: 0.8125rem;
+  font-size: var(--texto-chico);
   color: var(--tinta-suave);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -410,7 +537,7 @@ form { margin: 0 0 var(--paso); }
   background: var(--papel);
   border: 1px solid var(--borde-fuerte);
   border-radius: var(--radio);
-  padding: calc(var(--paso) * 2);
+  padding: var(--paso-grande);
   box-shadow: var(--sombra);
 }
 .ejercicio-abierto__cabecera {
@@ -422,14 +549,14 @@ form { margin: 0 0 var(--paso); }
 .ejercicio-abierto__cabecera h3 { margin: 0; }
 .ejercicio-abierto__objetivo {
   margin-left: auto;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   font-weight: 600;
   color: var(--tinta-suave);
   font-variant-numeric: tabular-nums;
 }
-.ejercicio-abierto__nota { font-size: 0.875rem; color: var(--tinta-suave); margin-top: var(--paso); }
+.ejercicio-abierto__nota { font-size: var(--texto-base); color: var(--tinta-suave); margin-top: var(--paso); }
 
-.lista-de-series { list-style: none; margin: calc(var(--paso) * 1.5) 0 0; padding: 0; }
+.lista-de-series { list-style: none; margin: var(--paso-medio) 0 0; padding: 0; }
 
 /* Lo hecho y lo que falta comparten renglón para que las tres series se lean
    como una tabla: la misma cifra cae en la misma columna. */
@@ -440,10 +567,10 @@ form { margin: 0 0 var(--paso); }
   gap: var(--paso);
   padding: calc(var(--paso) * 0.75) 0;
   border-bottom: 1px solid var(--borde);
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   font-variant-numeric: tabular-nums;
 }
-.serie-fila__numero { color: var(--tinta-suave); font-size: 0.75rem; }
+.serie-fila__numero { color: var(--tinta-suave); font-size: var(--texto-micro); }
 .serie-fila--pendiente { color: var(--tinta-tenue); }
 .serie-fila--hecha .serie-fila__dato { color: var(--tinta); }
 
@@ -451,12 +578,12 @@ form { margin: 0 0 var(--paso); }
   background: var(--papel-hundido);
   border: 1px solid var(--borde-fuerte);
   border-radius: var(--radio-chico);
-  padding: calc(var(--paso) * 1.5);
+  padding: var(--paso-medio);
   margin: var(--paso) 0;
 }
 .serie-actual__marca {
   margin: 0 0 var(--paso);
-  font-size: 0.6875rem;
+  font-size: var(--texto-micro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--tinta-suave);
@@ -472,14 +599,14 @@ form { margin: 0 0 var(--paso); }
 @media (min-width: 30rem) {
   .serie-actual__campos { grid-template-columns: repeat(3, 1fr); }
 }
-.serie-actual__registrar { width: 100%; min-height: 48px; margin-top: calc(var(--paso) * 1.5); font-size: 1rem; }
+.serie-actual__registrar { width: 100%; min-height: 48px; margin-top: var(--paso-medio); font-size: var(--texto-medio); }
 .serie-actual__saltear { width: 100%; min-height: 44px; margin-top: calc(var(--paso) * 0.5); }
 
 /* El número se empuja con el pulgar: 44px de lado en cada botón, y el campo en
    el medio acepta teclado para quien prefiera escribirlo. */
 .stepper { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .stepper__etiqueta {
-  font-size: 0.6875rem;
+  font-size: var(--texto-micro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--tinta-suave);
@@ -488,7 +615,7 @@ form { margin: 0 0 var(--paso); }
 .stepper__control button {
   min-width: 40px;
   min-height: 44px;
-  font-size: 1.125rem;
+  font-size: var(--texto-grande);
   padding: 0;
   flex: 0 0 auto;
 }
@@ -497,7 +624,7 @@ form { margin: 0 0 var(--paso); }
   width: 100%;
   min-height: 44px;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: var(--texto-grande);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   border-left: 0;
@@ -510,14 +637,14 @@ form { margin: 0 0 var(--paso); }
 .descanso {
   margin: var(--paso) 0 0;
   text-align: center;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   color: var(--tinta-suave);
 }
-.descanso strong { font-size: 1.25rem; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.descanso strong { font-size: var(--texto-grande); color: var(--tinta); font-variant-numeric: tabular-nums; }
 .descanso--listo { color: var(--hecho); }
 
 @media (max-width: 640px) {
-  .marco__contenido { padding: calc(var(--paso) * 2) var(--paso) calc(var(--paso) * 8); }
+  .marco__contenido { padding: var(--paso-grande) var(--paso) calc(var(--paso) * 8); }
   .adherencia__fila { grid-template-columns: 1fr 3rem 4.5rem; }
   .adherencia__nombre { grid-column: 1 / -1; text-align: left; }
 }
@@ -544,7 +671,7 @@ form { margin: 0 0 var(--paso); }
   border-radius: 999px;
   background: var(--papel-elevado);
 }
-.selector__etiqueta { color: var(--tinta-suave); font-size: 0.8125rem; }
+.selector__etiqueta { color: var(--tinta-suave); font-size: var(--texto-chico); }
 .selector__valor { font-weight: 650; font-variant-numeric: tabular-nums; }
 .selector select {
   border-color: transparent;
@@ -567,11 +694,14 @@ form { margin: 0 0 var(--paso); }
  * comparables entre sí, y la 3 se entiende mirando la 2. En lista, la 4 queda a
  * un scroll de la 1 y esa comparación deja de existir. En pantalla chica no hay
  * ancho para dos, y ahí la lista es lo correcto. */
+/* `auto-fill` y no dos fijas: la columna cambia de ancho según esté abierta o
+   no la proyección, y con dos fijas las tarjetas se estiraban en vez de entrar
+   una tercera. */
 .semanas {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
   gap: var(--paso);
-  margin-top: calc(var(--paso) * 1.5);
+  margin-top: var(--paso-medio);
 }
 .semana {
   border: 1px solid var(--borde);
@@ -584,7 +714,7 @@ form { margin: 0 0 var(--paso); }
    semanas de un vistazo, no para armar adentro de media pantalla. */
 .semana--editando { grid-column: 1 / -1; }
 .semana__titulo { margin: 0 0 var(--paso); }
-.semana__vacia { color: var(--tinta-tenue); font-size: 0.8125rem; margin: 0; }
+.semana__vacia { color: var(--tinta-tenue); font-size: var(--texto-chico); margin: 0; }
 .semana__sesiones { list-style: none; margin: 0; padding: 0; }
 .semana__sesiones > li + li { margin-top: calc(var(--paso) * 0.5); }
 
@@ -642,7 +772,7 @@ form { margin: 0 0 var(--paso); }
 /* El ícono hereda color y tamaño, así que el botón se pone de alerta y el trazo
    lo sigue solo. */
 .dia__borrar:hover:not(:disabled) { background: var(--alerta-tenue); color: var(--alerta); }
-.dia__borrar svg { display: block; font-size: 1rem; }
+.dia__borrar svg { display: block; font-size: var(--texto-medio); }
 
 @media (hover: none) {
   .dia__borrar { opacity: 1; }
@@ -660,7 +790,7 @@ form { margin: 0 0 var(--paso); }
   border-color: var(--borde);
   background: transparent;
   color: var(--tinta-suave);
-  font-size: 0.8125rem;
+  font-size: var(--texto-chico);
 }
 .semana__agregar:hover:not(:disabled) {
   border-color: var(--hecho);
@@ -691,7 +821,7 @@ form { margin: 0 0 var(--paso); }
   flex-wrap: wrap;
   gap: calc(var(--paso) * 0.5);
   border-bottom: 1px solid var(--borde);
-  margin-bottom: calc(var(--paso) * 2);
+  margin-bottom: var(--paso-grande);
 }
 .pestanas__boton {
   border: 0;
@@ -699,7 +829,7 @@ form { margin: 0 0 var(--paso); }
   border-radius: 0;
   background: transparent;
   color: var(--tinta-suave);
-  padding: calc(var(--paso) * 0.75) calc(var(--paso) * 1.5);
+  padding: calc(var(--paso) * 0.75) var(--paso-medio);
   margin-bottom: -1px;
 }
 .pestanas__boton:hover:not(:disabled) { background: transparent; color: var(--tinta); }
@@ -734,7 +864,7 @@ form { margin: 0 0 var(--paso); }
   background: var(--papel-elevado);
   min-width: 0;
 }
-.catalogo__controles { margin-bottom: calc(var(--paso) * 1.5); }
+.catalogo__controles { margin-bottom: var(--paso-medio); }
 .catalogo__controles input[type="search"] { flex: 1; min-width: 12rem; }
 
 /* Las acciones aparecen al pasar el mouse **y al llegar con el teclado**, igual
@@ -777,13 +907,13 @@ form { margin: 0 0 var(--paso); }
 }
 .confirmar::backdrop { background: rgb(0 0 0 / 45%); }
 .confirmar h3 { margin-bottom: var(--paso); }
-.confirmar__cuerpo { font-size: 0.9375rem; }
+.confirmar__cuerpo { font-size: var(--texto-medio); }
 .confirmar__aviso {
   color: var(--alerta);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
 }
-.confirmar__acciones { justify-content: flex-end; margin-top: calc(var(--paso) * 1.5); }
+.confirmar__acciones { justify-content: flex-end; margin-top: var(--paso-medio); }
 
 /* --- Una serie prescrita, dentro del editor -------------------------------------
  *
@@ -798,7 +928,7 @@ form { margin: 0 0 var(--paso); }
   gap: 2px;
 }
 .campo > span {
-  font-size: 0.6875rem;
+  font-size: var(--texto-micro);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--tinta-suave);
@@ -853,7 +983,7 @@ form { margin: 0 0 var(--paso); }
   border-radius: var(--radio-chico);
   background: var(--papel-elevado);
   box-shadow: var(--sombra);
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   animation: aviso-entra 160ms ease-out;
 }
 .aviso--bien { border-left-color: var(--hecho); }
@@ -864,7 +994,7 @@ form { margin: 0 0 var(--paso); }
   border: 0;
   background: none;
   color: var(--tinta-suave);
-  font-size: 1rem;
+  font-size: var(--texto-medio);
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;
@@ -906,16 +1036,16 @@ form { margin: 0 0 var(--paso); }
 .serie {
   display: flex;
   align-items: baseline;
-  gap: calc(var(--paso) * 1.5);
+  gap: var(--paso-medio);
   padding: calc(var(--paso) * 0.5) 0;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   border-bottom: 1px solid var(--borde);
 }
 .serie:last-child { border-bottom: 0; }
 .serie__numero {
   min-width: 1.5rem;
   text-align: center;
-  font-size: 0.75rem;
+  font-size: var(--texto-micro);
   font-weight: 700;
   color: var(--tinta-suave);
   background: var(--papel-hundido);
@@ -923,7 +1053,7 @@ form { margin: 0 0 var(--paso); }
   padding: 0.05rem 0.3rem;
 }
 .serie__dato { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
-.serie__dato strong { color: var(--tinta); font-size: 1rem; }
+.serie__dato strong { color: var(--tinta); font-size: var(--texto-medio); }
 
 /* La cabecera del ejercicio. El nombre es lo que se lee; las acciones van
    calladas y a la derecha, para no competir con él. */
@@ -934,87 +1064,137 @@ form { margin: 0 0 var(--paso); }
   flex-wrap: wrap;
   margin-bottom: calc(var(--paso) * 0.5);
 }
-.ejercicio__nombre { font-size: 1rem; }
+.ejercicio__nombre { font-size: var(--texto-medio); }
 .ejercicio__borrar:hover:not(:disabled) { color: var(--alerta); background: var(--alerta-tenue); }
 
-/* --- El listado de atletas -------------------------------------------------------
+/* --- El listado de atletas -------------------------------------------------
  *
- * Fichas y no renglones. La diferencia no es estética: en un renglón entran el
- * nombre y el estado, y el dato por el que existe esta pantalla —hace cuánto que
- * no entrena— no entra. Con la ficha entra, y entra sin abrir nada.
+ * Filas y no tarjetas. Un entrenador con veinte atletas quiere verlos a todos
+ * sin scrollear, y una grilla de tarjetas obliga a recorrer con la vista en dos
+ * direcciones para comparar la misma columna entre dos personas.
  *
- * Se acomodan solas por ancho en vez de declarar columnas: el entrenador puede
- * tener tres atletas o cuarenta, y una rejilla fija deja huecos con pocos y
- * aprieta con muchos. */
+ * La densidad se paga en tipografía y en aire: los botones siguen en 44px y la
+ * fila entera mide 52, que es más que el objetivo mínimo.
+ */
+.atletas { list-style: none; margin: var(--paso-grande) 0 0; padding: 0;
+  border: 1px solid var(--borde); border-radius: var(--radio-grande);
+  background: var(--papel); overflow: hidden; }
 
-.filtros-de-atletas { margin-bottom: calc(var(--paso) * 2); }
-.filtros-de-atletas > input[type="search"] { flex: 1 1 14rem; min-width: 0; }
-
-.fichas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.atleta {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-  gap: calc(var(--paso) * 1.5);
+  grid-template-columns: minmax(0, 1.4fr) 120px 130px minmax(0, 1.5fr) auto;
+  gap: var(--paso-medio);
+  align-items: center;
+  min-height: 52px;
+  padding: 6px var(--paso-grande);
+  border-top: 1px solid var(--borde);
 }
+.atleta:hover { background: var(--papel-hundido); }
 
-.ficha {
-  background: var(--papel);
-  border: 1px solid var(--borde);
-  border-radius: var(--radio);
-  padding: calc(var(--paso) * 2);
-  box-shadow: var(--sombra);
-  display: flex;
-  flex-direction: column;
-  gap: var(--paso);
-}
-/* Lo cerrado se lee y no compite. El estado ya lo dice la etiqueta con palabras;
-   esto sólo baja el peso visual para que la vista de todos los días sean los
-   activos. */
-.ficha--pausado,
-.ficha--archivado { background: var(--papel-hundido); box-shadow: none; }
-
-.ficha__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
-.ficha__nombre {
-  font-weight: 650;
-  font-size: 1rem;
-  color: var(--tinta);
-  text-decoration: none;
-}
-.ficha__nombre:hover { text-decoration: underline; }
-
-.ficha__datos { display: flex; gap: calc(var(--paso) * 2); margin: 0; flex-wrap: wrap; }
-.ficha__datos dt {
-  font-size: 0.6875rem;
+.atleta--encabezado {
+  border-top: 0; min-height: 34px; background: var(--papel-hundido);
+  font-size: var(--texto-micro); font-weight: 600; letter-spacing: var(--tracking-rotulo);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  /* --tinta-suave y no --tinta-tenue: sobre superficie hundida el tenue cae a
+     4.17:1. Medido, no supuesto. */
   color: var(--tinta-suave);
 }
-.ficha__datos dd { margin: 0; font-size: 0.875rem; font-weight: 600; }
-/* El único lugar del listado donde el color dice algo, y lleva su umbral en el
-   componente: dos semanas sin entrenar en un vínculo activo. En uno pausado no
-   entrenar es lo esperado y no se marca. */
-.ficha__alerta { color: var(--alerta); }
+.atleta--encabezado:hover { background: var(--papel-hundido); }
 
-.ficha__ciclo p { margin: 0 0 4px; font-size: 0.8125rem; color: var(--tinta-suave); }
-.ficha__ciclo strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
-.ficha__acciones { margin-top: auto; padding-top: var(--paso); border-top: 1px solid var(--borde); }
+.atleta__quien { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; min-width: 0; }
+.atleta__nombre { font-weight: 600; color: var(--tinta); text-decoration: none; }
+.atleta__nombre:hover { text-decoration: underline; }
+.atleta__dato { font-size: var(--texto-chico); color: var(--tinta-suave); min-width: 0; }
+.atleta__caida { font-size: var(--texto-chico); color: var(--alerta); font-weight: 600;
+  font-variant-numeric: tabular-nums; }
+.atleta__sin-programa { color: var(--aviso); font-size: var(--texto-chico); }
+.atleta__acciones { display: flex; align-items: center; gap: 6px; justify-self: end; }
+.atletas__resumen { margin: 4px 0 0; font-size: var(--texto-chico); color: var(--tinta-suave); }
+.numeros { font-variant-numeric: tabular-nums; }
 
-/* Copiar y pegar semanas, en vez de un formulario con dos desplegables.
-   «De la 1 a la 3» hay que leerlo dos veces; copiar y pegar no se explica. */
-.semana__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
-.semana__cabecera .semana__titulo { margin: 0; margin-right: auto; }
-.semana--copiada { outline: 2px dashed var(--hecho); outline-offset: 2px; }
-.semana__salto { color: inherit; opacity: 0.85; font-variant-numeric: tabular-nums; }
-.bloque__progresion { font-size: 0.8125rem; color: var(--tinta-suave); }
-.bloque__progresion strong { color: var(--tinta); font-variant-numeric: tabular-nums; }
+/* Archivado no está gris: está rayado y con borde de alerta.
+ *
+ * Gris se lee como «apagado por ahora». Acá la base **rechaza toda escritura**,
+ * y esa diferencia tiene que verse. La textura además sobrevive al cambio de
+ * tema, cosa que un tono más apagado no hace: en oscuro se confundiría con una
+ * fila deshabilitada, que es justo lo que no es. */
+.atleta--archivado {
+  border-left: 3px solid var(--alerta);
+  background: repeating-linear-gradient(135deg,
+    var(--papel-hundido), var(--papel-hundido) 6px,
+    var(--papel) 6px, var(--papel) 12px);
+}
+.atleta--archivado:hover { background: repeating-linear-gradient(135deg,
+    var(--papel-hundido), var(--papel-hundido) 6px,
+    var(--papel) 6px, var(--papel) 12px); }
+.atleta--pausado {
+  background: var(--papel-hundido);
+  /* El estado ya lo dice el chip; esto sólo agrupa visualmente las filas que
+     están fuera de juego, sin usar el rojo que le corresponde a archivado. */
+  border-left: 3px solid var(--borde-fuerte);
+}
 
-/* Duplicar y copiar/pegar bloques, con la misma forma que las semanas. */
-.bloque__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
-.bloque__cabecera h3 { margin: 0; margin-right: auto; }
-.bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
-.bloque__pegar { grid-column: 1 / -1; margin: 0 0 var(--paso); }
+/* El camino obvio, como enlace y no como botón: lleva a otra pantalla. */
+.boton {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 14px; border-radius: var(--radio);
+  border: 1px solid var(--borde-fuerte); background: var(--papel-elevado);
+  color: var(--tinta); text-decoration: none; font-size: var(--texto-base); font-weight: 500;
+}
+.boton:hover { background: var(--papel-hundido); text-decoration: none; }
+.boton--llama { border-color: var(--hecho); color: var(--hecho); font-weight: 600; }
+
+@media (max-width: 900px) {
+  /* En angosto la grilla se vuelve una ficha apilada: cinco columnas en 375px
+     son cinco columnas de nada. */
+  .atleta { grid-template-columns: 1fr; gap: 4px; padding: var(--paso-medio) var(--paso); }
+  .atleta--encabezado { display: none; }
+  .atleta__acciones { justify-self: start; margin-top: 4px; }
+}
+
+/* --- El editor y su barra lateral ------------------------------------------
+ *
+ * La proyección es una columna de la pantalla y no una parte de un bloque.
+ * Adentro de la tarjeta competía por el ancho con las semanas, que son
+ * exactamente lo que hay que estar mirando mientras se la lee.
+ *
+ * `minmax(0, 1fr)` y no `1fr`: una columna de grilla toma como mínimo el ancho
+ * de su contenido, así que una semana larga empujaría la barra fuera de la
+ * pantalla en vez de encogerse.
+ */
+.editor--con-lateral {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--paso-grande);
+}
+
+@media (min-width: 64rem) {
+  .editor--con-lateral {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+    align-items: start;
+  }
+  /* Se queda a la vista mientras se recorren los bloques, que es el punto de
+     tenerla al costado y no arriba. */
+  .editor__lateral {
+    position: sticky;
+    top: var(--paso-grande);
+    max-height: calc(100vh - var(--paso-grande) * 2);
+    overflow-y: auto;
+  }
+}
+
+.proyeccion {
+  background: var(--papel-hundido);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-grande);
+  padding: var(--paso-medio) var(--paso-grande) var(--paso-grande);
+}
+.proyeccion__titulo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--paso);
+}
+.proyeccion__titulo h4 { margin: 0 auto 0 0; }
 
 /* --- La proyección del bloque -----------------------------------------------
  *
@@ -1023,12 +1203,12 @@ form { margin: 0 0 var(--paso); }
  * mueve — la carga y las repeticiones se copian iguales, y verlas repetirse sin
  * cambiar es la mitad de lo que el panel tiene para decir.
  */
-.proyeccion__vacia { font-size: 0.8125rem; color: var(--tinta-suave); margin: var(--paso) 0 0; }
+.proyeccion__vacia { font-size: var(--texto-chico); color: var(--tinta-suave); margin: var(--paso) 0 0; }
 
 .proyeccion__semanas {
   list-style: none;
   margin: var(--paso) 0 0;
-  padding: 0 0 0 calc(var(--paso) * 2);
+  padding: 0 0 0 var(--paso-grande);
   /* La línea que une las semanas. Que sea un borde y no un pseudo-elemento por
      semana hace que se corte sola en la última. */
   border-left: 2px solid var(--borde);
@@ -1038,10 +1218,10 @@ form { margin: 0 0 var(--paso); }
 
 .proyeccion__semana {
   position: relative;
-  background: var(--papel-hundido);
+  background: var(--papel-elevado);
   border: 1px solid var(--borde);
   border-radius: var(--radio);
-  padding: var(--paso) calc(var(--paso) * 1.5);
+  padding: var(--paso) var(--paso-medio);
 }
 
 /* El punto sobre la línea. Sólo las semanas que cambian algo lo llevan lleno:
@@ -1060,14 +1240,23 @@ form { margin: 0 0 var(--paso); }
 .proyeccion__semana--aprieta::before { background: var(--hecho); border-color: var(--hecho); }
 .proyeccion__semana--afloja::before { background: var(--aviso); border-color: var(--aviso); }
 
+/* Dos renglones fijos y no una fila que envuelve.
+ *
+ * Envolviendo, el chip «armada» caía solo a la línea de abajo cuando el texto
+ * del paso era largo, así que la misma lista tenía dos formas según lo que
+ * dijera cada semana. En una columna de 20rem eso pasa seguido. */
 .proyeccion__cabecera {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: baseline;
-  gap: var(--paso);
-  flex-wrap: wrap;
+  gap: var(--paso-chico) var(--paso);
   margin: 0 0 calc(var(--paso) / 2);
 }
-.proyeccion__paso { font-size: 0.75rem; color: var(--tinta-suave); }
+.proyeccion__paso { grid-column: 1 / -1; }
+.proyeccion__paso { font-size: var(--texto-micro); color: var(--tinta-suave); }
+/* Fila 1 explícita: el chip pertenece al lado del número de semana, y sin
+   esto el orden del DOM lo empuja abajo del paso. */
+.proyeccion__armada { grid-column: 3; grid-row: 1; }
 .proyeccion__semana--aprieta .proyeccion__paso { color: var(--hecho); font-weight: 600; }
 .proyeccion__semana--afloja .proyeccion__paso { color: var(--aviso); font-weight: 600; }
 
@@ -1075,7 +1264,7 @@ form { margin: 0 0 var(--paso); }
    predicción, y son dos cosas distintas en la misma lista. */
 .proyeccion__armada {
   margin-left: auto;
-  font-size: 0.6875rem;
+  font-size: var(--texto-micro);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--tinta-tenue);
@@ -1086,20 +1275,24 @@ form { margin: 0 0 var(--paso); }
 
 .proyeccion__dias { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .proyeccion__dia {
-  font-size: 0.6875rem;
+  font-size: var(--texto-micro);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--tinta-tenue);
 }
 .proyeccion__dias ul { list-style: none; margin: 2px 0 0; padding: 0; }
 
+/* Nombre arriba, números abajo, y siempre igual.
+ *
+ * Estaba en una fila con `space-between`, así que en la columna angosta las
+ * series caían a la línea siguiente y ahí perdían la alineación a la derecha:
+ * la misma lista tenía dos alineaciones según entrara o no. Apilado no cambia
+ * nunca, y en una columna de 20rem no había ancho para la otra forma. */
 .proyeccion__ejercicio {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--paso);
-  flex-wrap: wrap;
-  padding: 3px 0;
-  font-size: 0.8125rem;
+  display: grid;
+  gap: 1px;
+  padding: 4px 0;
+  font-size: var(--texto-chico);
   border-top: 1px solid color-mix(in srgb, var(--borde) 60%, transparent);
 }
 .proyeccion__ejercicio:first-child { border-top: 0; }
@@ -1114,7 +1307,6 @@ form { margin: 0 0 var(--paso); }
   list-style: none;
   margin: 0;
   padding: 0;
-  text-align: right;
   color: var(--tinta-suave);
   font-variant-numeric: tabular-nums;
 }
@@ -1132,9 +1324,9 @@ form { margin: 0 0 var(--paso); }
 .agenda__dia {
   display: flex;
   align-items: center;
-  gap: calc(var(--paso) * 1.5);
+  gap: var(--paso-medio);
   min-height: 56px;
-  padding: var(--paso) calc(var(--paso) * 1.5);
+  padding: var(--paso) var(--paso-medio);
   border: 1px solid var(--borde);
   border-radius: var(--radio);
   background: var(--papel-elevado);
@@ -1152,13 +1344,13 @@ form { margin: 0 0 var(--paso); }
   border-radius: var(--radio-chico);
   background: var(--prescrito);
   color: var(--tinta-suave);
-  font-size: 0.8125rem;
+  font-size: var(--texto-chico);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .agenda__texto { display: flex; flex-direction: column; min-width: 0; }
 .agenda__texto small { color: var(--tinta-suave); }
-.agenda__flecha { margin-left: auto; color: var(--tinta-tenue); font-size: 1.5rem; line-height: 1; }
+.agenda__flecha { margin-left: auto; color: var(--tinta-tenue); font-size: var(--texto-titulo); line-height: 1; }
 
 /* Un día terminado se lee terminado: el cuadrito pasa a tilde sobre el color de
    «hecho», y la fila baja de intensidad. La palabra «completado» va en el texto
@@ -1167,7 +1359,7 @@ form { margin: 0 0 var(--paso); }
 .agenda__dia--completo .agenda__numero {
   background: var(--hecho-tenue);
   color: var(--hecho);
-  font-size: 1rem;
+  font-size: var(--texto-medio);
 }
 .agenda__dia--completo .agenda__texto strong { color: var(--tinta-suave); font-weight: 500; }
 
@@ -1179,7 +1371,7 @@ form { margin: 0 0 var(--paso); }
   border-radius: 999px;
   color: var(--tinta-suave);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   font-weight: 500;
   min-height: 36px;
   display: inline-flex;
@@ -1197,16 +1389,16 @@ form { margin: 0 0 var(--paso); }
   gap: 0.35rem;
   min-height: 40px;
   padding: 0 0.7rem 0 0.45rem;
-  margin-bottom: calc(var(--paso) * 1.5);
+  margin-bottom: var(--paso-medio);
   border: 1px solid var(--borde);
   border-radius: 999px;
   background: var(--papel-elevado);
   color: var(--tinta-suave);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: var(--texto-base);
   font-weight: 500;
 }
-.volver span { font-size: 1.25rem; line-height: 1; }
+.volver span { font-size: var(--texto-grande); line-height: 1; }
 .volver:hover { border-color: var(--borde-fuerte); color: var(--tinta); }
 
 /* La marca de la barra: el símbolo hereda la tinta del enlace, así que no hay

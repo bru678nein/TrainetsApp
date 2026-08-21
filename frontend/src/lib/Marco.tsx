@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Marca } from "../components/iconos";
 import { MOSTRAR_SELECTOR_DE_ROL } from "./entorno";
 import { SelectorDeRol, useRol } from "./Rol";
+import { BotonDeTema } from "./Tema";
 
 /**
  * La barra y el ancho de la página, separados del portón de sesión.
@@ -40,6 +41,7 @@ export function Marco({ children }: { children: ReactNode }) {
           {rol === "athlete" ? "Mis sesiones" : "Atletas"}
         </NavLink>
         {MOSTRAR_SELECTOR_DE_ROL ? <SelectorDeRol /> : null}
+        <BotonDeTema />
         <UserButton />
       </header>
       <main className="marco__contenido">{children}</main>

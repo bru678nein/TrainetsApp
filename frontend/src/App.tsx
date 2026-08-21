@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { ProveedorDeAvisos } from "./components/Avisos";
 import { Marco } from "./lib/Marco";
 import { ProveedorDeRol } from "./lib/Rol";
+import { ProveedorDeTema } from "./lib/Tema";
 import { Entrar, Registrarse, Sesion } from "./lib/Sesion";
 import { Rutas } from "./rutas";
 
@@ -26,26 +27,30 @@ export function App() {
         {/* Por fuera del portón de sesión: los avisos también tienen que poder
             aparecer en las pantallas que se ven sin haber entrado, como aceptar
             una invitación. */}
-        <ProveedorDeAvisos>
-          <ProveedorDeRol>
-            <Routes>
-              {/* Fuera del portón, y tiene que ser así: adentro, entrar
+        {/* Por fuera del portón, igual que los avisos: la pantalla de entrada
+            también se ve, y verla en un tema y entrar a otro es un parpadeo. */}
+        <ProveedorDeTema>
+          <ProveedorDeAvisos>
+            <ProveedorDeRol>
+              <Routes>
+                {/* Fuera del portón, y tiene que ser así: adentro, entrar
                   redirigiría a entrar para siempre. */}
-              <Route path="/sign-in/*" element={<Entrar />} />
-              <Route path="/sign-up/*" element={<Registrarse />} />
-              <Route
-                path="*"
-                element={
-                  <Sesion>
-                    <Marco>
-                      <Rutas />
-                    </Marco>
-                  </Sesion>
-                }
-              />
-            </Routes>
-          </ProveedorDeRol>
-        </ProveedorDeAvisos>
+                <Route path="/sign-in/*" element={<Entrar />} />
+                <Route path="/sign-up/*" element={<Registrarse />} />
+                <Route
+                  path="*"
+                  element={
+                    <Sesion>
+                      <Marco>
+                        <Rutas />
+                      </Marco>
+                    </Sesion>
+                  }
+                />
+              </Routes>
+            </ProveedorDeRol>
+          </ProveedorDeAvisos>
+        </ProveedorDeTema>
       </BrowserRouter>
     </QueryClientProvider>
   );
