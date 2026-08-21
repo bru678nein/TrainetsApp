@@ -877,22 +877,57 @@ function NuevoPrograma({ atletaId }: { atletaId: string }) {
  * que la 3 no está armada todavía, que en una lista de lo que hay no se ve: lo
  * que falta no ocupa lugar.
  */
+/**
+ * Cuánto mueve el RIR pasar de una semana a otra dentro del bloque.
+ *
+ * La progresión se guarda como desplazamientos absolutos contra la primera
+ * semana, así que ir de W a T aplica la **diferencia**. Lo que falte en la lista
+ * se lee como cero, igual que en el servidor: un bloque que se extendió y no
+ * declaró las semanas nuevas no progresa en ellas.
+ *
+ * Vive acá una sola vez. Estaba escrita dos —en el botón de pegar y a punto de
+ * estarlo en el riel— y dos copias de una regla aritmética se separan sin que
+ * nada falle: siguen dando un número, sólo que el equivocado.
+ *
+ * Esto lee la **declaración**, que el mesociclo ya trae. Lo que no se calcula
+ * acá es la proyección del contenido —qué series quedan— porque eso sí es la
+ * regla del servidor y tiene su endpoint.
+ */
+function desplazamiento(meso: Mesociclo, desde: number, hasta: number): number {
+  const tabla = meso.rir_progression;
+  if (!tabla) return 0;
+  return (tabla[hasta - 1] ?? 0) - (tabla[desde - 1] ?? 0);
+}
+
+/**
+ * El paso de una semana contra la anterior, telegráfico.
+ *
+ * Corto a propósito: el riel y la proyección pueden estar en pantalla a la vez,
+ * y con la misma frase en los dos lados uno de los dos sobra. El riel dice el
+ * paso, la proyección dice qué produce.
+ */
+function pasoDelRiel(meso: Mesociclo, numero: number): string {
+  if (numero === 1) return "base";
+  const salto = desplazamiento(meso, numero - 1, numero);
+  if (salto === 0) return "igual";
+  return salto < 0 ? `−${Math.abs(salto)} RIR` : `+${salto} RIR`;
+}
+
 function Semana({
   meso,
   numero,
   sesiones,
   abierta,
   onAbrir,
-  copiada,
-  onCopiar,
+  semanasArmadas,
 }: {
   meso: Mesociclo;
   numero: number;
   sesiones: SesionDeLaAgenda[];
   abierta: string | null;
   onAbrir: (id: string | null) => void;
-  copiada: number | null;
-  onCopiar: (semana: number | null) => void;
+  /** Cuáles ya tienen días: son las que no se pueden pisar. */
+  semanasArmadas: number[];
 }) {
   // La semana que se está editando ocupa el ancho entero. Media pantalla alcanza
   // para leer qué días tiene, y no para armar un ejercicio con sus series: ahí
@@ -913,76 +948,101 @@ function Semana({
     (_, mutar, id) => mutar("DELETE", `/api/sessions/${id}`),
     "Día borrado",
   );
+  // A qué semanas se puede duplicar: sólo las vacías. El servidor rechaza con
+  // 409 pisar una semana armada —el atleta pudo haber registrado series ahí— así
+  // que no se ofrece un destino que va a contestar un error.
+  const destinos = Array.from(
+    { length: meso.week_count },
+    (_, i) => i + 1,
+  ).filter((n) => n !== numero && !semanasArmadas.includes(n));
+  const [destino, setDestino] = useState<number | null>(null);
+  const elegido =
+    destino !== null && destinos.includes(destino)
+      ? destino
+      : (destinos[0] ?? null);
+
   const pegar = useEscrituraDelEditor<unknown, void>(
     (enviar) =>
       enviar(`/api/mesocycles/${meso.id}/duplicate-week`, {
-        from_week: copiada,
-        to_week: numero,
+        from_week: numero,
+        to_week: elegido,
       }),
-    "Semana pegada",
+    "Semana duplicada",
   );
 
-  const esta = copiada === numero;
-  // Pegar sobre una semana con días ocupados el servidor lo rechaza con 409: no
-  // pisa trabajo hecho, y el atleta pudo haber registrado series ahí. Se
-  // deshabilita antes para no ofrecer un botón que contesta un error.
-  //
-  // `!esta` parece redundante —una semana copiada tiene sesiones, así que nunca
-  // es destino— y no lo es: copiar la 1, borrarle todos los días, y sin ese
-  // término se ofrecería pegarla sobre sí misma, que el servidor rechaza con
-  // «el origen y el destino son la misma semana». Alcanzable, y **ningún test lo
-  // cubre**: sacarlo no rompe nada, verificado por mutación. Queda igual porque
-  // es una condición, no una suposición.
-  const sePuedePegar = copiada !== null && !esta && sesiones.length === 0;
-
-  // Cuánto se mueve el RIR al caer en esta semana. Es la razón por la que
-  // duplicar sirve, y decirlo antes de apretar convierte «pegar» en una decisión
-  // en vez de una sorpresa.
-  const salto =
-    meso.rir_progression && copiada !== null
-      ? (meso.rir_progression[numero - 1] ?? 0) -
-        (meso.rir_progression[copiada - 1] ?? 0)
-      : null;
+  // Cuánto mueve el RIR caer en el destino. Es la razón por la que duplicar
+  // sirve, y decirlo antes de apretar lo convierte en una decisión.
+  const salto = elegido !== null ? desplazamiento(meso, numero, elegido) : null;
 
   return (
     <section
-      className={`semana${editando ? " semana--editando" : ""}${esta ? " semana--copiada" : ""}`}
+      className={`semana${editando ? " semana--editando" : ""}`}
     >
       <div className="semana__cabecera">
         <h4 className="semana__titulo">Semana {numero}</h4>
-        {sesiones.length > 0 ? (
-          <button
-            type="button"
-            className="sutil"
-            onClick={() => onCopiar(esta ? null : numero)}
-            aria-pressed={esta}
-            aria-label={
-              esta ? `Soltar la semana ${numero}` : `Copiar la semana ${numero}`
-            }
+        <span className="semana__cuenta">
+          {sesiones.length === 0
+            ? "sin días"
+            : `${sesiones.length} ${sesiones.length === 1 ? "día" : "días"}`}
+        </span>
+      </div>
+
+      {/* Duplicar es la acción más usada del producto, así que vive como una
+          barra fija arriba de la semana y no como un ítem de menú.
+
+          Reemplazó a copiar y pegar, que eran dos pasos en dos semanas
+          distintas: acá el destino se elige en el mismo lugar donde se aprieta,
+          y el salto de RIR se dice antes, que convierte duplicar en una decisión
+          en vez de una sorpresa. */}
+      {sesiones.length > 0 && destinos.length > 0 ? (
+        <div className="duplicar">
+          <svg
+            className="duplicar__icono"
+            width="18"
+            height="18"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
           >
-            {esta ? "Copiada" : "Copiar"}
-          </button>
-        ) : null}
-        {sePuedePegar ? (
+            <rect x="2.5" y="2.5" width="8" height="8" rx="1.5" />
+            <path d="M5.5 13.5h6a2 2 0 0 0 2-2v-6" />
+          </svg>
+          <strong>Duplicar</strong>
+          <label className="duplicar__destino">
+            en la{" "}
+            <select
+              value={elegido ?? ""}
+              onChange={(e) => setDestino(Number(e.target.value))}
+              aria-label="Semana de destino"
+            >
+              {destinos.map((d) => (
+                <option key={d} value={d}>
+                  Semana {d}
+                </option>
+              ))}
+            </select>
+          </label>
+          {salto !== null && salto !== 0 ? (
+            <span className="chip chip--activo">
+              <i className="chip__punto" aria-hidden="true" />
+              aplica {salto > 0 ? `+${salto}` : salto} RIR
+            </span>
+          ) : (
+            <span className="chip">sin cambio de RIR</span>
+          )}
           <button
             type="button"
             className="principal"
-            onClick={() =>
-              pegar.mutate(undefined, { onSuccess: () => onCopiar(null) })
-            }
+            onClick={() => pegar.mutate()}
             disabled={pegar.isPending}
-            aria-label={`Pegar la semana ${copiada} en la semana ${numero}`}
           >
-            {pegar.isPending ? "Pegando…" : `Pegar la ${copiada}`}
-            {salto ? (
-              <small className="semana__salto">
-                {" "}
-                RIR {salto > 0 ? `+${salto}` : salto}
-              </small>
-            ) : null}
+            {pegar.isPending ? "Duplicando…" : "Duplicar la semana"}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
+
       {sesiones.length === 0 ? (
         <p className="semana__vacia">Sin sesiones</p>
       ) : (
@@ -1234,10 +1294,10 @@ function Bloque({
 }) {
   const agenda = useAgenda(atletaId, "coach");
   const [abierta, setAbierta] = useState<string | null>(null);
-  // Qué semana está en el portapapeles. Vive en el bloque y no en cada semana
-  // porque copiar y pegar son dos semanas distintas del mismo mesociclo, y
-  // porque copiar de un bloque a otro cambiaría la progresión sin avisar.
-  const [copiada, setCopiada] = useState<number | null>(null);
+  // Qué semana está abierta abajo del riel. Una sola: con las cuatro abiertas a
+  // la vez había que scrollear para comparar el día 1 de dos semanas, que es la
+  // comparación que el entrenador hace todo el tiempo.
+  const [semanaAbierta, setSemanaAbierta] = useState(1);
   const semanas = Array.from({ length: meso.week_count }, (_, i) => i + 1);
 
   const duplicar = useEscrituraDelEditor<unknown, void>(
@@ -1266,7 +1326,7 @@ function Bloque({
           disabled={duplicar.isPending}
           title="Crea un bloque nuevo al final, con todo lo de éste"
         >
-          {duplicar.isPending ? "Duplicando…" : "Duplicar"}
+          {duplicar.isPending ? "Duplicando…" : "Duplicar el bloque"}
         </button>
         {/* Copiar aparece recién con más de un bloque: con uno solo no hay dónde
             pegar, y un botón que no lleva a ningún lado es ruido. Para crear el
@@ -1325,7 +1385,7 @@ function Bloque({
           const sePuedePegar =
             copiado !== null && !esteCopiado && mias.length === 0;
           return (
-            <div className="semanas">
+            <div className="cuerpo-del-bloque">
               {sePuedePegar ? (
                 <p className="bloque__pegar">
                   <button
@@ -1344,20 +1404,55 @@ function Bloque({
                   </button>
                 </p>
               ) : null}
-              {semanas.map((numero) => (
-                <Semana
-                  key={numero}
-                  meso={meso}
-                  numero={numero}
-                  sesiones={mias
-                    .filter((s) => s.week_number === numero)
-                    .sort((a, b) => a.day_number - b.day_number)}
-                  abierta={abierta}
-                  onAbrir={setAbierta}
-                  copiada={copiada}
-                  onCopiar={setCopiada}
-                />
-              ))}
+              {/* El riel: las cuatro semanas siempre a la vista, armadas y
+                  vacías por igual. En una lista de lo que hay, lo que falta no
+                  ocupa lugar y no se ve — y lo que falta es justamente lo que el
+                  entrenador viene a hacer. */}
+              <ol className="riel" aria-label={`Semanas de ${meso.label}`}>
+                {semanas.map((numero) => {
+                  const dias = mias.filter((s) => s.week_number === numero);
+                  const abiertaEsta = semanaAbierta === numero;
+                  const aprieta =
+                    numero > 1 && desplazamiento(meso, numero - 1, numero) < 0;
+                  return (
+                    <li key={numero}>
+                      <button
+                        type="button"
+                        className={`riel__semana${abiertaEsta ? " riel__semana--abierta" : ""}`}
+                        aria-current={abiertaEsta ? "true" : undefined}
+                        onClick={() => setSemanaAbierta(numero)}
+                      >
+                        <span className="riel__titulo">
+                          Semana {numero}
+                          {dias.length > 0 ? (
+                            <span className="chip">armada</span>
+                          ) : null}
+                        </span>
+                        <span
+                          className={
+                            aprieta
+                              ? "riel__paso riel__paso--aprieta"
+                              : "riel__paso"
+                          }
+                        >
+                          {pasoDelRiel(meso, numero)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+
+              <Semana
+                meso={meso}
+                numero={semanaAbierta}
+                sesiones={mias
+                  .filter((s) => s.week_number === semanaAbierta)
+                  .sort((a, b) => a.day_number - b.day_number)}
+                abierta={abierta}
+                onAbrir={setAbierta}
+                semanasArmadas={[...new Set(mias.map((s) => s.week_number))]}
+              />
             </div>
           );
         }}

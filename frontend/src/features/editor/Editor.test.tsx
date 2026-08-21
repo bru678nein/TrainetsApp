@@ -101,32 +101,71 @@ function montarEditor() {
   );
 }
 
-describe("las semanas del bloque", () => {
+describe("el riel de semanas", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it("dibuja todas las del mesociclo, no sólo las que tienen sesiones", async () => {
+  const riel = () => screen.getByRole("list", { name: /Semanas de/ });
+
+  it("muestra todas las del mesociclo, armadas y vacías por igual", async () => {
     // Es lo que hace visible que la 3 no está armada. En una lista de lo que
-    // hay, lo que falta no ocupa lugar y no se ve.
+    // hay, lo que falta no ocupa lugar y no se ve — y lo que falta es justo lo
+    // que el entrenador viene a hacer.
     responder();
     montarEditor();
+    await screen.findByRole("button", { name: /Semana 1/ });
+
     for (const n of [1, 2, 3, 4]) {
-      expect(await screen.findByRole("heading", { name: `Semana ${n}` })).toBeInTheDocument();
+      expect(within(riel()).getByRole("button", { name: new RegExp(`Semana ${n}`) })).toBeVisible();
     }
   });
 
-  it("una semana sin sesiones lo dice, en vez de quedar en blanco", async () => {
+  it("dice el paso de la progresión sin abrir nada", async () => {
+    // `[0, 0, -1, -1]` no se lee. El riel lo traduce contra la semana anterior,
+    // que es como se piensa: se sostiene, se aprieta, se sostiene.
     responder();
     montarEditor();
-    expect(await screen.findAllByText("Sin sesiones")).toHaveLength(2);
+    await screen.findByRole("button", { name: /Semana 1/ });
+
+    expect(within(riel()).getByRole("button", { name: /Semana 1.*base/ })).toBeVisible();
+    expect(within(riel()).getByRole("button", { name: /Semana 3.*−1 RIR/ })).toBeVisible();
+    expect(within(riel()).getByRole("button", { name: /Semana 4.*igual/ })).toBeVisible();
   });
 
-  it("cada sesión de la semana queda bajo su panel", async () => {
+  it("marca cuáles ya tienen días", async () => {
+    responder();
+    montarEditor();
+    await screen.findByRole("button", { name: /Semana 1/ });
+
+    expect(within(riel()).getByRole("button", { name: /Semana 1.*armada/ })).toBeVisible();
+    expect(within(riel()).queryByRole("button", { name: /Semana 3.*armada/ })).toBeNull();
+  });
+
+  it("abre una sola, y el riel dice cuál", async () => {
+    // Con las cuatro abiertas había que scrollear para comparar el día 1 de dos
+    // semanas, que es la comparación que el entrenador hace todo el tiempo.
+    responder();
+    montarEditor();
+    const semana3 = await screen.findByRole("button", { name: /Semana 3/ });
+
+    expect(screen.getByRole("heading", { name: "Semana 1" })).toBeVisible();
+    await userEvent.click(semana3);
+    expect(screen.getByRole("heading", { name: "Semana 3" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Semana 1" })).toBeNull();
+    expect(semana3).toHaveAttribute("aria-current", "true");
+  });
+
+  it("una semana sin días lo dice, en vez de quedar en blanco", async () => {
+    responder();
+    montarEditor();
+    await userEvent.click(await screen.findByRole("button", { name: /Semana 3/ }));
+    expect(screen.getByText("Sin sesiones")).toBeVisible();
+  });
+
+  it("los días de la semana abierta se despliegan sin abrir un acordeón más", async () => {
     responder();
     montarEditor();
     const semana1 = (await screen.findByRole("heading", { name: "Semana 1" })).closest("section")!;
-    const semana2 = (await screen.findByRole("heading", { name: "Semana 2" })).closest("section")!;
     expect(semana1.querySelectorAll("button[aria-expanded]")).toHaveLength(2);
-    expect(semana2.querySelectorAll("button[aria-expanded]")).toHaveLength(1);
   });
 });
 
@@ -163,15 +202,19 @@ describe("abrir una sesión", () => {
 describe("agregar y borrar días", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  it("el + de cada panel propone el primer día libre de esa semana", async () => {
+  it("el + propone el primer día libre de la semana abierta", async () => {
     // La semana 1 tiene los días 1 y 2, así que le toca el 3; la 2 tiene el 1,
-    // así que le toca el 2. El número sale del panel y no de un formulario
-    // suelto que hay que completar dos veces.
+    // así que le toca el 2. El número sale de la semana abierta y no de un
+    // formulario suelto que hay que completar cada vez.
+    //
+    // Se comprueban las dos y no una: con una sola, un `+` clavado en «día 3»
+    // pasaría el test y estaría mal en todas las demás semanas.
     responder();
     montarEditor();
     await screen.findByRole("heading", { name: "Semana 1" });
-
     expect(screen.getByTitle("Agregar el día 3")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Semana 2/ }));
     expect(screen.getByTitle("Agregar el día 2")).toBeInTheDocument();
   });
 
@@ -740,83 +783,54 @@ describe("elegir el ejercicio de una sesión", () => {
   });
 });
 
-describe("copiar y pegar semanas", () => {
+describe("duplicar una semana", () => {
   beforeEach(() => vi.unstubAllGlobals());
 
-  const semana = (n: number) =>
-    screen.getByRole("heading", { name: `Semana ${n}` }).closest("section")!;
-
-  it("sólo ofrece copiar las semanas que tienen algo", async () => {
-    // Copiar una semana vacía no significa nada, y el servidor la rechaza con
-    // 404. Un botón que no puede funcionar es peor que uno que no está.
+  it("dice adónde va y cuánto mueve el RIR antes de apretar", async () => {
+    // Es la razón por la que duplicar sirve. Decirlo después sería una sorpresa
+    // sobre una semana que el atleta puede empezar a entrenar mañana.
     responder();
     montarEditor();
     await screen.findByRole("heading", { name: "Semana 1" });
 
-    expect(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ })).toBeVisible();
-    expect(within(semana(3)).queryByRole("button", { name: /Copiar/ })).toBeNull();
+    expect(screen.getByLabelText("Semana de destino")).toBeVisible();
+    expect(screen.getByText(/aplica -1 RIR/)).toBeVisible();
   });
 
-  it("pegar aparece recién después de copiar, y no sobre la copiada", async () => {
+  it("sólo ofrece como destino las semanas vacías", async () => {
+    // Pisar una semana armada el servidor lo rechaza con 409 —el atleta pudo
+    // haber registrado series ahí— así que no se ofrece un destino que va a
+    // contestar un error.
     responder();
     montarEditor();
     await screen.findByRole("heading", { name: "Semana 1" });
 
-    expect(screen.queryByRole("button", { name: /Pegar/ })).toBeNull();
-
-    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
-
-    expect(within(semana(3)).getByRole("button", { name: /Pegar la semana 1/ })).toBeVisible();
-    expect(within(semana(1)).queryByRole("button", { name: /Pegar/ })).toBeNull();
+    const opciones = within(screen.getByLabelText("Semana de destino"))
+      .getAllByRole("option")
+      .map((o) => o.textContent);
+    expect(opciones).toEqual(["Semana 3", "Semana 4"]);
   });
 
-  it("no ofrece pegar sobre una semana que ya tiene días", async () => {
-    // El servidor contesta 409 para no pisar trabajo hecho — el atleta pudo
-    // haber registrado series ahí. Se deshabilita antes para no ofrecer un
-    // botón que contesta un error.
+  it("no aparece sobre una semana que no tiene nada que copiar", async () => {
     responder();
     montarEditor();
-    await screen.findByRole("heading", { name: "Semana 1" });
-    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
-
-    expect(within(semana(2)).queryByRole("button", { name: /Pegar/ })).toBeNull();
+    await userEvent.click(await screen.findByRole("button", { name: /Semana 3/ }));
+    expect(screen.queryByLabelText("Semana de destino")).toBeNull();
   });
 
-  it("dice cuánto se mueve el RIR antes de apretar", async () => {
-    // Es la razón por la que duplicar sirve. Decirlo después convierte una
-    // decisión en una sorpresa. Progresión [0, 0, -1, -1]: de la 1 a la 3 baja
-    // un punto.
-    responder();
-    montarEditor();
-    await screen.findByRole("heading", { name: "Semana 1" });
-    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
-
-    expect(within(semana(3)).getByText("RIR -1")).toBeVisible();
-  });
-
-  it("pegar manda el origen y el destino correctos", async () => {
+  it("manda el origen y el destino elegidos", async () => {
     const pedido = responder();
     montarEditor();
     await screen.findByRole("heading", { name: "Semana 1" });
-    await userEvent.click(within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ }));
-    await userEvent.click(within(semana(4)).getByRole("button", { name: /Pegar la semana 1/ }));
 
-    const alta = pedido.mock.calls.find(([u]) => String(u).includes("duplicate-week"));
-    expect(JSON.parse(String(alta![1]!.body))).toEqual({ from_week: 1, to_week: 4 });
-  });
+    await userEvent.selectOptions(screen.getByLabelText("Semana de destino"), "4");
+    await userEvent.click(screen.getByRole("button", { name: "Duplicar la semana" }));
 
-  it("volver a apretar copiar suelta lo copiado", async () => {
-    // Sin esto, una vez copiada una semana no hay forma de volver atrás salvo
-    // recargar, y los botones de pegar quedan puestos en toda la pantalla.
-    responder();
-    montarEditor();
-    await screen.findByRole("heading", { name: "Semana 1" });
-    const copiar = within(semana(1)).getByRole("button", { name: /Copiar la semana 1/ });
-
-    await userEvent.click(copiar);
-    await userEvent.click(within(semana(1)).getByRole("button", { name: /Soltar la semana 1/ }));
-
-    expect(screen.queryByRole("button", { name: /Pegar/ })).toBeNull();
+    const llamada = pedido.mock.calls.find(([u, o]) =>
+      String(u).includes("duplicate-week") && o?.method === "POST",
+    );
+    expect(llamada).toBeDefined();
+    expect(JSON.parse(String(llamada![1]!.body))).toEqual({ from_week: 1, to_week: 4 });
   });
 });
 
@@ -865,7 +879,7 @@ describe("duplicar y pegar bloques", () => {
     montarEditor();
     await screen.findByRole("heading", { name: /Acumulación/ });
 
-    expect(screen.getByRole("button", { name: "Duplicar" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Duplicar el bloque" })).toBeVisible();
     expect(screen.queryByRole("button", { name: /Copiar el bloque/ })).toBeNull();
   });
 
@@ -873,7 +887,7 @@ describe("duplicar y pegar bloques", () => {
     const pedido = responder();
     montarEditor();
     await screen.findByRole("heading", { name: /Acumulación/ });
-    await userEvent.click(screen.getByRole("button", { name: "Duplicar" }));
+    await userEvent.click(screen.getByRole("button", { name: "Duplicar el bloque" }));
 
     const alta = pedido.mock.calls.find(([u]) => String(u).includes("/duplicate"));
     expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: null });
@@ -964,9 +978,13 @@ describe("dos bloques que se llaman igual", () => {
     const primero = screen.getByRole("heading", { name: /1\. Acumulación/ }).closest("section")!;
     const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
 
-    // Las tres sesiones de la agenda son del bloque m1. Se cuentan por
-    // `aria-expanded`, que es lo que lleva el botón de cada día.
-    expect(primero.querySelectorAll("button[aria-expanded]")).toHaveLength(3);
+    // Las tres sesiones de la agenda son del bloque m1, y dos de ellas caen en
+    // la semana 1, que es la que abre el riel. Se cuentan por `aria-expanded`,
+    // que es lo que lleva el botón de cada día.
+    //
+    // Lo que este caso vigila es el **cero** del segundo bloque: agrupar por
+    // nombre en vez de por id le llenaba las semanas con los días del otro.
+    expect(primero.querySelectorAll("button[aria-expanded]")).toHaveLength(2);
     expect(segundo.querySelectorAll("button[aria-expanded]")).toHaveLength(0);
   });
 
@@ -1009,8 +1027,12 @@ describe("la proyección del bloque", () => {
 
   it("separa lo que está guardado de lo que es una predicción", async () => {
     // Sin esto las cuatro semanas se leen como si ya existieran, y dos no.
+    //
+    // Acotado al panel: el riel también marca «armada», y contar las dos listas
+    // juntas haría pasar el test aunque la proyección no marcara ninguna.
     await abrir();
-    expect(await screen.findAllByText("armada")).toHaveLength(2);
+    const panel = (await screen.findByText("arranca acá")).closest("ol")!;
+    expect(within(panel).getAllByText("armada")).toHaveLength(2);
   });
 
   it("muestra que lo que se mueve es el RIR y no la carga", async () => {

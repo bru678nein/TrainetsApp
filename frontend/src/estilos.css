@@ -688,6 +688,71 @@ form { margin: 0 0 var(--paso); }
   .selector select { min-height: 44px; }
 }
 
+/* --- El riel de semanas ----------------------------------------------------
+ *
+ * Las cuatro semanas del bloque como una fila de pastillas, y abajo la que esté
+ * abierta con todos sus días desplegados.
+ *
+ * Antes las cuatro se dibujaban abiertas en una grilla y cada día era un
+ * acordeón. Eso ponía dos clics entre el entrenador y lo que vino a mirar, y
+ * para comparar el día 1 de la semana 2 con el de la 3 —que es la comparación
+ * que hace todo el tiempo— había que abrir dos acordeones y scrollear.
+ *
+ * El riel además es lo que dice **qué hace la progresión en cada semana** sin
+ * abrir nada: el paso va escrito debajo del número, y sólo el que aprieta lleva
+ * color. Con las cuatro iguales el color no distinguiría nada.
+ */
+.riel { list-style: none; margin: 0 0 var(--paso-medio); padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--paso); }
+
+.riel__semana {
+  width: 100%;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-height: 56px; padding: var(--paso) var(--paso-medio);
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  background: var(--papel-hundido); color: var(--tinta);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.riel__semana:hover { border-color: var(--borde-fuerte); }
+.riel__semana--abierta {
+  background: var(--hecho-tenue);
+  border-color: var(--hecho); border-width: 2px;
+  padding: calc(var(--paso) - 1px) calc(var(--paso-medio) - 1px);
+}
+.riel__semana--copiada { outline: 2px dashed var(--hecho); outline-offset: 2px; }
+
+.riel__titulo { display: flex; align-items: center; gap: var(--paso); font-weight: 600;
+  font-variant-numeric: tabular-nums; }
+/* --tinta-suave y no --tinta-tenue: el riel está sobre superficie hundida, donde
+   el tenue cae a 4.17:1. Medido. */
+.riel__paso { font-size: var(--texto-micro); color: var(--tinta-suave); }
+.riel__paso--aprieta { color: var(--hecho); font-weight: 600; }
+
+.cuerpo-del-bloque { margin-top: var(--paso-medio); }
+
+/* La barra de duplicar.
+ *
+ * Duplicar es la acción más usada del producto, así que es una barra fija arriba
+ * de la semana y no un ítem de menú. Reemplazó a copiar y pegar, que eran dos
+ * pasos sobre dos semanas distintas: acá el destino se elige en el mismo lugar
+ * donde se aprieta.
+ *
+ * El chip del salto de RIR va antes del botón a propósito: leer qué va a pasar
+ * es parte de decidir, no una confirmación posterior. */
+.duplicar {
+  display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap;
+  padding: var(--paso) var(--paso-medio);
+  border: 1px solid var(--borde-fuerte); border-radius: var(--radio);
+  background: var(--papel-elevado);
+  margin-bottom: var(--paso-medio);
+}
+.duplicar__icono { color: var(--hecho); flex: none; }
+.duplicar__destino {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--texto-chico); color: var(--tinta-suave);
+}
+.semana__cuenta { font-size: var(--texto-chico); color: var(--tinta-suave); }
+
 /* --- Las semanas de un bloque ---------------------------------------------------
  *
  * Dos columnas y no una lista corrida: un mesociclo es un conjunto de semanas
