@@ -61,9 +61,11 @@ describe("la adherencia por patrón", () => {
     // llegaron, y compara contra los códigos por una carrera y no por el orden,
     // que es lo que este caso mira.
     await screen.findByText("PLIOMETRIA");
+    // Las dos cifras y no sólo el total: «0 de 15» se lee sin tener que hacer la
+    // cuenta al revés desde el porcentaje.
     const filas = screen.getAllByRole("listitem");
-    expect(within(filas[0]!).getByText("de 15")).toBeInTheDocument();
-    expect(within(filas[1]!).getByText("de 226")).toBeInTheDocument();
+    expect(within(filas[0]!).getByText(/\bde 15 series/)).toBeInTheDocument();
+    expect(within(filas[1]!).getByText(/\bde 226 series/)).toBeInTheDocument();
   });
 
   it("redondea el porcentaje sin inventarlo", async () => {

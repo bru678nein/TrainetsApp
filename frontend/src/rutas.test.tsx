@@ -7,10 +7,12 @@ import { Rutas } from "./rutas";
 
 // El listado consulta el API en cuanto se monta. Acá lo que se prueba son las
 // rutas, así que la puerta al API se falsifica en el borde y devuelve vacío.
-let pedido = "";
+// Todos y no el último: el panel pide varias cosas al montarse, y quedarse con
+// la última hace que el test dependa de cuál resuelve después.
+const pedidos: string[] = [];
 vi.mock("./api/useApi", () => ({
   useApi: () => (ruta: string) => {
-    pedido = ruta;
+    pedidos.push(ruta);
     return Promise.resolve([]);
   },
   // El panel monta formularios que escriben. Acá no se ejercitan: lo que se
@@ -50,7 +52,7 @@ describe("las rutas", () => {
     en("/atletas/abc-123");
     await userEvent.click(await screen.findByRole("tab", { name: "Gráficas" }));
     expect(
-      await screen.findByRole("heading", { name: "Adherencia por patrón" }),
+      await screen.findByRole("heading", { name: "¿Está haciendo el trabajo?" }),
     ).toBeInTheDocument();
   });
 
@@ -60,7 +62,7 @@ describe("las rutas", () => {
     // consulta.
     en("/atletas/otro-999");
     await screen.findByRole("tab", { name: "Rutina" });
-    expect(pedido).toContain("otro-999");
+    expect(pedidos.some((r) => r.includes("otro-999"))).toBe(true);
   });
 
   it("una dirección que no existe lo dice y ofrece volver", () => {

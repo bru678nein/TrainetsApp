@@ -393,6 +393,8 @@ form { margin: 0 0 var(--paso); }
 }
 .lista > li:last-child { border-bottom: 0; }
 
+.grafica__pie { margin: 4px 0 var(--paso-medio); font-size: var(--texto-chico); color: var(--tinta-suave); }
+
 /* --- Adherencia ---------------------------------------------------------------- */
 
 .adherencia { list-style: none; margin: 0; padding: 0; }
@@ -871,6 +873,14 @@ form { margin: 0 0 var(--paso); }
 @media (max-width: 640px) {
   .semanas { grid-template-columns: 1fr; }
 }
+
+/* Quién es el dueño de todo lo que sigue. Con cinco niveles abajo, el ancla. */
+.panel__quien {
+  display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap;
+  margin-bottom: var(--paso-medio);
+}
+.panel__quien h2 { margin: 0; }
+.panel__contexto { font-size: var(--texto-chico); color: var(--tinta-suave); }
 
 /* --- Pestañas ------------------------------------------------------------------- */
 

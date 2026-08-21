@@ -20,8 +20,11 @@ function Fila({ dato }: { dato: AdherenciaDePatron }) {
       </span>
       <span className="adherencia__cifra">{porcentaje(dato.completion_rate)}</span>
       {/* El denominador al lado del porcentaje, no en un tooltip: 0 de 15 y 0 de
-          226 se dibujan igual y significan cosas opuestas. */}
-      <span className="adherencia__base">de {dato.sets_planned}</span>
+          226 se dibujan igual y significan cosas opuestas. Y con las dos cifras,
+          no sólo el total: «18 de 44» se lee sin hacer la cuenta al revés. */}
+      <span className="adherencia__base">
+        {dato.sets_done} de {dato.sets_planned} series
+      </span>
     </li>
   );
 }
@@ -31,7 +34,14 @@ export function Adherencia({ atletaId }: { atletaId: string }) {
 
   return (
     <section>
-      <h3>Adherencia por patrón</h3>
+      {/* La pregunta y no la métrica. «Adherencia por patrón» nombra la
+          herramienta; «¿está haciendo el trabajo?» nombra lo que el entrenador
+          vino a averiguar, y el orden de las tres secciones es el orden en que
+          se pregunta. */}
+      <h3>¿Está haciendo el trabajo?</h3>
+      <p className="grafica__pie">
+        Adherencia por patrón de movimiento. El peor arriba: es el que hay que mirar.
+      </p>
       <Consulta
         consulta={consulta}
         que="la adherencia"

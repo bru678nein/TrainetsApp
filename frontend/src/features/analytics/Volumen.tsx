@@ -13,7 +13,8 @@ export function Volumen({ atletaId }: { atletaId: string }) {
 
   return (
     <section>
-      <h3>Volumen por semana</h3>
+      <h3>¿Adónde se va el volumen?</h3>
+      <p className="grafica__pie">Series prescritas contra hechas, semana a semana.</p>
       <Consulta
         consulta={consulta}
         que="el volumen"

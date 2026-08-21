@@ -11,7 +11,10 @@ export function Progresion({ atletaId }: { atletaId: string }) {
 
   return (
     <section>
-      <h3>Progresión de carga</h3>
+      <h3>¿Se mueve la carga?</h3>
+      <p className="grafica__pie">
+        Una semana prescrita y sin registrar queda como hueco, nunca como cero.
+      </p>
       <Consulta
         consulta={consulta}
         que="la progresión"
