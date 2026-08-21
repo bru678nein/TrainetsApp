@@ -249,6 +249,68 @@ export function useMesociclos(programaId: string | undefined) {
   });
 }
 
+/**
+ * Lo que la progresión declarada va a producir, antes de duplicar nada.
+ *
+ * Lo calcula el servidor con las mismas funciones que corre al copiar. Rehacer
+ * la cuenta acá sería más rápido de escribir y quedaría vieja sin avisar: un
+ * panel que predice algo distinto de lo que hace el botón de al lado es peor
+ * que no tener panel.
+ */
+export type SerieProyectada = {
+  set_number: number;
+  reps_min: number | null;
+  reps_max: number | null;
+  rir_min: number | null;
+  rir_max: number | null;
+  target_load_kg: number | null;
+  target_pct_1rm: number | null;
+  is_amrap: boolean;
+};
+
+export type EjercicioProyectado = {
+  exercise_name: string;
+  position: number;
+  superset_key: string | null;
+  sets: SerieProyectada[];
+};
+
+export type DiaProyectado = {
+  day_number: number;
+  label: string | null;
+  ejercicios: EjercicioProyectado[];
+};
+
+/** `aprieta` es menos RIR, o sea más duro; `afloja` es la descarga. */
+export type Movimiento = "base" | "sostiene" | "aprieta" | "afloja";
+
+export type SemanaProyectada = {
+  week_number: number;
+  rir_delta: number;
+  movimiento: Movimiento;
+  ya_armada: boolean;
+  dias: DiaProyectado[];
+};
+
+export type Proyeccion = {
+  semana_base: number | null;
+  declara_progresion: boolean;
+  semanas: SemanaProyectada[];
+};
+
+export function useProyeccion(mesocicloId: string, habilitada: boolean) {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["proyeccion", mesocicloId],
+    // Sólo cuando alguien la abre. Sin esto cada bloque de la pantalla la pide
+    // al montarse, y son tantas consultas como bloques tenga el programa para
+    // dibujar algo que nadie está mirando.
+    enabled: habilitada,
+    queryFn: ({ signal }) =>
+      pedir(`/api/mesocycles/${mesocicloId}/projection`, signal) as Promise<Proyeccion>,
+  });
+}
+
 export function useEjercicios() {
   const pedir = useApi("coach");
   return useQuery({

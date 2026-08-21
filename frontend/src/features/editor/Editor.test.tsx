@@ -19,6 +19,43 @@ const MESO = {
   focus: null,
   rir_progression: [0, 0, -1, -1],
 };
+/**
+ * La proyección tal como la devuelve el servidor para ese mesociclo.
+ *
+ * Las semanas 1 y 2 están armadas y las otras dos son predicción, que es la
+ * distinción entera del panel. La carga se queda en 80 en las cuatro y el RIR
+ * baja en la 3: es lo que la progresión `[0, 0, -1, -1]` produce.
+ */
+const serie = (rir: number) => ({
+  set_number: 1,
+  reps_min: 8,
+  reps_max: 8,
+  rir_min: rir,
+  rir_max: rir,
+  target_load_kg: 80,
+  target_pct_1rm: null,
+  is_amrap: false,
+});
+const dia = (rir: number) => [
+  {
+    day_number: 1,
+    label: null,
+    ejercicios: [
+      { exercise_name: "Sentadilla", position: 1, superset_key: null, sets: [serie(rir)] },
+    ],
+  },
+];
+const PROYECCION = {
+  semana_base: 1,
+  declara_progresion: true,
+  semanas: [
+    { week_number: 1, rir_delta: 0, movimiento: "base", ya_armada: true, dias: dia(2) },
+    { week_number: 2, rir_delta: 0, movimiento: "sostiene", ya_armada: true, dias: dia(2) },
+    { week_number: 3, rir_delta: -1, movimiento: "aprieta", ya_armada: false, dias: dia(1) },
+    { week_number: 4, rir_delta: -1, movimiento: "sostiene", ya_armada: false, dias: dia(1) },
+  ],
+};
+
 /** Sólo las semanas 1 y 2 están armadas: la 3 y la 4 quedan vacías a propósito. */
 const AGENDA = [
   { id: "s1", mesocycle_id: "m1", mesocycle: "Acumulación", mesocycle_ordinal: 1, week_number: 1, day_number: 1 },
@@ -33,6 +70,7 @@ const AGENDA = [
  * editor se queda sin bloques sin decir por qué.
  */
 function cuerpoPara(url: string): unknown {
+  if (url.includes("/projection")) return PROYECCION;
   if (url.includes("/mesocycles")) return [MESO];
   if (url.includes("/programs")) return [PROGRAMA];
   if (url.match(/\/api\/sessions\//)) {
@@ -942,5 +980,63 @@ describe("dos bloques que se llaman igual", () => {
 
     const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
     expect(within(segundo).getByRole("button", { name: /Pegar/ })).toBeVisible();
+  });
+});
+
+describe("la proyección del bloque", () => {
+  beforeEach(() => vi.unstubAllGlobals());
+
+  const abrir = async () => {
+    responder();
+    montarEditor();
+    await userEvent.click(await screen.findByRole("button", { name: "Ver la proyección" }));
+  };
+
+  it("no se pide hasta que alguien la abre", async () => {
+    const pedido = responder();
+    montarEditor();
+    await screen.findByRole("button", { name: "Ver la proyección" });
+    expect(pedido.mock.calls.filter(([u]) => String(u).includes("/projection"))).toHaveLength(0);
+  });
+
+  it("dice el paso de cada semana en palabras y no en el número crudo", async () => {
+    // `[0, 0, -1, -1]` no se lee. «−1 RIR» leído contra la semana anterior, sí.
+    await abrir();
+    expect(await screen.findByText("arranca acá")).toBeInTheDocument();
+    expect(screen.getAllByText("igual que la anterior")).toHaveLength(2);
+    expect(screen.getByText("−1 RIR: más cerca del fallo")).toBeInTheDocument();
+  });
+
+  it("separa lo que está guardado de lo que es una predicción", async () => {
+    // Sin esto las cuatro semanas se leen como si ya existieran, y dos no.
+    await abrir();
+    expect(await screen.findAllByText("armada")).toHaveLength(2);
+  });
+
+  it("muestra que lo que se mueve es el RIR y no la carga", async () => {
+    // La mitad de lo que el panel tiene para decir es que la carga se queda
+    // quieta: es la decisión de diseño del producto entero.
+    await abrir();
+    // Acotado a la lista de la proyección: el editor también titula sus paneles
+    // «Semana 3», y `findByText` a secas encuentra los dos.
+    const lista = (await screen.findByText("arranca acá")).closest("ol")!;
+    const semana3 = within(lista).getByText("Semana 3").closest("li")!;
+    expect(within(semana3).getByText(/RIR 1/)).toBeInTheDocument();
+    expect(within(semana3).getByText(/80 kg/)).toBeInTheDocument();
+  });
+
+  it("un bloque sin nada armado no proyecta nada", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>((url) => {
+        const cuerpo = String(url).includes("/projection")
+          ? { semana_base: null, declara_progresion: true, semanas: [] }
+          : cuerpoPara(String(url));
+        return Promise.resolve(new Response(JSON.stringify(cuerpo), { status: 200 }));
+      }),
+    );
+    montarEditor();
+    await userEvent.click(await screen.findByRole("button", { name: "Ver la proyección" }));
+    expect(await screen.findByText(/Todavía no hay nada armado/)).toBeInTheDocument();
   });
 });

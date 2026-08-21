@@ -1016,6 +1016,110 @@ form { margin: 0 0 var(--paso); }
 .bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
 .bloque__pegar { grid-column: 1 / -1; margin: 0 0 var(--paso); }
 
+/* --- La proyección del bloque -----------------------------------------------
+ *
+ * Una línea de tiempo vertical: una semana debajo de la otra, con el paso
+ * escrito al lado. El RIR va destacado porque es lo único que la progresión
+ * mueve — la carga y las repeticiones se copian iguales, y verlas repetirse sin
+ * cambiar es la mitad de lo que el panel tiene para decir.
+ */
+.proyeccion__vacia { font-size: 0.8125rem; color: var(--tinta-suave); margin: var(--paso) 0 0; }
+
+.proyeccion__semanas {
+  list-style: none;
+  margin: var(--paso) 0 0;
+  padding: 0 0 0 calc(var(--paso) * 2);
+  /* La línea que une las semanas. Que sea un borde y no un pseudo-elemento por
+     semana hace que se corte sola en la última. */
+  border-left: 2px solid var(--borde);
+  display: grid;
+  gap: var(--paso);
+}
+
+.proyeccion__semana {
+  position: relative;
+  background: var(--papel-hundido);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: var(--paso) calc(var(--paso) * 1.5);
+}
+
+/* El punto sobre la línea. Sólo las semanas que cambian algo lo llevan lleno:
+   una fila de puntos idénticos no distingue nada. */
+.proyeccion__semana::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--paso) * -2 - 6px);
+  top: calc(var(--paso) + 4px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 2px solid var(--borde-fuerte);
+}
+.proyeccion__semana--aprieta::before { background: var(--hecho); border-color: var(--hecho); }
+.proyeccion__semana--afloja::before { background: var(--aviso); border-color: var(--aviso); }
+
+.proyeccion__cabecera {
+  display: flex;
+  align-items: baseline;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  margin: 0 0 calc(var(--paso) / 2);
+}
+.proyeccion__paso { font-size: 0.75rem; color: var(--tinta-suave); }
+.proyeccion__semana--aprieta .proyeccion__paso { color: var(--hecho); font-weight: 600; }
+.proyeccion__semana--afloja .proyeccion__paso { color: var(--aviso); font-weight: 600; }
+
+/* «armada» no es decoración: separa lo que hay guardado de lo que es una
+   predicción, y son dos cosas distintas en la misma lista. */
+.proyeccion__armada {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tinta-tenue);
+  background: var(--prescrito);
+  border-radius: var(--radio-chico);
+  padding: 1px 6px;
+}
+
+.proyeccion__dias { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.proyeccion__dia {
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--tinta-tenue);
+}
+.proyeccion__dias ul { list-style: none; margin: 2px 0 0; padding: 0; }
+
+.proyeccion__ejercicio {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--paso);
+  flex-wrap: wrap;
+  padding: 3px 0;
+  font-size: 0.8125rem;
+  border-top: 1px solid color-mix(in srgb, var(--borde) 60%, transparent);
+}
+.proyeccion__ejercicio:first-child { border-top: 0; }
+.proyeccion__nombre { color: var(--tinta); }
+.proyeccion__llave {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--tinta-tenue);
+  margin-right: 6px;
+}
+.proyeccion__series {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: right;
+  color: var(--tinta-suave);
+  font-variant-numeric: tabular-nums;
+}
+.proyeccion__rir { color: var(--hecho); font-weight: 600; }
+
 /* --- La agenda del atleta ---------------------------------------------------
  *
  * Filas tocables y no enlaces subrayados. El enlace de texto era un objetivo de

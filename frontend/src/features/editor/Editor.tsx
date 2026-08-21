@@ -7,11 +7,15 @@ import {
   useMesociclos,
   usePatrones,
   useProgramas,
+  useProyeccion,
   useSesion,
   type Ejercicio,
+  type EjercicioProyectado,
   type Mesociclo,
   type Patron,
   type Programa,
+  type SemanaProyectada,
+  type SerieProyectada,
   type SesionDeLaAgenda,
 } from "../../api/consultas";
 import { Cargando, Consulta, Falla, Vacio } from "../../components/estados";
@@ -922,6 +926,148 @@ function Semana({
   );
 }
 
+/** Cómo se lee el paso de una semana a la anterior, en palabras. */
+function pasoEnPalabras(semana: SemanaProyectada, anterior: SemanaProyectada | undefined): string {
+  if (semana.movimiento === "base") return "arranca acá";
+  const salto = Math.abs(semana.rir_delta - (anterior?.rir_delta ?? 0));
+  if (semana.movimiento === "sostiene") return "igual que la anterior";
+  if (semana.movimiento === "aprieta") return `−${salto} RIR: más cerca del fallo`;
+  return `+${salto} RIR: descarga`;
+}
+
+const rango = (min: number | null, max: number | null): string | null => {
+  if (min === null && max === null) return null;
+  if (min !== null && max !== null && min !== max) return `${min}-${max}`;
+  return String(min ?? max);
+};
+
+/**
+ * Las series repetidas se juntan en una línea.
+ *
+ * De 473 ejercicios prescritos en la planilla, los 473 tienen todas sus series
+ * iguales. Listarlas una debajo de la otra es escribir cuatro veces lo mismo y
+ * empujar la semana siguiente fuera de la pantalla.
+ */
+function agrupar(sets: SerieProyectada[]): { cuantas: number; serie: SerieProyectada }[] {
+  const clave = (s: SerieProyectada) =>
+    JSON.stringify([s.reps_min, s.reps_max, s.rir_min, s.rir_max, s.target_load_kg, s.is_amrap]);
+  const grupos: { cuantas: number; serie: SerieProyectada }[] = [];
+  for (const s of sets) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && clave(ultimo.serie) === clave(s)) ultimo.cuantas += 1;
+    else grupos.push({ cuantas: 1, serie: s });
+  }
+  return grupos;
+}
+
+function LineaDeEjercicio({ ej }: { ej: EjercicioProyectado }) {
+  return (
+    <li className="proyeccion__ejercicio">
+      <span className="proyeccion__nombre">
+        {ej.superset_key ? <em className="proyeccion__llave">{ej.superset_key}</em> : null}
+        {ej.exercise_name}
+      </span>
+      <ul className="proyeccion__series">
+        {agrupar(ej.sets).map(({ cuantas, serie }, i) => {
+          const reps = rango(serie.reps_min, serie.reps_max);
+          const rir = rango(serie.rir_min, serie.rir_max);
+          return (
+            <li key={i}>
+              {cuantas}×{reps ? ` ${reps} reps` : " serie"}
+              {serie.is_amrap ? " al máximo" : ""}
+              {serie.target_load_kg !== null ? ` · ${serie.target_load_kg} kg` : ""}
+              {/* El RIR va marcado porque es lo único que la progresión mueve:
+                  la carga y las reps se copian iguales a propósito. */}
+              {rir !== null ? <strong className="proyeccion__rir"> · RIR {rir}</strong> : null}
+            </li>
+          );
+        })}
+      </ul>
+    </li>
+  );
+}
+
+/**
+ * Lo que la progresión va a producir, antes de que nadie duplique nada.
+ *
+ * Hasta acá la única forma de ver qué hacía una progresión declarada era
+ * aplicarla: declarar `[0, 0, -1, -1]` y enterarse cuatro semanas después de que
+ * no era eso, con el atleta ya entrenando encima.
+ *
+ * Las semanas ya armadas muestran **lo que tienen**, no una predicción. Una
+ * semana duplicada se corrige a mano, y dibujarle la proyección encima mostraría
+ * una semana que no existe.
+ */
+function Proyeccion({ meso }: { meso: Mesociclo }) {
+  const [abierto, setAbierto] = useState(false);
+  const proyeccion = useProyeccion(meso.id, abierto);
+
+  return (
+    <div className="proyeccion">
+      <p className="bloque__progresion">
+        {meso.rir_progression ? (
+          <>
+            Progresión declarada: <strong>[{meso.rir_progression.join(", ")}]</strong>
+          </>
+        ) : (
+          <>Este bloque no declara progresión: pegar una semana la copia igual.</>
+        )}{" "}
+        <button type="button" className="sutil" onClick={() => setAbierto(!abierto)}>
+          {abierto ? "Ocultar la proyección" : "Ver la proyección"}
+        </button>
+      </p>
+      {abierto ? (
+        <Consulta consulta={proyeccion} que="la proyección">
+          {(datos) =>
+            datos.semana_base === null ? (
+              <p className="proyeccion__vacia">
+                Todavía no hay nada armado en este bloque. Cargá una semana y acá vas a ver cómo
+                queda el resto.
+              </p>
+            ) : (
+              <ol className="proyeccion__semanas">
+                {datos.semanas.map((semana, i) => (
+                  <li
+                    key={semana.week_number}
+                    className={`proyeccion__semana proyeccion__semana--${semana.movimiento}`}
+                  >
+                    <p className="proyeccion__cabecera">
+                      <strong>Semana {semana.week_number}</strong>
+                      <span className="proyeccion__paso">
+                        {pasoEnPalabras(semana, datos.semanas[i - 1])}
+                      </span>
+                      {semana.ya_armada ? (
+                        <span className="proyeccion__armada" title="Esto es lo que hay guardado">
+                          armada
+                        </span>
+                      ) : null}
+                    </p>
+                    <ul className="proyeccion__dias">
+                      {semana.dias.map((dia) => (
+                        <li key={dia.day_number}>
+                          <span className="proyeccion__dia">
+                            Día {dia.day_number}
+                            {dia.label ? ` — ${dia.label}` : ""}
+                          </span>
+                          <ul>
+                            {dia.ejercicios.map((ej) => (
+                              <LineaDeEjercicio key={ej.position} ej={ej} />
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ))}
+              </ol>
+            )
+          }
+        </Consulta>
+      ) : null}
+    </div>
+  );
+}
+
 function Bloque({
   meso,
   atletaId,
@@ -984,16 +1130,7 @@ function Bloque({
           </button>
         ) : null}
       </div>
-      {meso.rir_progression ? (
-        <p className="bloque__progresion">
-          Progresión declarada: <strong>[{meso.rir_progression.join(", ")}]</strong> — copiar una
-          semana y pegarla en otra aplica la diferencia.
-        </p>
-      ) : (
-        <p className="bloque__progresion">
-          Este bloque no declara progresión: pegar una semana la copia igual.
-        </p>
-      )}
+      <Proyeccion meso={meso} />
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           // Por id y no por nombre: la etiqueta la escribe el entrenador y puede
