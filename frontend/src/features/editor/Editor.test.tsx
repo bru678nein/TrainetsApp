@@ -869,9 +869,6 @@ describe("duplicar y pegar bloques", () => {
     return pedido;
   }
 
-  const bloque = (nombre: string) =>
-    screen.getByRole("heading", { name: new RegExp(nombre) }).closest("section")!;
-
   it("con un solo bloque ofrece duplicar y no copiar", async () => {
     // Con uno solo no hay dónde pegar, así que «Copiar» sería un botón que no
     // lleva a ningún lado. Para crear el segundo está «Duplicar», de un toque.
@@ -893,46 +890,51 @@ describe("duplicar y pegar bloques", () => {
     expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: null });
   });
 
-  it("con más de un bloque aparece copiar en todos", async () => {
+  it("copiar aparece en el bloque abierto cuando hay más de uno", async () => {
+    // Con uno solo no hay dónde pegar. Con varios, se copia el que está abierto
+    // y el destino se elige moviéndose por la tira, que no se va de la pantalla.
     conTresBloques();
     montarEditor();
-    await screen.findByRole("heading", { name: /Intensificación/ });
+    await screen.findByRole("heading", { name: /Acumulación/ });
 
-    expect(screen.getAllByRole("button", { name: /Copiar el bloque/ })).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /Copiar el bloque/ })).toBeVisible();
   });
 
-  it("pegar aparece sólo en el bloque vacío, después de copiar", async () => {
+  it("pegar aparece recién en un bloque vacío, y no en el copiado", async () => {
     conTresBloques();
     montarEditor();
-    await screen.findByRole("heading", { name: /Intensificación/ });
+    await screen.findByRole("heading", { name: /Acumulación/ });
 
+    // Sin copiar nada no hay dónde pegar.
     expect(screen.queryByRole("button", { name: /Pegar el bloque/ })).toBeNull();
 
-    await userEvent.click(
-      within(bloque("Acumulación")).getByRole("button", { name: /Copiar el bloque/ }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /Copiar el bloque/ }));
+    // Sobre sí mismo tampoco: el servidor lo rechaza.
+    expect(screen.queryByRole("button", { name: /Pegar el bloque/ })).toBeNull();
 
-    // Sólo «Descarga» está vacío. «Intensificación» tiene sesiones y no es el
-    // copiado: es el caso que distingue si la condición existe de verdad.
-    expect(within(bloque("Descarga")).getByRole("button", { name: /Pegar/ })).toBeVisible();
-    expect(within(bloque("Intensificación")).queryByRole("button", { name: /Pegar/ })).toBeNull();
-    expect(within(bloque("Acumulación")).queryByRole("button", { name: /Pegar/ })).toBeNull();
+    // El segundo está armado: pegar ahí pisaría trabajo hecho.
+    await userEvent.click(screen.getByRole("button", { name: /Intensificación/ }));
+    expect(screen.queryByRole("button", { name: /Pegar el bloque/ })).toBeNull();
+
+    // El tercero está vacío. Ahí sí.
+    await userEvent.click(screen.getByRole("button", { name: /Descarga/ }));
+    expect(screen.getByRole("button", { name: /Pegar el bloque/ })).toBeVisible();
   });
 
   it("pegar manda el origen en la ruta y el destino en el cuerpo", async () => {
     const pedido = conTresBloques();
     montarEditor();
-    await screen.findByRole("heading", { name: /Intensificación/ });
-    await userEvent.click(
-      within(bloque("Acumulación")).getByRole("button", { name: /Copiar el bloque/ }),
-    );
-    await userEvent.click(within(bloque("Descarga")).getByRole("button", { name: /Pegar/ }));
+    await screen.findByRole("heading", { name: /Acumulación/ });
 
-    const alta = pedido.mock.calls.find(
+    await userEvent.click(screen.getByRole("button", { name: /Copiar el bloque/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Descarga/ }));
+    await userEvent.click(screen.getByRole("button", { name: /Pegar el bloque/ }));
+
+    const llamada = pedido.mock.calls.find(
       ([u, o]) => String(u).includes("/duplicate") && o?.method === "POST",
     );
-    expect(String(alta![0])).toContain("/api/mesocycles/m1/duplicate");
-    expect(JSON.parse(String(alta![1]!.body))).toEqual({ to_mesocycle: "m3" });
+    expect(String(llamada![0])).toContain("/mesocycles/m1/duplicate");
+    expect(JSON.parse(String(llamada![1]!.body))).toEqual({ to_mesocycle: "m3" });
   });
 });
 
@@ -971,33 +973,30 @@ describe("dos bloques que se llaman igual", () => {
   it("las sesiones quedan sólo en el bloque al que pertenecen", async () => {
     conNombresRepetidos();
     montarEditor();
-    // Se espera a las semanas y no al encabezado del bloque: el bloque se dibuja
+    // Se espera a la semana y no al encabezado del bloque: el bloque se dibuja
     // antes de que la agenda resuelva, y ahí todavía no hay ningún día.
-    await screen.findAllByRole("heading", { name: "Semana 1" });
+    await screen.findByRole("heading", { name: "Semana 1" });
 
-    const primero = screen.getByRole("heading", { name: /1\. Acumulación/ }).closest("section")!;
-    const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
+    // El primero tiene los dos días de la semana 1. Se cuentan por
+    // `aria-expanded`, que es lo que lleva el botón de cada día.
+    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(2);
 
-    // Las tres sesiones de la agenda son del bloque m1, y dos de ellas caen en
-    // la semana 1, que es la que abre el riel. Se cuentan por `aria-expanded`,
-    // que es lo que lleva el botón de cada día.
-    //
-    // Lo que este caso vigila es el **cero** del segundo bloque: agrupar por
-    // nombre en vez de por id le llenaba las semanas con los días del otro.
-    expect(primero.querySelectorAll("button[aria-expanded]")).toHaveLength(2);
-    expect(segundo.querySelectorAll("button[aria-expanded]")).toHaveLength(0);
+    // El segundo se llama igual y está vacío. Ése es el cero que este caso
+    // vigila: agrupar por nombre en vez de por id le llenaba las semanas con los
+    // días del otro, y el bloque vacío parecía lleno.
+    await userEvent.click(screen.getByRole("button", { name: /2.*Acumulación/ }));
+    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(0);
+    expect(screen.getByText("Sin sesiones")).toBeVisible();
   });
 
   it("y el bloque vacío ofrece pegar, aunque el otro se llame igual", async () => {
     conNombresRepetidos();
     montarEditor();
-    await screen.findAllByRole("heading", { name: "Semana 1" });
+    await screen.findByRole("heading", { name: "Semana 1" });
 
-    const primero = screen.getByRole("heading", { name: /1\. Acumulación/ }).closest("section")!;
-    await userEvent.click(within(primero).getByRole("button", { name: /Copiar el bloque/ }));
-
-    const segundo = screen.getByRole("heading", { name: /2\. Acumulación/ }).closest("section")!;
-    expect(within(segundo).getByRole("button", { name: /Pegar/ })).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: /Copiar el bloque/ }));
+    await userEvent.click(screen.getByRole("button", { name: /2.*Acumulación/ }));
+    expect(screen.getByRole("button", { name: /Pegar el bloque/ })).toBeVisible();
   });
 });
 

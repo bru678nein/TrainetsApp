@@ -690,6 +690,41 @@ form { margin: 0 0 var(--paso); }
   .selector select { min-height: 44px; }
 }
 
+/* --- La tira de bloques ----------------------------------------------------
+ *
+ * Los mesociclos como pastillas arriba de las semanas, uno abierto por vez.
+ *
+ * Estaban apilados, cada uno con su riel de semanas y su lateral de proyección:
+ * con tres bloques había tres rieles en la misma pantalla, y saber en qué semana
+ * de cuál bloque estabas era imposible — que es exactamente lo que el riel vino
+ * a resolver un nivel más abajo.
+ *
+ * Más chicas que el riel a propósito: un bloque se elige una vez y se trabaja
+ * dentro un rato largo, mientras que de semana se cambia todo el tiempo. La
+ * jerarquía visual sigue a la frecuencia de uso, no a la del árbol.
+ */
+.tira { list-style: none; margin: 0 0 var(--paso-medio); padding: 0;
+  display: flex; gap: 6px; flex-wrap: wrap; }
+
+.tira__bloque {
+  display: flex; align-items: center; gap: var(--paso);
+  min-height: 40px; padding: 6px var(--paso-medio);
+  border: 1px solid var(--borde); border-radius: var(--radio);
+  background: var(--papel-hundido); color: var(--tinta-suave);
+  font: inherit; cursor: pointer;
+}
+.tira__bloque:hover { border-color: var(--borde-fuerte); color: var(--tinta); }
+.tira__bloque--abierto {
+  background: var(--hecho); border-color: var(--hecho); color: var(--papel-elevado);
+  font-weight: 600;
+}
+.tira__bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
+
+/* El ordinal es el que ancla: «bloque 2» es como el entrenador lo nombra. */
+.tira__ordinal { font-weight: 600; }
+.tira__nombre { white-space: nowrap; }
+.tira__semanas { font-size: var(--texto-micro); opacity: 0.8; }
+
 /* --- El riel de semanas ----------------------------------------------------
  *
  * Las cuatro semanas del bloque como una fila de pastillas, y abajo la que esté

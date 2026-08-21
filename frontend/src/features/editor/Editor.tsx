@@ -975,9 +975,7 @@ function Semana({
   const salto = elegido !== null ? desplazamiento(meso, numero, elegido) : null;
 
   return (
-    <section
-      className={`semana${editando ? " semana--editando" : ""}`}
-    >
+    <section className={`semana${editando ? " semana--editando" : ""}`}>
       <div className="semana__cabecera">
         <h4 className="semana__titulo">Semana {numero}</h4>
         <span className="semana__cuenta">
@@ -1481,6 +1479,10 @@ export function Rutina({ atletaId }: { atletaId: string }) {
   // no de cada bloque: la proyección es la columna de la derecha, y dos abiertas
   // a la vez serían dos futuros distintos compitiendo por el mismo lugar.
   const [proyectando, setProyectando] = useState<string | null>(null);
+  // Qué bloque está abierto. Uno solo: apilados, cada uno traía su propio riel
+  // de semanas, y con tres bloques había tres rieles en pantalla — que es
+  // exactamente el ancla que el riel vino a dar.
+  const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
   const mesociclos = useMesociclos(programa);
 
   if (programas.isPending) return <Cargando que="los programas" />;
@@ -1527,15 +1529,51 @@ export function Rutina({ atletaId }: { atletaId: string }) {
           >
             {(lista) => {
               const proyectado = lista.find((m) => m.id === proyectando);
+              const abierto =
+                lista.find((m) => m.id === bloqueAbierto) ?? lista[0];
               return (
                 <div
                   className={`editor${proyectado ? " editor--con-lateral" : ""}`}
                 >
                   <div className="editor__contenido">
-                    {lista.map((meso) => (
+                    {/* La tira de bloques.
+
+                        Todos a la vista y uno abierto, igual que el riel hace
+                        con las semanas: la jerarquía se lee en una sola
+                        dirección —atleta, programa, bloque, semana, día— en vez
+                        de repetirse apilada.
+
+                        Copiar y pegar bloques sobrevive porque la tira no se va
+                        de la pantalla: se copia uno, se hace clic en otro, y se
+                        pega. Con las semanas hubo que reemplazarlo justamente
+                        porque el origen desaparecía al elegir el destino. */}
+                    <ol className="tira" aria-label="Bloques del programa">
+                      {lista.map((meso) => (
+                        <li key={meso.id}>
+                          <button
+                            type="button"
+                            className={`tira__bloque${meso.id === abierto?.id ? " tira__bloque--abierto" : ""}${meso.id === bloqueCopiado ? " tira__bloque--copiado" : ""}`}
+                            aria-current={
+                              meso.id === abierto?.id ? "true" : undefined
+                            }
+                            onClick={() => setBloqueAbierto(meso.id)}
+                          >
+                            <span className="tira__ordinal numeros">
+                              {meso.ordinal}
+                            </span>
+                            <span className="tira__nombre">{meso.label}</span>
+                            <span className="tira__semanas numeros">
+                              {meso.week_count} sem
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ol>
+
+                    {abierto ? (
                       <Bloque
-                        key={meso.id}
-                        meso={meso}
+                        key={abierto.id}
+                        meso={abierto}
                         atletaId={atletaId}
                         cuantos={lista.length}
                         copiado={bloqueCopiado}
@@ -1543,7 +1581,7 @@ export function Rutina({ atletaId }: { atletaId: string }) {
                         proyectando={proyectando}
                         onProyectar={setProyectando}
                       />
-                    ))}
+                    ) : null}
                   </div>
                   {/* Fuera de la tarjeta del bloque a propósito: es una columna
                       de la pantalla, no una parte de un mesociclo. Adentro
