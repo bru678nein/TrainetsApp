@@ -267,6 +267,10 @@ class CoachOut(BaseModel):
     id: uuid.UUID
     display_name: str
     athlete_count: int
+    #: Beta de uno. Viaja para que la interfaz no ofrezca un control que el
+    #: servidor va a rechazar: un botón que contesta 403 es peor que uno que no
+    #: está. Se saca junto con la beta.
+    puede_importar: bool = False
 
 
 # --- El editor de rutinas -------------------------------------------------------

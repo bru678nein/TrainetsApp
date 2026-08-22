@@ -109,6 +109,8 @@ class Coach(Base):
     # provider reaches the schema: the webhook translates its vocabulary into
     # these two columns, so changing provider touches no policy.
     referencia_externa: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    #: Beta de uno: el importador de planillas. Se saca cuando la prueba termine.
+    puede_importar: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[AppUser] = relationship()

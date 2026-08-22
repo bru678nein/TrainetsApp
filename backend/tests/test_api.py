@@ -162,6 +162,54 @@ class TestAnalytics:
             assert 0 <= w["in_range_rate"] <= 1
 
 
+class TestMiEspacio:
+    """`GET /api/coach`: lo que la interfaz necesita saber del entrenador."""
+
+    def test_devuelve_el_espacio_de_quien_pregunta(self, client, seeded) -> None:
+        r = client.get("/api/coach")
+        assert r.status_code == 200, r.text
+        cuerpo = r.json()
+        assert cuerpo["athlete_count"] >= 1
+        assert cuerpo["puede_importar"] is False
+
+    def test_resuelve_la_identidad_por_la_fila_y_no_por_el_sub(self, client, seeded, db) -> None:
+        """El error que casi se va: `app_current_user_id()` traduce el `sub` a la
+        fila de `app_user` y devuelve **su id**, no el `sub`.
+
+        Comparado contra `auth_user_id` no coincide nunca. Y no falla ruidosamente:
+        contesta 404, que se lee como «todavía no sos entrenador» — la misma
+        respuesta que le corresponde a alguien que de verdad no lo es. Este caso
+        existe porque los dos son 404 y sólo uno está bien.
+        """
+        import sqlalchemy as sa
+
+        r = client.get("/api/coach")
+        assert r.status_code == 200, "el entrenador sembrado tiene espacio"
+
+        db.execute(sa.text("RESET ROLE"))
+        sub, fila = db.execute(
+            sa.text("""
+                SELECT u.auth_user_id, u.id::text FROM app_user u
+                  JOIN coach c ON c.user_id = u.id LIMIT 1
+            """)
+        ).first()
+        # Si fueran el mismo valor, la consulta equivocada pasaría igual y este
+        # test no probaría nada.
+        assert sub != fila, "el sub y el id de la fila tienen que ser distintos"
+
+    def test_quien_no_es_entrenador_recibe_404_y_no_403(self, raw_client, mint) -> None:
+        """No tener espacio no es un permiso denegado: es que no existe.
+
+        El 403 lo usa el listado para el mismo caso y tiene salida —darse de
+        alta—; acá el 404 dice qué falta sin sugerir que hay algo prohibido.
+        """
+        r = raw_client.get(
+            "/api/coach",
+            headers={"Authorization": f"Bearer {mint('sub-sin-espacio')}", "Active-Role": "coach"},
+        )
+        assert r.status_code in (403, 404), r.text
+
+
 class TestElListadoTraeConQueDecidir:
     """El listado existe para contestar quién se está cayendo.
 

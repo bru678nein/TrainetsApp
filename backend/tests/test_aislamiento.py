@@ -73,6 +73,11 @@ SIN_IDENTIFICADOR = {
     # sin dueño y sin dato de nadie. No hay nada que filtrar, y decirlo acá es
     # más honesto que escribir un test que no puede fallar.
     "/api/movement-patterns",
+    # El espacio de quien pregunta. No recibe identificador porque el sujeto es
+    # el token: pedir «el espacio de otro» no es una ruta que exista. Que no
+    # filtre lo cubre `TestMiEspacio` en `test_api.py`, que comprueba que la
+    # identidad se resuelve por la fila de `app_user` y no por el `sub`.
+    "/api/coach",
 } | SIN_ROL
 
 

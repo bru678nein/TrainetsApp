@@ -679,7 +679,47 @@ def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)
 
     atletas = db.scalars(select(Athlete).where(Athlete.coach_id == coach.id)).all()
     db.commit()
-    return CoachOut(id=coach.id, display_name=persona.display_name, athlete_count=len(atletas))
+    return CoachOut(
+        id=coach.id,
+        display_name=persona.display_name,
+        athlete_count=len(atletas),
+        puede_importar=coach.puede_importar,
+    )
+
+
+@router.get("/coach", response_model=CoachOut)
+def mi_espacio(ctx: TenantContext = Depends(require_tenant_context)) -> CoachOut:
+    """El espacio del entrenador que está pidiendo.
+
+    Existía sólo el alta, así que la interfaz no tenía de dónde leer nada del
+    entrenador — ni siquiera su propio nombre. Se agrega ahora porque la beta del
+    importador necesita que el front sepa si ofrecerlo, y ofrecerlo siempre para
+    que el servidor conteste 403 es exactamente lo que esta aplicación no hace.
+
+    Contesta 404 y no 403 a quien todavía no es entrenador: no tener espacio no
+    es un permiso denegado, es que no existe.
+    """
+    db = ctx.db
+    fila = (
+        db.execute(
+            text("""
+        SELECT c.id, u.display_name, c.puede_importar,
+               (SELECT count(*) FROM athlete a WHERE a.coach_id = c.id) AS athlete_count
+          FROM coach c JOIN app_user u ON u.id = c.user_id
+         -- Por `u.id` y no por `u.auth_user_id`: `app_current_user_id()` traduce
+         -- el `sub` del token a la fila de `app_user` y devuelve **su id**, no el
+         -- `sub`. Comparado contra `auth_user_id` no coincide nunca, y el modo de
+         -- falla es un 404 para todo el mundo, que se lee como «no sos
+         -- entrenador» en vez de como una consulta mal escrita.
+         WHERE u.id = app_current_user_id()
+    """)
+        )
+        .mappings()
+        .first()
+    )
+    if fila is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "todavía no tenés un espacio de entrenador")
+    return CoachOut(**fila)
 
 
 #: Cada rechazo con su código. Distinguibles a propósito: un link vencido no se
