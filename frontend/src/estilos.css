@@ -395,12 +395,48 @@ form { margin: 0 0 var(--paso); }
 
 .grafica__pie { margin: 4px 0 var(--paso-medio); font-size: var(--texto-chico); color: var(--tinta-suave); }
 
+/* --- El volumen, en columnas superpuestas -----------------------------------
+ *
+ * La hueca es lo prescrito y la llena lo hecho, dentro. El faltante es el hueco
+ * de arriba — sin leyenda, porque no hay dos alturas que comparar.
+ */
+.columnas {
+  list-style: none; margin: var(--paso-medio) 0 0; padding: 0;
+  display: flex; align-items: flex-end; gap: var(--paso);
+  height: 220px;
+}
+.columnas__semana {
+  flex: 1 1 0; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 4px;
+}
+/* La columna hueca: borde y fondo prescrito, alineada abajo para que crezca
+   hacia arriba como una columna y no como una caja. */
+.columnas__prescrito {
+  width: 100%; max-width: 56px;
+  background: var(--prescrito);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-chico);
+  display: flex; align-items: flex-end;
+  min-height: 2px;
+}
+.columnas__hecho {
+  display: block; width: 100%;
+  background: var(--hecho);
+  border-radius: 0 0 3px 3px;
+}
+/* --tinta-suave y no --tinta-tenue: son cifras chicas y tienen que leerse. */
+.columnas__cifra { font-size: var(--texto-micro); color: var(--tinta-suave); }
+.columnas__etiqueta { font-size: var(--texto-micro); color: var(--tinta-suave); font-weight: 600; }
+
 /* --- Adherencia ---------------------------------------------------------------- */
 
 .adherencia { list-style: none; margin: 0; padding: 0; }
 .adherencia__fila {
   display: grid;
-  grid-template-columns: minmax(9rem, 190px) 1fr 3rem 4.5rem;
+  /* 4,5rem no alcanzaba para «22 de 27 series» y el denominador se partía en
+     dos renglones, que en una lista de cuatro filas descuadra las cuatro. */
+  grid-template-columns: minmax(9rem, 190px) 1fr 3rem 8.5rem;
   align-items: center;
   gap: var(--paso);
   margin-bottom: calc(var(--paso) * 0.75);
@@ -421,7 +457,15 @@ form { margin: 0 0 var(--paso); }
   background: var(--hecho);
   border-radius: var(--radio-chico);
 }
-.adherencia__hecho--flojo { background: var(--alerta); }
+/* Tres bandas y no dos.
+ *
+ * Con un solo corte en 90%, un 33% y un 89% se dibujaban del mismo color: la
+ * lista está ordenada por peor, y el color no agregaba nada a lo que ya decía el
+ * orden. El corte de 90 se conserva —lo que estaba bien sigue estándolo— y se
+ * parte la mitad mala, que es donde el entrenador tiene que elegir a quién
+ * mirar primero. */
+.adherencia__hecho--flojo { background: var(--aviso); }
+.adherencia__hecho--grave { background: var(--alerta); }
 .adherencia__cifra { font-variant-numeric: tabular-nums; font-weight: 600; }
 .adherencia__base { color: var(--tinta-suave); font-variant-numeric: tabular-nums; }
 
@@ -647,7 +691,7 @@ form { margin: 0 0 var(--paso); }
 
 @media (max-width: 640px) {
   .marco__contenido { padding: var(--paso-grande) var(--paso) calc(var(--paso) * 8); }
-  .adherencia__fila { grid-template-columns: 1fr 3rem 4.5rem; }
+  .adherencia__fila { grid-template-columns: 1fr 3rem 8.5rem; }
   .adherencia__nombre { grid-column: 1 / -1; text-align: left; }
 }
 

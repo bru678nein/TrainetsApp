@@ -1,5 +1,4 @@
 import { screen } from "@testing-library/react";
-import { cloneElement, type ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,25 +8,17 @@ import { Volumen } from "./Volumen";
 const pedir = vi.hoisted(() => vi.fn());
 vi.mock("../../api/useApi", () => ({ useApi: () => pedir }));
 
-// Recharts mide su contenedor para dibujar y en jsdom todo mide cero. Se le da
-// tamaño al contenedor y nada más: el resto del gráfico es el real.
-vi.mock("recharts", async (original) => ({
-  ...(await original<typeof import("recharts")>()),
-  // Le inyecta las medidas al hijo, que es lo que hace el contenedor real. Sin
-  // eso el gráfico mide cero y no dibuja nada, y los tests hablarían de una
-  // pantalla vacía creyendo que hablan del gráfico.
-  ResponsiveContainer: ({ children }: { children: ReactElement }) =>
-    cloneElement(children, { width: 600, height: 300 } as never),
-}));
-
-// Recharts mide su contenedor para dibujar y en jsdom todo mide cero, así que
-// el área del gráfico queda vacía. Estos tests no afirman nada sobre las barras
-// —eso se ve mirando, y el plan dice que no se testea— sino sobre lo que sí es
-// invisible: que las dos series estén declaradas, que el selector funcione, y
-// que los tres estados existan.
+// Las columnas se dibujan a mano y no con la librería de gráficos, así que se
+// pueden afirmar de verdad: la altura sale de un `style` y las cifras son texto.
+// Lo que no se afirma es cómo se ve — eso se mira.
+// Dos semanas de tamaños distintos, y no una: con una sola, el techo del gráfico
+// **es** lo prescrito de esa semana, así que dividir por el techo y dividir por
+// la columna dan el mismo número. Un test con una semana no puede distinguir las
+// dos fórmulas — verificado por mutación, pasaba en verde con la equivocada.
 const FILAS = [
   { week: 1, pattern: "isquios", sets_planned: 14, sets_done: 11, tonnage_kg: 0 },
   { week: 1, pattern: "cuadriceps", sets_planned: 12, sets_done: 12, tonnage_kg: 0 },
+  { week: 2, pattern: "isquios", sets_planned: 6, sets_done: 3, tonnage_kg: 0 },
 ];
 
 describe("la vista de volumen", () => {
@@ -36,12 +27,29 @@ describe("la vista de volumen", () => {
     pedir.mockResolvedValue(FILAS);
   });
 
-  it("dibuja las dos series y no sólo lo hecho", async () => {
-    // Sin la serie de lo prescrito es lo que da cualquier app de registro: no se
-    // puede ver dónde el plan se despegó de la realidad.
+  it("cada semana lleva lo prescrito y lo hecho, no sólo lo hecho", async () => {
+    // Sin lo prescrito es lo que da cualquier app de registro: no se puede ver
+    // dónde el plan se despegó de la realidad.
+    //
+    // Se afirma sobre las dos cifras y no sobre una leyenda: la leyenda se sacó
+    // a propósito —la columna hueca con la llena adentro se lee sin ella— y un
+    // test que la buscara estaría vigilando el adorno en vez del dato.
     montar(<Volumen atletaId="a1" />);
-    expect(await screen.findByText("prescrito")).toBeInTheDocument();
-    expect(screen.getByText("hecho")).toBeInTheDocument();
+    // 26 prescritas y 23 hechas entre los dos patrones de la semana 1.
+    expect(await screen.findByText("23/26")).toBeInTheDocument();
+    expect(screen.getByLabelText("Semana 1: 23 de 26 series")).toBeInTheDocument();
+  });
+
+  it("la altura de lo hecho es su proporción de lo prescrito", async () => {
+    // Es lo único que el dibujo tiene que decir: cuánto del plan entró. Si la
+    // altura saliera del total en vez de la columna, dos semanas de tamaños
+    // distintos se verían iguales.
+    montar(<Volumen atletaId="a1" />);
+    await screen.findByText("23/26");
+    const columnas = document.querySelectorAll<HTMLElement>(".columnas__hecho");
+    // Semana 1: 23 de 26 es 88,46%. Semana 2: 3 de 6 es 50%.
+    expect(columnas[0]!.style.height).toMatch(/^88\.4/);
+    expect(columnas[1]!.style.height).toBe("50%");
   });
 
   it("ofrece elegir un patrón, y arranca en todos", async () => {

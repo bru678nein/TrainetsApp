@@ -7,6 +7,9 @@ const porcentaje = (n: number) => `${Math.round(n * 100)}%`;
 function Fila({ dato }: { dato: AdherenciaDePatron }) {
   const nombreDe = useNombreDePatron();
   const flojo = dato.completion_rate < 0.9;
+  // Debajo del 60% no es «viene flojo», es que no lo está haciendo. Con un solo
+  // corte, 33% y 89% se dibujaban iguales.
+  const grave = dato.completion_rate < 0.6;
   return (
     <li className="adherencia__fila">
       <span className={`adherencia__nombre${flojo ? " adherencia__nombre--flojo" : ""}`}>
@@ -14,7 +17,7 @@ function Fila({ dato }: { dato: AdherenciaDePatron }) {
       </span>
       <span className="adherencia__pista">
         <span
-          className={`adherencia__hecho${flojo ? " adherencia__hecho--flojo" : ""}`}
+          className={`adherencia__hecho${grave ? " adherencia__hecho--grave" : flojo ? " adherencia__hecho--flojo" : ""}`}
           style={{ width: porcentaje(dato.completion_rate) }}
         />
       </span>
