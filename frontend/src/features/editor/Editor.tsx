@@ -60,9 +60,12 @@ function Aviso({ de }: { de: { isError: boolean; error: unknown } }) {
 function NuevoMesociclo({
   programaId,
   siguiente,
+  onListo,
 }: {
   programaId: string;
   siguiente: number;
+  /** Se llama al crear: el formulario se abre desde la tira y se cierra solo. */
+  onListo: () => void;
 }) {
   const [label, setLabel] = useState("");
   const [semanas, setSemanas] = useState(4);
@@ -86,10 +89,15 @@ function NuevoMesociclo({
       className="tarjeta tarjeta--tenue"
       onSubmit={(e) => {
         e.preventDefault();
-        crear.mutate(undefined, { onSuccess: () => setLabel("") });
+        crear.mutate(undefined, {
+          onSuccess: () => {
+            setLabel("");
+            onListo();
+          },
+        });
       }}
     >
-      <h4>Nuevo mesociclo</h4>
+      <h4>Nuevo bloque</h4>
       <label>
         Nombre{" "}
         <input
@@ -1313,10 +1321,20 @@ function Bloque({
 
   return (
     <section className={`tarjeta${esteCopiado ? " bloque--copiado" : ""}`}>
+      {/* Una sola fila. El título, la progresión y las tres acciones eran dos
+          renglones para la misma cosa: qué bloque es y qué se puede hacer con
+          él. El editor tenía doce filas de cabecera antes del primer ejercicio.
+
+          La progresión va como chip y no como frase: es un dato de tres números,
+          y escrito «Progresión declarada: [0, 0, -1, -1]» ocupaba un renglón
+          entero para decir lo que entra en una pastilla. */}
       <div className="bloque__cabecera">
-        <h3>
-          {meso.ordinal}. {meso.label} — {meso.week_count} semanas
-        </h3>
+        <h3>{meso.label}</h3>
+        <span className="chip numeros" title="Cuánto mueve el RIR cada semana">
+          {meso.rir_progression
+            ? `RIR ${meso.rir_progression.join(" · ")}`
+            : "sin progresión"}
+        </span>
         <button
           type="button"
           className="sutil"
@@ -1344,21 +1362,6 @@ function Bloque({
             {esteCopiado ? "Copiado" : "Copiar"}
           </button>
         ) : null}
-      </div>
-      <p className="bloque__progresion">
-        {meso.rir_progression ? (
-          <>
-            Progresión declarada:{" "}
-            <strong>[{meso.rir_progression.join(", ")}]</strong>
-          </>
-        ) : (
-          <>
-            Este bloque no declara progresión: pegar una semana la copia igual.
-          </>
-        )}{" "}
-        {/* Enciende el panel de la pantalla en vez de abrir uno propio: la
-            proyección es una sola y muestra el bloque que se esté mirando. Dos
-            abiertas serían dos futuros distintos en la misma pantalla. */}
         <button
           type="button"
           className="sutil"
@@ -1369,7 +1372,8 @@ function Bloque({
             ? "Ocultar la proyección"
             : "Ver la proyección"}
         </button>
-      </p>
+      </div>
+
       <Consulta consulta={agenda} que="las sesiones">
         {(todas) => {
           // Por id y no por nombre: la etiqueta la escribe el entrenador y puede
@@ -1483,6 +1487,11 @@ export function Rutina({ atletaId }: { atletaId: string }) {
   // de semanas, y con tres bloques había tres rieles en pantalla — que es
   // exactamente el ancla que el riel vino a dar.
   const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
+  // El alta de bloque estaba siempre abierta: una tarjeta con nombre, semanas y
+  // progresión ocupando lugar de forma permanente para algo que se hace una vez
+  // cada varias semanas. Ahora es la última pastilla de la tira, que es donde el
+  // entrenador ya está mirando cuando quiere otro bloque.
+  const [creandoBloque, setCreandoBloque] = useState(false);
   const mesociclos = useMesociclos(programa);
 
   if (programas.isPending) return <Cargando que="los programas" />;
@@ -1494,7 +1503,12 @@ export function Rutina({ atletaId }: { atletaId: string }) {
 
   return (
     <>
-      <NuevoPrograma atletaId={atletaId} />
+      {/* Sólo cuando no hay ninguno: es el único momento en que hay que crearlo,
+          y con uno ya creado el formulario es una caja de texto permanente para
+          algo que casi nadie vuelve a hacer. */}
+      {programas.data.length === 0 ? (
+        <NuevoPrograma atletaId={atletaId} />
+      ) : null}
       {programas.data.length > 1 ? (
         <label>
           Programa{" "}
@@ -1513,11 +1527,9 @@ export function Rutina({ atletaId }: { atletaId: string }) {
 
       {elegido ? (
         <>
-          <h3>{elegido.name}</h3>
-          <NuevoMesociclo
-            programaId={elegido.id}
-            siguiente={(mesociclos.data?.length ?? 0) + 1}
-          />
+          {/* El nombre del programa se dibuja sólo si hay más de uno, y ahí lo
+              dice el selector de arriba. Con uno solo, un título que nunca
+              cambia no distingue nada de nada. */}
           <Consulta
             consulta={mesociclos}
             que="los mesociclos"
@@ -1568,7 +1580,25 @@ export function Rutina({ atletaId }: { atletaId: string }) {
                           </button>
                         </li>
                       ))}
+                      <li>
+                        <button
+                          type="button"
+                          className="tira__bloque tira__bloque--nuevo"
+                          aria-expanded={creandoBloque}
+                          onClick={() => setCreandoBloque(!creandoBloque)}
+                        >
+                          <Mas /> Bloque
+                        </button>
+                      </li>
                     </ol>
+
+                    {creandoBloque ? (
+                      <NuevoMesociclo
+                        programaId={elegido.id}
+                        siguiente={lista.length + 1}
+                        onListo={() => setCreandoBloque(false)}
+                      />
+                    ) : null}
 
                     {abierto ? (
                       <Bloque

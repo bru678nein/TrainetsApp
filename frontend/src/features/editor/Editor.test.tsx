@@ -977,15 +977,20 @@ describe("dos bloques que se llaman igual", () => {
     // antes de que la agenda resuelva, y ahí todavía no hay ningún día.
     await screen.findByRole("heading", { name: "Semana 1" });
 
-    // El primero tiene los dos días de la semana 1. Se cuentan por
-    // `aria-expanded`, que es lo que lleva el botón de cada día.
-    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(2);
+    // El primero tiene los dos días de la semana 1. Se cuentan dentro de la
+    // semana abierta y no sobre el documento: `aria-expanded` lo lleva cualquier
+    // control que despliegue algo —el «+ Bloque» de la tira, por ejemplo— y
+    // contarlos todos hace que este caso se rompa cada vez que aparece uno.
+    const dias = () =>
+      screen.getByRole("heading", { name: "Semana 1" }).closest("section")!
+        .querySelectorAll("button[aria-expanded]");
+    expect(dias()).toHaveLength(2);
 
     // El segundo se llama igual y está vacío. Ése es el cero que este caso
     // vigila: agrupar por nombre en vez de por id le llenaba las semanas con los
     // días del otro, y el bloque vacío parecía lleno.
     await userEvent.click(screen.getByRole("button", { name: /2.*Acumulación/ }));
-    expect(document.querySelectorAll("button[aria-expanded]")).toHaveLength(0);
+    expect(dias()).toHaveLength(0);
     expect(screen.getByText("Sin sesiones")).toBeVisible();
   });
 
