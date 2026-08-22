@@ -5,6 +5,7 @@ import uuid
 import zipfile
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func, select, text, update
@@ -739,18 +740,29 @@ def importar_planilla(
     from collections import defaultdict
 
     from importer.from_spreadsheet import construir_estructura, read_rows
+    from importer.plantilla import leer as leer_plantilla
+    from importer.plantilla import parece_plantilla
 
     with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
         tmp.write(archivo.file.read())
         tmp.flush()
         try:
-            filas, nombre, etiquetas = read_rows(tmp.name)
+            # Cuál de los dos formatos es, por su forma y no por su nombre: los
+            # entrenadores renombran las hojas y el nombre no dice nada de la
+            # estructura. La plantilla se reconoce por su encabezado; la planilla
+            # migrada, por su hoja `DATOS`.
+            if parece_plantilla(tmp.name):
+                filas, nombre, etiquetas, avisos = leer_plantilla(tmp.name)
+            else:
+                filas, nombre, etiquetas = read_rows(tmp.name)
+                avisos = []
         except (KeyError, TypeError, ValueError, zipfile.BadZipFile) as error:
             # El detalle del parser no se filtra: dice más de la implementación
             # que del problema, y el problema es siempre el mismo.
             raise HTTPException(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "no se pudo leer la planilla: revisá que tenga las hojas DATOS y ATLETA",
+                "no se pudo leer la planilla: no tiene ni la grilla de semanas y "
+                "sesiones ni una hoja DATOS",
             ) from error
 
     if not filas:
@@ -759,12 +771,20 @@ def importar_planilla(
             "la planilla no tiene ninguna fila con ejercicio",
         )
 
+    # La plantilla no trae el nombre en ninguna celda: está en el nombre del
+    # archivo. Se usa tal cual y no se le recorta nada —«ENTRENAMIENTO» y demás—
+    # porque adivinar qué parte es el nombre erra con cualquier convención que no
+    # sea la de este entrenador. Renombrarlo en la aplicación son dos segundos.
+    if not nombre:
+        nombre = Path(archivo.filename or "Atleta importado").stem.strip() or "Atleta importado"
     atleta = Athlete(coach_id=coach.id, full_name=nombre, level="intermedio")
     db.add(atleta)
     db.flush()
 
     stats: defaultdict[str, int] = defaultdict(int)
-    revisar: list[str] = []
+    # Arranca con lo que el lector ya marcó: las celdas que Excel arruinó se
+    # detectan al leer, no al construir.
+    revisar: list[str] = list(avisos)
     construir_estructura(
         db,
         coach,

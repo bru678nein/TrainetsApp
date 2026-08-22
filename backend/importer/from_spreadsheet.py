@@ -179,13 +179,24 @@ def construir_estructura(
     #
     # `run()` nunca lo vio porque arranca de una base vacía. Lo encontró el test
     # del endpoint, que importa sobre el espacio sembrado.
+    # La clave es el nombre **en minúsculas**, igual que el índice.
+    #
+    # `exercise_name_scope_idx` es único sobre `(coach_id, lower(name))`, así que
+    # «REMO AL MENTÓN» y «Remo al mentón» son el mismo ejercicio para la base y
+    # dos distintos para un `==`. La plantilla los escribe de las dos formas en
+    # hojas distintas, y sin esto la importación entera muere en la primera
+    # repetición. Encontrado corriéndolo contra el archivo real, no leyéndolo.
     exercises: dict[str, Exercise] = {}
     for r in rows:
         name = r["Ejercicio"]
-        if name in exercises:
+        clave = str(name).strip().lower()
+        if clave in exercises:
+            exercises[name] = exercises[clave]
             continue
         ex = db.scalars(
-            select(Exercise).where(Exercise.coach_id == coach.id, Exercise.name == name)
+            select(Exercise).where(
+                Exercise.coach_id == coach.id, func.lower(Exercise.name) == clave
+            )
         ).first()
         if ex is None:
             ex = Exercise(
@@ -196,6 +207,7 @@ def construir_estructura(
             )
             db.add(ex)
             stats["exercises"] += 1
+        exercises[clave] = ex
         exercises[name] = ex
 
     program = Program(coach=coach, athlete=athlete, name=program_name, status="completed")

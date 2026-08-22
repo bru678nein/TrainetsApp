@@ -99,3 +99,89 @@ class TestLoQueRechaza:
         r = client.post("/api/athletes/import", files={"archivo": ("otra.xlsx", buf.getvalue())})
         assert r.status_code == 422, r.text
         assert "DATOS" in r.json()["detail"]
+
+
+class TestLaPlantillaDeLosEntrenadores:
+    """El otro formato: la plantilla que los entrenadores usan de verdad.
+
+    No tiene hoja `DATOS` ni `ATLETA`. Es una **grilla**: las columnas son
+    semanas —el encabezado se repite hacia la derecha— y las filas son sesiones.
+    Leerla como una lista trae un quinto del archivo y hace creer que cada bloque
+    tiene una sola semana.
+    """
+
+    def test_lee_la_grilla_entera_y_no_la_primera_columna(self) -> None:
+        """El error que se cometió escribiendo esto, hecho test.
+
+        Se construye una hoja con dos semanas a lo ancho. Leyendo sólo la primera
+        columna salen la mitad de las series y una sola semana, y todo lo demás
+        parece andar — que es por qué hace falta este caso.
+        """
+        import io
+
+        import openpyxl
+
+        from importer.plantilla import leer
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "BLOQUE 1"
+        cabecera = ["Patron mov.", "Ejercicio", "Series", "Repeticiones @RPE", "RIR", "Kilos"]
+        # Semana 1 desde la columna B, semana 2 desde la I.
+        ws.cell(row=1, column=2, value="Semana 1")
+        ws.cell(row=1, column=9, value="Semana 2")
+        ws.cell(row=2, column=2, value="Sesión 1")
+        ws.cell(row=2, column=9, value="Sesión 1")
+        for d, texto in enumerate(cabecera):
+            ws.cell(row=3, column=2 + d, value=texto)
+            ws.cell(row=3, column=9 + d, value=texto)
+        for d, valor in enumerate(["SQUAT", "HIGH BAR SQUAT", 3, "6 a 8", "@3", "80k"]):
+            ws.cell(row=4, column=2 + d, value=valor)
+        for d, valor in enumerate(["SQUAT", "HIGH BAR SQUAT", 3, "6 a 8", "@2", "90k"]):
+            ws.cell(row=4, column=9 + d, value=valor)
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
+            tmp.write(buf.getvalue())
+            tmp.flush()
+            filas, _, etiquetas, _avisos = leer(tmp.name)
+
+        assert etiquetas == {1: "BLOQUE 1"}
+        assert sorted({f["Semana"] for f in filas}) == [1, 2], "las columnas son semanas"
+        # Tres series por semana, dos semanas.
+        assert len(filas) == 6
+
+        semana2 = [f for f in filas if f["Semana"] == 2]
+        assert semana2[0]["RIR plan mín"] == 2, "la semana 2 aprieta el RIR"
+        assert semana2[0]["Kg plan"] == 90
+
+    def test_el_rir_con_arroba_es_rir_y_no_rpe(self) -> None:
+        """`@2-3` es RIR, medido: 231 de 231 valores del archivo real caen entre 0
+        y 4, y ninguno entre 6 y 10.
+
+        Leerlo como RPE invertiría la señal que es el corazón del producto: RPE 8
+        equivale a RIR 2, así que la aplicación diría que el atleta entrena cerca
+        del fallo cuando entrena lejos.
+        """
+        from importer.plantilla import _rango
+
+        revisar: list[str] = []
+        assert _rango("@2-3", "x", revisar) == (2.0, 3.0)
+        assert _rango("@0-1", "x", revisar) == (0.0, 1.0)
+        assert revisar == []
+
+    def test_una_fecha_no_se_reconstruye_en_repeticiones(self) -> None:
+        """Excel convierte `4-5` en una fecha al tipearlo. La intención original no
+        se puede recuperar, así que queda en nulo y se marca — nunca se deduce del
+        mes y el día."""
+        from datetime import datetime
+
+        from importer.plantilla import _rango
+
+        revisar: list[str] = []
+        assert _rango(datetime(2026, 5, 4), "sesión 1 · Sentadilla", revisar) == (None, None)
+        assert revisar == ["sesión 1 · Sentadilla: Excel convirtió el valor en una fecha"]
