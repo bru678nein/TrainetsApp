@@ -185,3 +185,51 @@ class TestLaPlantillaDeLosEntrenadores:
         revisar: list[str] = []
         assert _rango(datetime(2026, 5, 4), "sesión 1 · Sentadilla", revisar) == (None, None)
         assert revisar == ["sesión 1 · Sentadilla: Excel convirtió el valor en una fecha"]
+
+    def test_un_patron_nuevo_queda_del_entrenador_y_no_en_la_base_comun(
+        self, client, seeded, db
+    ) -> None:
+        """El caso que los otros no ven, y que rompía la importación entera.
+
+        Los tests que ya existían suben la planilla migrada, cuyos patrones están
+        todos en la base compartida: nunca se crea uno, así que nunca se toca esa
+        policy. La plantilla de los entrenadores trae los suyos —«SQUAT», «Rodilla
+        dominante»— y ahí aparece: bajo RLS un entrenador **no puede** escribir un
+        patrón sin dueño, y el constructor los creaba globales.
+
+        Que además sea lo correcto es lo de fondo: la base común la trae la
+        migración y es del esquema. El vocabulario de uno no va al catálogo de
+        todos.
+        """
+        import io
+
+        import openpyxl
+        import sqlalchemy as sa
+
+        _habilitar(db)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "BLOQUE ÚNICO"
+        ws.cell(row=1, column=2, value="Semana 1")
+        ws.cell(row=2, column=2, value="Sesión 1")
+        for d, texto in enumerate(
+            ["Patron mov.", "Ejercicio", "Series", "Repeticiones @RPE", "RIR", "Kilos"]
+        ):
+            ws.cell(row=3, column=2 + d, value=texto)
+        for d, valor in enumerate(
+            ["PATRÓN INVENTADO", "EJERCICIO INVENTADO", 2, "6 a 8", "@2", "70k"]
+        ):
+            ws.cell(row=4, column=2 + d, value=valor)
+        buf = io.BytesIO()
+        wb.save(buf)
+
+        r = client.post("/api/athletes/import", files={"archivo": ("p.xlsx", buf.getvalue())})
+        assert r.status_code == 201, r.text
+        assert r.json()["creados"]["patterns"] == 1
+
+        db.execute(sa.text("RESET ROLE"))
+        dueño = db.execute(
+            sa.text("SELECT coach_id FROM movement_pattern WHERE label_es = :l"),
+            {"l": "PATRÓN INVENTADO"},
+        ).scalar()
+        assert dueño is not None, "un patrón importado es del entrenador, no de la base común"

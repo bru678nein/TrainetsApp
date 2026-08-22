@@ -166,7 +166,17 @@ def construir_estructura(
         code = slug(label)
         mp = db.get(MovementPattern, code)
         if mp is None:
-            mp = MovementPattern(code=code, label_es=label, sort_order=i)
+            # Con dueño, y no global.
+            #
+            # La base compartida la trae la migración 0019 y es del esquema. Un
+            # patrón que aparece en la planilla de alguien es **su** vocabulario
+            # —«SQUAT», «Rodilla dominante»— y meterlo en la base común ensucia
+            # el catálogo de todos los demás.
+            #
+            # Además la base lo impide: bajo RLS un entrenador no puede escribir
+            # un `movement_pattern` sin dueño, así que sin esto la importación
+            # entera muere. Como dueño el script no lo veía; el endpoint sí.
+            mp = MovementPattern(code=code, label_es=label, sort_order=i, coach_id=coach.id)
             db.add(mp)
             stats["patterns"] += 1
         patterns[label] = mp
