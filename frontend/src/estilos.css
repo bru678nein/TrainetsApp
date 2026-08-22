@@ -1247,6 +1247,39 @@ form { margin: 0 0 var(--paso); }
 .ejercicio__nombre { font-size: var(--texto-medio); }
 .ejercicio__borrar:hover:not(:disabled) { color: var(--alerta); background: var(--alerta-tenue); }
 
+/* --- Importar una planilla -------------------------------------------------
+ *
+ * Al lado del alta a mano, porque es la otra forma de empezar un atleta.
+ *
+ * El `input[type=file]` va escondido y la etiqueta hace de botón: el control
+ * nativo no se puede estilar y en cada sistema se ve distinto — «Seleccionar
+ * archivo» en uno, «Examinar…» en otro— así que el mismo botón no diría lo mismo
+ * en dos máquinas. La etiqueta sigue abriendo el diálogo y el teclado la alcanza
+ * igual, porque el input existe.
+ */
+.alta-de-atleta { display: flex; align-items: flex-start; gap: var(--paso-medio); flex-wrap: wrap; }
+.importar { display: grid; gap: var(--paso); }
+.importar__elegir { cursor: pointer; }
+.importar__archivo {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+/* El foco del input escondido tiene que verse en la etiqueta, o navegar con
+   teclado pasa por acá sin que se note. */
+.importar__elegir:focus-within { outline: 2px solid var(--hecho); outline-offset: 2px; }
+
+.importar__resultado {
+  font-size: var(--texto-chico);
+  background: var(--hecho-tenue);
+  border-radius: var(--radio);
+  padding: var(--paso) var(--paso-medio);
+  max-width: 42rem;
+}
+.importar__resultado p { margin: 0; }
+.importar__resultado details { margin-top: var(--paso); }
+.importar__resultado summary { cursor: pointer; color: var(--tinta); }
+.importar__resultado ul { margin: var(--paso) 0 0; padding-left: 1.2rem; color: var(--tinta-suave); }
+
 /* --- El listado de atletas -------------------------------------------------
  *
  * Filas y no tarjetas. Un entrenador con veinte atletas quiere verlos a todos

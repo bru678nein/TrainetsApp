@@ -68,12 +68,25 @@ export async function pedirAlApi(
   // and the backend refuses to guess it. A person can be a coach and somebody
   // else's athlete at the same time.
   if (opciones.rol) cabeceras["Active-Role"] = opciones.rol;
-  if (opciones.cuerpo !== undefined) cabeceras["Content-Type"] = "application/json";
+  // Un archivo va como `FormData` y se manda tal cual: serializarlo a JSON lo
+  // convertiría en `{}`, y **el `Content-Type` no se pone a mano** porque el
+  // navegador tiene que agregarle el `boundary`. Escribirlo nosotros produce un
+  // pedido que el servidor no puede partir, y el error que devuelve habla de
+  // formato en vez de decir que falta el borde.
+  const archivo = opciones.cuerpo instanceof FormData;
+  if (opciones.cuerpo !== undefined && !archivo) {
+    cabeceras["Content-Type"] = "application/json";
+  }
 
   const respuesta = await fetch(`${API_URL}${ruta}`, {
     method: opciones.metodo ?? "GET",
     headers: cabeceras,
-    body: opciones.cuerpo === undefined ? undefined : JSON.stringify(opciones.cuerpo),
+    body:
+      opciones.cuerpo === undefined
+        ? undefined
+        : archivo
+          ? (opciones.cuerpo as FormData)
+          : JSON.stringify(opciones.cuerpo),
     signal: opciones.signal,
   });
 

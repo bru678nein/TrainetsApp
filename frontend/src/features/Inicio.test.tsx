@@ -42,8 +42,19 @@ function almacenamientoFalso(): Storage {
   };
 }
 
+/**
+ * Con qué rol se pidió **el listado de fichas**, que es la consulta de la que
+ * habla este archivo.
+ *
+ * Acotado a esa ruta y no a todos los pedidos: la pantalla hace más de uno —el
+ * espacio del entrenador, por ejemplo— y contarlos todos hace que este caso se
+ * rompa cada vez que alguien agrega una consulta, diciendo que el rol falló
+ * cuando lo que cambió fue otra cosa.
+ */
 function rolesPedidos(pedido: Mock<typeof fetch>): string[] {
-  return pedido.mock.calls.map(([, o]) => new Headers(o?.headers).get("Active-Role") ?? "");
+  return pedido.mock.calls
+    .filter(([u]) => new URL(String(u), "http://x").pathname === "/api/athletes")
+    .map(([, o]) => new Headers(o?.headers).get("Active-Role") ?? "");
 }
 
 describe("la pantalla de entrada depende del rol", () => {

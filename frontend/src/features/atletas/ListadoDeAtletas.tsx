@@ -7,6 +7,8 @@ import {
   useCambiarEstado,
   useCrearAtleta,
   useCrearCoach,
+  useImportarPlanilla,
+  useMiEspacio,
   type Accion,
   type Atleta,
 } from "../../api/consultas";
@@ -81,6 +83,88 @@ function NuevoAtleta() {
         </p>
       ) : null}
     </form>
+  );
+}
+
+/**
+ * La otra forma de empezar un atleta: subiendo su planilla.
+ *
+ * Está al lado de «Agregar» porque es eso — la alternativa a escribir el nombre
+ * y armar el programa a mano, no una función escondida en otro lado.
+ *
+ * **Se dibuja sólo si el servidor dice que sí.** Está en prueba con un
+ * entrenador, y ofrecer un botón que contesta 403 es peor que no ofrecerlo: el
+ * que lo aprieta descubre que no puede, y no hay nada que pueda hacer al
+ * respecto.
+ */
+function ImportarPlanilla() {
+  const espacio = useMiEspacio();
+  const importar = useImportarPlanilla();
+
+  if (!espacio.data?.puede_importar) return null;
+
+  return (
+    <div className="importar">
+      <label className="boton importar__elegir">
+        {importar.isPending ? "Importando…" : "Importar desde Excel"}
+        <input
+          type="file"
+          accept=".xlsx,.xlsm"
+          className="importar__archivo"
+          disabled={importar.isPending}
+          onChange={(e) => {
+            const archivo = e.target.files?.[0];
+            // El valor se limpia para que elegir el mismo archivo dos veces
+            // vuelva a disparar el evento: sin esto, reintentar después de un
+            // error no hace nada y parece que el botón se rompió.
+            e.target.value = "";
+            if (archivo) importar.mutate(archivo);
+          }}
+        />
+      </label>
+
+      {importar.isSuccess ? (
+        <div className="importar__resultado" role="status">
+          <p>
+            Se creó <strong>{importar.data.athlete_name}</strong> con{" "}
+            <span className="numeros">
+              {importar.data.creados.prescribed_sets ?? 0}
+            </span>{" "}
+            series prescritas en{" "}
+            <span className="numeros">
+              {importar.data.creados.mesocycles ?? 0}
+            </span>{" "}
+            bloques.
+          </p>
+          {/* No es una lista de errores: es lo que el parseo no pudo
+              desambiguar y dejó vacío en vez de inventar. Se muestra porque hay
+              que corregirlo a mano, y esconderlo sería dejar huecos silenciosos
+              en el programa. */}
+          {importar.data.revisar.length > 0 ? (
+            <details>
+              <summary>
+                <span className="numeros">{importar.data.revisar.length}</span>{" "}
+                series quedaron sin repeticiones: la planilla decía dos cosas a
+                la vez
+              </summary>
+              <ul>
+                {importar.data.revisar.map((donde) => (
+                  <li key={donde}>{donde}</li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
+
+      {importar.isError ? (
+        <p className="estado estado--falla" role="alert">
+          {importar.error instanceof ErrorDelApi && importar.error.detalle
+            ? importar.error.detalle
+            : "No se pudo importar la planilla."}
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -327,7 +411,10 @@ export function ListadoDeAtletas() {
             ) : null}
           </p>
         </div>
-        <NuevoAtleta />
+        <div className="alta-de-atleta">
+          <NuevoAtleta />
+          <ImportarPlanilla />
+        </div>
       </div>
 
       <div className="fila filtros-de-atletas">

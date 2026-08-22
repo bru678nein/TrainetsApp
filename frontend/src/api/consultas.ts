@@ -145,7 +145,52 @@ export function useAceptarInvitacion() {
 
 // --- El espacio del entrenador --------------------------------------------------
 
-export type Coach = { id: string; display_name: string; athlete_count: number };
+export type Coach = {
+  id: string;
+  display_name: string;
+  athlete_count: number;
+  /** Beta de uno: el importador de planillas. Decide si el botón se dibuja. */
+  puede_importar: boolean;
+};
+
+export type Importacion = {
+  athlete_id: string;
+  athlete_name: string;
+  creados: Record<string, number>;
+  /** Lo que el parseo no pudo desambiguar y dejó en nulo, para corregir a mano. */
+  revisar: string[];
+};
+
+/**
+ * El espacio del entrenador que está mirando.
+ *
+ * Se pide para saber qué ofrecerle, no para mostrarlo: un botón que el servidor
+ * va a rechazar con 403 es peor que uno que no está.
+ */
+export function useMiEspacio() {
+  const pedir = useApi("coach");
+  return useQuery({
+    queryKey: ["mi-espacio"],
+    // Si todavía no es entrenador contesta 404, y eso no es una falla que
+    // haya que reintentar.
+    retry: false,
+    queryFn: ({ signal }) => pedir("/api/coach", signal) as Promise<Coach>,
+  });
+}
+
+export function useImportarPlanilla() {
+  const enviar = useEnviar("coach");
+  const cliente = useQueryClient();
+  return useMutation({
+    mutationFn: (archivo: File) => {
+      const cuerpo = new FormData();
+      cuerpo.append("archivo", archivo);
+      return enviar("/api/athletes/import", cuerpo) as Promise<Importacion>;
+    },
+    // El listado cambia: apareció una ficha nueva.
+    onSuccess: () => cliente.invalidateQueries({ queryKey: ["atletas"] }),
+  });
+}
 
 /**
  * El alta de entrenador, que es el agujero que hacía que entrar por primera vez
