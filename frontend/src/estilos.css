@@ -690,6 +690,29 @@ form { margin: 0 0 var(--paso); }
   .selector select { min-height: 44px; }
 }
 
+/* --- Cabeceras de bloque y de semana --------------------------------------
+ *
+ * Estas reglas se perdieron en el rediseño del listado: la sección del listado
+ * se reemplazó cortando hasta el siguiente `/* ---`, y éstas vivían adentro de
+ * ese rango bajo un comentario que no lo llevaba. El JSX las siguió usando y
+ * nada falló — no hay test que mire CSS, y en el espécimen se veían iguales
+ * porque el espécimen carga esta misma hoja.
+ */
+.filtros-de-atletas { margin-bottom: var(--paso-grande); }
+.filtros-de-atletas > input[type="search"] { flex: 1 1 14rem; min-width: 0; }
+
+.semana__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap; }
+.semana__cabecera .semana__titulo { margin: 0; margin-right: auto; }
+
+/* El título y el chip de progresión pegados, y las acciones a la derecha: son
+   dos grupos, no seis controles sueltos en fila. */
+.bloque__cabecera { display: flex; align-items: center; gap: var(--paso); flex-wrap: wrap;
+  margin-bottom: var(--paso-medio); }
+.bloque__cabecera h3 { margin: 0; }
+.bloque__cabecera .chip { margin-right: auto; }
+.bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
+.bloque__pegar { grid-column: 1 / -1; margin: 0 0 var(--paso); }
+
 /* --- La tira de bloques ----------------------------------------------------
  *
  * Los mesociclos como pastillas arriba de las semanas, uno abierto por vez.
@@ -719,6 +742,9 @@ form { margin: 0 0 var(--paso); }
   font-weight: 600;
 }
 .tira__bloque--copiado { outline: 2px dashed var(--hecho); outline-offset: 2px; }
+/* El alta al final de la fila, punteada: se lee como «acá sigue» y no como un
+   bloque más. */
+.tira__bloque--nuevo { border-style: dashed; background: transparent; }
 
 /* El ordinal es el que ancla: «bloque 2» es como el entrenador lo nombra. */
 .tira__ordinal { font-weight: 600; }
