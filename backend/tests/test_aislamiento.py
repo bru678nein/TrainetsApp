@@ -78,6 +78,10 @@ SIN_IDENTIFICADOR = {
     # filtre lo cubre `TestMiEspacio` en `test_api.py`, que comprueba que la
     # identidad se resuelve por la fila de `app_user` y no por el `sub`.
     "/api/coach",
+    # Importar tampoco recibe identificador: crea una ficha nueva en el espacio
+    # de quien pide, y el dueño sale del token. Que sólo la reciba el entrenador
+    # habilitado lo cubre `test_importar_planilla.py`.
+    "/api/athletes/import",
 } | SIN_ROL
 
 

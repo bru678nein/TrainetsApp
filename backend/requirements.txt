@@ -12,3 +12,7 @@ psycopg[binary]>=3.2
 pyjwt[crypto]>=2.13.0
 httpx>=0.27
 openpyxl>=3.1
+# Subir la planilla por el endpoint de importación. FastAPI no lo trae: sin
+# esto, un `UploadFile` levanta RuntimeError al recibir el primer pedido, no al
+# arrancar — o sea que la ruta parece estar y falla recién cuando alguien la usa.
+python-multipart>=0.0.20

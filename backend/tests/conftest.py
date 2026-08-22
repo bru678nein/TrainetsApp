@@ -441,6 +441,16 @@ def seeded() -> None:
 
 
 @pytest.fixture
+def planilla(seeded: None) -> bytes:
+    """El libro real, en bytes, para subirlo por el endpoint de importación.
+
+    Depende de `seeded` para saltearse por el mismo motivo que el resto: el
+    archivo no está versionado porque tiene datos personales.
+    """
+    return SPREADSHEET.read_bytes()
+
+
+@pytest.fixture
 def athlete_id(client: TestClient, seeded: None) -> str:
     body = client.get("/api/athletes").json()
     if not body:

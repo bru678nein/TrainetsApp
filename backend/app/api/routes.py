@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import tempfile
 import uuid
+import zipfile
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session as OrmSession
 from sqlalchemy.orm import selectinload
@@ -47,6 +49,7 @@ from app.schemas import (
     CoachOut,
     EstadoOut,
     ExerciseBlock,
+    ImportacionOut,
     InvitacionAceptada,
     InvitacionCreada,
     LoadPointOut,
@@ -684,6 +687,102 @@ def alta_de_entrenador(ctx: TenantContext = Depends(require_identity_for_signup)
         display_name=persona.display_name,
         athlete_count=len(atletas),
         puede_importar=coach.puede_importar,
+    )
+
+
+@router.post(
+    "/athletes/import",
+    response_model=ImportacionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def importar_planilla(
+    archivo: UploadFile = File(...),
+    ctx: TenantContext = Depends(require_tenant_context),
+) -> ImportacionOut:
+    """Una planilla entera como ficha nueva: atleta, programa, bloques y series.
+
+    **Beta de un entrenador.** El formato que lee es el del libro con el que se
+    desarrolló el producto —hoja `DATOS`, hoja `ATLETA`, el nombre en B5— y no
+    intenta adivinar ningún otro. Un importador que adivina no falla
+    ruidosamente: deja prescripciones plausibles y equivocadas, y después alguien
+    programa arriba de eso.
+
+    Crea una ficha nueva en vez de importar sobre una existente, porque es lo que
+    hace en la pantalla: está al lado de «Agregar atleta» y es la otra forma de
+    empezar uno.
+
+    **No trae el historial**, y no es una simplificación: bajo RLS un entrenador
+    no puede escribir `logged_set` —registrar es el acto del atleta— así que la
+    base rechazaría esas filas. Lo que entra es lo que el entrenador podría haber
+    escrito a mano, más rápido.
+
+    Lo que el parseo no puede desambiguar vuelve en `revisar`, en nulo y sin
+    inventar.
+    """
+    db = solo_entrenador_al_dia(ctx, "sólo un entrenador importa planillas")
+
+    # La misma forma que usa el resto: la identidad la traduce la base, no Python.
+    coach_id = db.scalar(text("SELECT id FROM coach WHERE user_id = app_current_user_id()"))
+    coach = db.get(Coach, coach_id) if coach_id else None
+    if coach is None or not coach.puede_importar:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "importar planillas está en prueba y todavía no está habilitado en tu cuenta",
+        )
+
+    if not (archivo.filename or "").lower().endswith((".xlsx", ".xlsm")):
+        raise HTTPException(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "sólo se puede importar una planilla de Excel (.xlsx)",
+        )
+
+    from collections import defaultdict
+
+    from importer.from_spreadsheet import construir_estructura, read_rows
+
+    with tempfile.NamedTemporaryFile(suffix=".xlsx") as tmp:
+        tmp.write(archivo.file.read())
+        tmp.flush()
+        try:
+            filas, nombre, etiquetas = read_rows(tmp.name)
+        except (KeyError, TypeError, ValueError, zipfile.BadZipFile) as error:
+            # El detalle del parser no se filtra: dice más de la implementación
+            # que del problema, y el problema es siempre el mismo.
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "no se pudo leer la planilla: revisá que tenga las hojas DATOS y ATLETA",
+            ) from error
+
+    if not filas:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "la planilla no tiene ninguna fila con ejercicio",
+        )
+
+    atleta = Athlete(coach_id=coach.id, full_name=nombre, level="intermedio")
+    db.add(atleta)
+    db.flush()
+
+    stats: defaultdict[str, int] = defaultdict(int)
+    revisar: list[str] = []
+    construir_estructura(
+        db,
+        coach,
+        atleta,
+        filas,
+        etiquetas,
+        "Importado de planilla",
+        stats,
+        revisar,
+        con_registros=False,
+    )
+    db.commit()
+
+    return ImportacionOut(
+        athlete_id=atleta.id,
+        athlete_name=atleta.full_name,
+        creados=dict(stats),
+        revisar=sorted(set(revisar)),
     )
 
 

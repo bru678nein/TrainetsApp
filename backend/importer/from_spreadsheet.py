@@ -138,6 +138,156 @@ def read_rows(xlsx: str) -> tuple[list[dict[str, Any]], str, dict[int, str]]:
     return rows, athlete_name, mesos
 
 
+def construir_estructura(
+    db: OrmSession,
+    coach: Coach,
+    athlete: Athlete,
+    rows: list[dict[str, Any]],
+    meso_labels: dict[int, str],
+    program_name: str,
+    stats: defaultdict[str, int],
+    review: list[str],
+    con_registros: bool,
+) -> None:
+    """Lo que la planilla describe, como filas de la base.
+
+    Sale de `run()` para que lo pueda usar también el endpoint de importación,
+    que corre **dentro del contexto del entrenador** y no como dueño. Los dos
+    caminos construyen lo mismo, o la beta importaría algo distinto de lo que
+    importó la migración original — que es justo lo que no se quiere.
+
+    `con_registros` es la única diferencia, y no es una opción de conveniencia:
+    bajo RLS un entrenador **no puede escribir `logged_set`** —la policy lo
+    rechaza, medido contra la base— porque registrar es el acto del atleta. El
+    script corre como dueño y sí puede; la API no, y no debería.
+    """
+    patterns: dict[str, MovementPattern] = {}
+    for i, label in enumerate(sorted({r["Patrón"] for r in rows if r["Patrón"]})):
+        code = slug(label)
+        mp = db.get(MovementPattern, code)
+        if mp is None:
+            mp = MovementPattern(code=code, label_es=label, sort_order=i)
+            db.add(mp)
+            stats["patterns"] += 1
+        patterns[label] = mp
+
+    # Reusar antes de crear, igual que con los patrones de arriba, y por un motivo
+    # que sólo aparece importando sobre un espacio que ya se usó: el catálogo
+    # tiene un único por (entrenador, nombre). Un entrenador que ya venía
+    # trabajando en la aplicación tiene la mitad de estos ejercicios cargados, y
+    # crearlos a ciegas revienta la importación entera contra ese índice.
+    #
+    # `run()` nunca lo vio porque arranca de una base vacía. Lo encontró el test
+    # del endpoint, que importa sobre el espacio sembrado.
+    exercises: dict[str, Exercise] = {}
+    for r in rows:
+        name = r["Ejercicio"]
+        if name in exercises:
+            continue
+        ex = db.scalars(
+            select(Exercise).where(Exercise.coach_id == coach.id, Exercise.name == name)
+        ).first()
+        if ex is None:
+            ex = Exercise(
+                coach=coach,
+                pattern_code=patterns[r["Patrón"]].code,
+                name=name,
+                is_competition_lift=(r["Básico"] == "Sí"),
+            )
+            db.add(ex)
+            stats["exercises"] += 1
+        exercises[name] = ex
+
+    program = Program(coach=coach, athlete=athlete, name=program_name, status="completed")
+    db.add(program)
+
+    # Weeks per mesocycle, for week_count and for the relative week number
+    weeks_by_meso: dict[int, set[int]] = defaultdict(set)
+    for r in rows:
+        weeks_by_meso[int(r["Meso #"])].add(int(r["Semana"]))
+
+    mesos: dict[int, Mesocycle] = {}
+    for n in sorted(weeks_by_meso):
+        m = Mesocycle(
+            program=program,
+            ordinal=n,
+            week_count=len(weeks_by_meso[n]),
+            label=meso_labels.get(n, f"Mesociclo {n}"),
+        )
+        mesos[n] = m
+        db.add(m)
+        stats["mesocycles"] += 1
+
+    sessions: dict[tuple[int, int], Session] = {}
+    prescriptions: dict[tuple[int, int, str], Prescription] = {}
+
+    for r in rows:
+        meso_n, week_g, day = int(r["Meso #"]), int(r["Semana"]), int(r["Sesión"] or 1)
+        # Week number relative to the mesocycle
+        week_rel = sorted(weeks_by_meso[meso_n]).index(week_g) + 1
+        skey = (week_g, day)
+        if skey not in sessions:
+            sessions[skey] = Session(mesocycle=mesos[meso_n], week_number=week_rel, day_number=day)
+            db.add(sessions[skey])
+            stats["sessions"] += 1
+
+        pkey = (week_g, day, r["Ejercicio"])
+        if pkey not in prescriptions:
+            pos = len([k for k in prescriptions if k[0] == week_g and k[1] == day]) + 1
+            rest = r["Descanso"]
+            secs = None
+            if isinstance(rest, str):
+                nums = re.findall(r"\d+", rest)
+                if nums:
+                    secs = int(nums[-1]) * 60
+            prescriptions[pkey] = Prescription(
+                session=sessions[skey],
+                exercise=exercises[r["Ejercicio"]],
+                position=pos,
+                rest_seconds=secs,
+                coach_note=r["Observación"],
+            )
+            db.add(prescriptions[pkey])
+            stats["prescriptions"] += 1
+
+        rmin, rmax = clean_range(
+            r["Reps plan mín"], r["Reps plan máx"], f"S{week_g} D{day} {r['Ejercicio']}", review
+        )
+        ps = PrescribedSet(
+            prescription=prescriptions[pkey],
+            set_number=int(r["Serie #"]),
+            reps_min=rmin,
+            reps_max=rmax,
+            rir_min=dec(r["RIR plan mín"]),
+            rir_max=dec(r["RIR plan máx"]),
+            target_load_kg=dec(r["Kg plan"]),
+        )
+        db.add(ps)
+        stats["prescribed_sets"] += 1
+
+        if con_registros and r["Reps real"] is not None:
+            e1rm = None
+            if r["Kg real"] and r["RIR real"] is not None:
+                try:
+                    e1rm = estimate_1rm(
+                        float(r["Kg real"]), int(r["Reps real"]), float(r["RIR real"])
+                    )
+                except (OutOfChartError, ValueError):
+                    stats["e1rm_out_of_chart"] += 1
+            db.add(
+                LoggedSet(
+                    prescribed_set=ps,
+                    athlete=athlete,
+                    reps=r["Reps real"],
+                    load_kg=dec(r["Kg real"]),
+                    rir=dec(r["RIR real"]),
+                    athlete_note=r["Comentario"],
+                    e1rm_kg=dec(e1rm),
+                )
+            )
+            stats["logged_sets"] += 1
+
+
 def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[str]]:
     """Populate an already-migrated database. Returns (counts, sets needing review)."""
     rows, athlete_name, meso_labels = read_rows(xlsx)
@@ -172,124 +322,17 @@ def run(xlsx: str, dsn: str, reset: bool = False) -> tuple[dict[str, int], list[
         # hits the primary key. They also survive `--reset` — they belong to the
         # schema, not to this import — so this branch is the normal path, not
         # the edge case.
-        patterns: dict[str, MovementPattern] = {}
-        for i, label in enumerate(sorted({r["Patrón"] for r in rows if r["Patrón"]})):
-            code = slug(label)
-            mp = db.get(MovementPattern, code)
-            if mp is None:
-                mp = MovementPattern(code=code, label_es=label, sort_order=i)
-                db.add(mp)
-                stats["patterns"] += 1
-            patterns[label] = mp
-
-        exercises: dict[str, Exercise] = {}
-        for r in rows:
-            name = r["Ejercicio"]
-            if name in exercises:
-                continue
-            ex = Exercise(
-                coach=coach,
-                pattern_code=patterns[r["Patrón"]].code,
-                name=name,
-                is_competition_lift=(r["Básico"] == "Sí"),
-            )
-            exercises[name] = ex
-            db.add(ex)
-            stats["exercises"] += 1
-
-        program = Program(
-            coach=coach, athlete=athlete, name="Migrado desde planilla", status="completed"
+        construir_estructura(
+            db,
+            coach,
+            athlete,
+            rows,
+            meso_labels,
+            "Migrado desde planilla",
+            stats,
+            review,
+            con_registros=True,
         )
-        db.add(program)
-
-        # Weeks per mesocycle, for week_count and for the relative week number
-        weeks_by_meso: dict[int, set[int]] = defaultdict(set)
-        for r in rows:
-            weeks_by_meso[int(r["Meso #"])].add(int(r["Semana"]))
-
-        mesos: dict[int, Mesocycle] = {}
-        for n in sorted(weeks_by_meso):
-            m = Mesocycle(
-                program=program,
-                ordinal=n,
-                week_count=len(weeks_by_meso[n]),
-                label=meso_labels.get(n, f"Mesociclo {n}"),
-            )
-            mesos[n] = m
-            db.add(m)
-            stats["mesocycles"] += 1
-
-        sessions: dict[tuple[int, int], Session] = {}
-        prescriptions: dict[tuple[int, int, str], Prescription] = {}
-
-        for r in rows:
-            meso_n, week_g, day = int(r["Meso #"]), int(r["Semana"]), int(r["Sesión"] or 1)
-            # Week number relative to the mesocycle
-            week_rel = sorted(weeks_by_meso[meso_n]).index(week_g) + 1
-            skey = (week_g, day)
-            if skey not in sessions:
-                sessions[skey] = Session(
-                    mesocycle=mesos[meso_n], week_number=week_rel, day_number=day
-                )
-                db.add(sessions[skey])
-                stats["sessions"] += 1
-
-            pkey = (week_g, day, r["Ejercicio"])
-            if pkey not in prescriptions:
-                pos = len([k for k in prescriptions if k[0] == week_g and k[1] == day]) + 1
-                rest = r["Descanso"]
-                secs = None
-                if isinstance(rest, str):
-                    nums = re.findall(r"\d+", rest)
-                    if nums:
-                        secs = int(nums[-1]) * 60
-                prescriptions[pkey] = Prescription(
-                    session=sessions[skey],
-                    exercise=exercises[r["Ejercicio"]],
-                    position=pos,
-                    rest_seconds=secs,
-                    coach_note=r["Observación"],
-                )
-                db.add(prescriptions[pkey])
-                stats["prescriptions"] += 1
-
-            rmin, rmax = clean_range(
-                r["Reps plan mín"], r["Reps plan máx"], f"S{week_g} D{day} {r['Ejercicio']}", review
-            )
-            ps = PrescribedSet(
-                prescription=prescriptions[pkey],
-                set_number=int(r["Serie #"]),
-                reps_min=rmin,
-                reps_max=rmax,
-                rir_min=dec(r["RIR plan mín"]),
-                rir_max=dec(r["RIR plan máx"]),
-                target_load_kg=dec(r["Kg plan"]),
-            )
-            db.add(ps)
-            stats["prescribed_sets"] += 1
-
-            if r["Reps real"] is not None:
-                e1rm = None
-                if r["Kg real"] and r["RIR real"] is not None:
-                    try:
-                        e1rm = estimate_1rm(
-                            float(r["Kg real"]), int(r["Reps real"]), float(r["RIR real"])
-                        )
-                    except (OutOfChartError, ValueError):
-                        stats["e1rm_out_of_chart"] += 1
-                db.add(
-                    LoggedSet(
-                        prescribed_set=ps,
-                        athlete=athlete,
-                        reps=r["Reps real"],
-                        load_kg=dec(r["Kg real"]),
-                        rir=dec(r["RIR real"]),
-                        athlete_note=r["Comentario"],
-                        e1rm_kg=dec(e1rm),
-                    )
-                )
-                stats["logged_sets"] += 1
-
         db.commit()
     stats["sets_needing_review"] = len(review)
     return dict(stats), sorted(set(review))

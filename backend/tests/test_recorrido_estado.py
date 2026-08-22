@@ -44,6 +44,10 @@ ESCRITURAS = {
     "/api/prescriptions/{prescription_id}/sets": False,
     "/api/prescriptions/{prescription_id}/sets/order": False,
     "/api/prescribed-sets/{set_id}": False,
+    # Importar crea una ficha **nueva**: no toca ningún vínculo existente, así
+    # que tener otro atleta archivado no tiene por qué impedirlo. Mismo criterio
+    # que dar de alta un atleta a mano.
+    "/api/athletes/import": True,
     # El catálogo es del entrenador, no del vínculo: crear un ejercicio con un
     # atleta archivado no toca nada de ese atleta.
     "/api/exercises": True,

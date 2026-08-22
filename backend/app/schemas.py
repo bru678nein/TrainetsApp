@@ -646,3 +646,18 @@ class ProyeccionOut(BaseModel):
     semana_base: int | None
     declara_progresion: bool
     semanas: list[SemanaProyectada]
+
+
+class ImportacionOut(BaseModel):
+    """Lo que dejó una importación, contado.
+
+    `revisar` no es una lista de errores: son las series que el parseo **no pudo
+    desambiguar** y dejó en nulo en vez de inventar. Viajan para que el
+    entrenador las corrija a mano, que es lo único honesto que se puede hacer con
+    una prescripción compuesta como «8 a 12 + 2x 3 a 5».
+    """
+
+    athlete_id: uuid.UUID
+    athlete_name: str
+    creados: dict[str, int]
+    revisar: list[str]
